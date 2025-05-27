@@ -629,11 +629,6 @@
     overflow: hidden; /* Important for containing inner elements */
 }
 
-/* Style for the combined card */
-.combined-health-info-card {
-    /* No specific styling needed beyond .card, as it's the container */
-}
-
 .card-header {
     display: flex;
     justify-content: space-between;
