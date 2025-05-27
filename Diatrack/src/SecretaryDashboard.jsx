@@ -1,4 +1,3 @@
-// SecretaryDashboard.jsx — fixed null check for user + doctor join
 import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
 
@@ -6,7 +5,14 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [linkedDoctors, setLinkedDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
-  const [patientForm, setPatientForm] = useState({ firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", contactInfo: "" });
+  const [patientForm, setPatientForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    dateOfBirth: "",
+    contactInfo: ""
+  });
   const [editingPatientId, setEditingPatientId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPatientDetail, setSelectedPatientDetail] = useState(null);
@@ -51,7 +57,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
     const { data, error } = await supabase
       .from("patients")
-      .select("*")
+      .select("*, doctors (doctor_id, first_name, last_name)")
       .in("preferred_doctor_id", doctorIds);
 
     if (!error) setPatients(data);
@@ -59,7 +65,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   };
 
   const handleInputChange = (field, value) => {
-    setPatientForm((prev) => ({ ...prev, [field]: value }));
+    setPatientForm(prev => ({ ...prev, [field]: value }));
   };
 
   const createOrUpdatePatient = async () => {
@@ -165,7 +171,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       <ul>
         {filteredPatients.map((pat) => (
           <li key={pat.patient_id}>
-            {pat.first_name} {pat.last_name} — linked to Doctor ID: {pat.preferred_doctor_id}
+            {pat.first_name} {pat.last_name} — linked to Doctor: {pat.doctors ? `${pat.doctors.first_name} ${pat.doctors.last_name}` : 'Unknown'}
             <button onClick={() => setSelectedPatientDetail(pat)}>View Details</button>
             <button onClick={() => handleEditPatient(pat)}>Edit</button>
             <button onClick={() => handleDeletePatient(pat.patient_id)}>Delete</button>
