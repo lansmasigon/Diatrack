@@ -1,3 +1,4 @@
+// SecretaryDashboard.jsx — fixed null check for user + doctor join
 import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
 
@@ -5,14 +6,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [linkedDoctors, setLinkedDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
-  const [patientForm, setPatientForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    dateOfBirth: "",
-    contactInfo: ""
-  });
+  const [patientForm, setPatientForm] = useState({ firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", contactInfo: "" });
   const [editingPatientId, setEditingPatientId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPatientDetail, setSelectedPatientDetail] = useState(null);
@@ -32,39 +26,22 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   }, [linkedDoctors]);
 
   const fetchLinkedDoctors = async () => {
-    try {
-      // Step 1: Get linked doctor IDs
-      const { data: links, error: linkError } = await supabase
-        .from("secretary_doctor_links")
-        .select("doctor_id")
-        .eq("secretary_id", user.secretary_id);
+    const { data, error } = await supabase
+      .from("secretary_doctor_links")
+      .select("*, doctors (doctor_id, first_name, last_name)")
+      .eq("secretary_id", user.secretary_id);
 
-      if (linkError) throw linkError;
-
-      const doctorIds = links.map(link => link.doctor_id);
-
-      if (doctorIds.length === 0) {
-        setMessage("No doctors linked to this secretary.");
-        return;
-      }
-
-      // Step 2: Fetch doctor details
-      const { data: doctors, error: doctorError } = await supabase
-        .from("doctors")
-        .select("doctor_id, first_name, last_name")
-        .in("doctor_id", doctorIds);
-
-      if (doctorError) throw doctorError;
-
-      const doctorList = doctors.map(doc => ({
-        doctor_id: doc.doctor_id,
-        doctor_name: `${doc.first_name} ${doc.last_name}`
-      }));
-
-      setLinkedDoctors(doctorList);
-    } catch (err) {
-      console.error(err);
-      setMessage(`Error fetching doctors: ${err.message}`);
+    if (!error && data) {
+      const uniqueDoctors = data
+        .filter(d => d.doctors)
+        .map(d => ({
+          doctor_id: d.doctors.doctor_id,
+          doctor_name: `${d.doctors.first_name} ${d.doctors.last_name}`
+        }));
+      setLinkedDoctors(uniqueDoctors);
+    } else {
+      console.error(error);
+      setMessage("Error fetching linked doctors or no links found");
     }
   };
 
@@ -78,10 +55,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       .in("preferred_doctor_id", doctorIds);
 
     if (!error) setPatients(data);
-    else {
-      console.error(error);
-      setMessage(`Error fetching patients: ${error.message}`);
-    }
+    else console.error(error);
   };
 
   const handleInputChange = (field, value) => {
@@ -165,53 +139,20 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       <button onClick={onLogout}>Logout</button>
 
       <h2>{editingPatientId ? "Edit Patient" : "Create Patient Account"}</h2>
-      <select
-        value={selectedDoctorId}
-        onChange={(e) => setSelectedDoctorId(e.target.value)}
-      >
+      <select value={selectedDoctorId} onChange={(e) => setSelectedDoctorId(e.target.value)}>
         <option value="">Select Doctor</option>
         {linkedDoctors.map((doc) => (
-          <option key={doc.doctor_id} value={doc.doctor_id}>
-            {doc.doctor_name}
-          </option>
+          <option key={doc.doctor_id} value={doc.doctor_id}>{doc.doctor_name}</option>
         ))}
       </select>
 
-      <input
-        placeholder="First Name"
-        value={patientForm.firstName}
-        onChange={(e) => handleInputChange("firstName", e.target.value)}
-      />
-      <input
-        placeholder="Last Name"
-        value={patientForm.lastName}
-        onChange={(e) => handleInputChange("lastName", e.target.value)}
-      />
-      <input
-        placeholder="Email"
-        value={patientForm.email}
-        onChange={(e) => handleInputChange("email", e.target.value)}
-      />
-      <input
-        placeholder="Password"
-        type="password"
-        value={patientForm.password}
-        onChange={(e) => handleInputChange("password", e.target.value)}
-      />
-      <input
-        placeholder="Date of Birth"
-        type="date"
-        value={patientForm.dateOfBirth}
-        onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
-      />
-      <input
-        placeholder="Contact Info"
-        value={patientForm.contactInfo}
-        onChange={(e) => handleInputChange("contactInfo", e.target.value)}
-      />
-      <button onClick={createOrUpdatePatient}>
-        {editingPatientId ? "Update Patient" : "Create Patient"}
-      </button>
+      <input placeholder="First Name" value={patientForm.firstName} onChange={(e) => handleInputChange("firstName", e.target.value)} />
+      <input placeholder="Last Name" value={patientForm.lastName} onChange={(e) => handleInputChange("lastName", e.target.value)} />
+      <input placeholder="Email" value={patientForm.email} onChange={(e) => handleInputChange("email", e.target.value)} />
+      <input placeholder="Password" type="password" value={patientForm.password} onChange={(e) => handleInputChange("password", e.target.value)} />
+      <input placeholder="Date of Birth" type="date" value={patientForm.dateOfBirth} onChange={(e) => handleInputChange("dateOfBirth", e.target.value)} />
+      <input placeholder="Contact Info" value={patientForm.contactInfo} onChange={(e) => handleInputChange("contactInfo", e.target.value)} />
+      <button onClick={createOrUpdatePatient}>{editingPatientId ? "Update Patient" : "Create Patient"}</button>
 
       <h2>My Patients</h2>
       <input
@@ -235,18 +176,10 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       {selectedPatientDetail && (
         <div style={{ border: "1px solid #ccc", padding: "10px", marginTop: "10px" }}>
           <h3>Patient Details</h3>
-          <p>
-            <strong>Name:</strong> {selectedPatientDetail.first_name} {selectedPatientDetail.last_name}
-          </p>
-          <p>
-            <strong>Email:</strong> {selectedPatientDetail.email}
-          </p>
-          <p>
-            <strong>Date of Birth:</strong> {selectedPatientDetail.date_of_birth}
-          </p>
-          <p>
-            <strong>Contact Info:</strong> {selectedPatientDetail.contact_info}
-          </p>
+          <p><strong>Name:</strong> {selectedPatientDetail.first_name} {selectedPatientDetail.last_name}</p>
+          <p><strong>Email:</strong> {selectedPatientDetail.email}</p>
+          <p><strong>Date of Birth:</strong> {selectedPatientDetail.date_of_birth}</p>
+          <p><strong>Contact Info:</strong> {selectedPatientDetail.contact_info}</p>
           <button onClick={() => setSelectedPatientDetail(null)}>Close Details</button>
         </div>
       )}
