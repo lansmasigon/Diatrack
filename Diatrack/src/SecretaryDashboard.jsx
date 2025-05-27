@@ -1,4 +1,4 @@
-// SecretaryDashboard.jsx — fixed to correctly fetch linked doctors
+// SecretaryDashboard.jsx — fixed null check for user + doctor join
 import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
 
@@ -13,8 +13,13 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    fetchLinkedDoctors();
-  }, []);
+    if (user && user.secretary_id) {
+      fetchLinkedDoctors();
+    } else {
+      console.error("User or secretary_id is undefined");
+      setMessage("Error: Secretary account not loaded properly.");
+    }
+  }, [user]);
 
   useEffect(() => {
     if (linkedDoctors.length > 0) fetchPatients();
@@ -23,17 +28,20 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const fetchLinkedDoctors = async () => {
     const { data, error } = await supabase
       .from("secretary_doctor_links")
-      .select("doctor_id, doctors:doctor_id (first_name, last_name)")
+      .select("*, doctors (doctor_id, first_name, last_name)")
       .eq("secretary_id", user.secretary_id);
 
-    if (!error) {
-      const uniqueDoctors = data.map(d => ({
-        doctor_id: d.doctor_id,
-        doctor_name: `${d.doctors.first_name} ${d.doctors.last_name}`
-      }));
+    if (!error && data) {
+      const uniqueDoctors = data
+        .filter(d => d.doctors)
+        .map(d => ({
+          doctor_id: d.doctors.doctor_id,
+          doctor_name: `${d.doctors.first_name} ${d.doctors.last_name}`
+        }));
       setLinkedDoctors(uniqueDoctors);
     } else {
-      setMessage("Error fetching linked doctors");
+      console.error(error);
+      setMessage("Error fetching linked doctors or no links found");
     }
   };
 
@@ -47,6 +55,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       .in("preferred_doctor_id", doctorIds);
 
     if (!error) setPatients(data);
+    else console.error(error);
   };
 
   const handleInputChange = (field, value) => {
