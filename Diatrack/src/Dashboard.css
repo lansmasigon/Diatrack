@@ -1,36 +1,40 @@
+/* Fallback if loaded via CSS */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 /* Dashboard.css */
 .dashboard-container {
-  min-height: 100vh;
-  font-family: Verdana, sans-serif;
-  background-color: #f0f2f5;
-  color: #333;
   display: grid;
-  grid-template-columns: 200px 1fr;
-  grid-template-rows: 60px 1fr;
+  grid-template-columns: 200px 1fr;  /* Sidebar + main area */
+  grid-template-rows: 60px 1fr;      /* Header + content */
+  min-height: 100vh;                 /* Always full viewport */
   height: 100vh;
   overflow: hidden;
+  font-family: 'Inter', sans-serif;
+  background-color: #f0f2f5;
+  color: #333;
+  
 }
 
-/* Fixed Sidebar */
+/* Sidebar fixes */
 .fixed-sidebar {
   width: 200px;
-  background-color: #3498db;
-  color: #fff;
+  background-color: White;
+  color: Black;
   position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  display: flex;
   flex-direction: column;
   z-index: 100;
-  grid-column: 1;
-  grid-row: 2;
-  position: sticky;
-  top: 0;
-  height: 100%;
-  display: flex;
+  margin: 0; /* remove any margin */
+  padding: 0; /* remove any padding */
+  box-sizing: border-box;
 }
 
 .fixed-sidebar ul {
   list-style: none;
   padding: 0;
-  margin-top: 20px;
   flex-grow: 1;
 }
 
@@ -76,16 +80,19 @@
 /* Header */
 .header {
   position: fixed;
+  top: 0;
+  left: 200px; /* start right after sidebar */
   height: 60px;
-  background-color: #3498db;
+  width: calc(100% - 200px); /* fill the rest of the width */
+  background-color: White;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   z-index: 200;
-  margin-left: 200px;
-  width: calc(100% - 250px);
+  margin: 0; /* remove any margin */
+  box-sizing: border-box;
 }
 
 .header .search-bar {
@@ -109,7 +116,6 @@
 /* Main Content */
 .main-content {
   margin-left: 5px;
-  padding: 5px;
   flex-grow: 1;
   grid-column: 2;
   grid-row: 2;

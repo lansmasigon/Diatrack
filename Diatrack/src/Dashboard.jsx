@@ -342,6 +342,10 @@ const Dashboard = ({ user, onLogout }) => {
   return (
     <div className="dashboard-container">
       <div className="fixed-sidebar">
+        <h1 className="app-title">
+          <span style={{ color: '#00aaff' }}>DIA</span>
+          <span style={{ color: '#ff9800' }}>TRACK</span>
+        </h1>
         <ul>
           <li onClick={() => setActiveSection("doctor-dashboard")}>Doctor's Dashboard</li>
           <li onClick={() => setActiveSection("patient-profile")}>Patient Profile</li>
@@ -350,10 +354,6 @@ const Dashboard = ({ user, onLogout }) => {
         </ul>
         <button className="signout" onClick={handleLogout}>Sign Out</button>
       </div>
-      <h1 className="app-title">
-        <span style={{ color: '#00aaff' }}>DIA</span>
-        <span style={{ color: '#ff9800' }}>TRACK</span>
-      </h1>
       <div className="header">
         <div className="search-bar">
           <input

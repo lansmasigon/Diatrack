@@ -8,6 +8,7 @@ import SecretaryDashboard from "./SecretaryDashboard";
 import supabase from "./supabaseClient";
 import "./index.css";
 
+
 const App = () => {
   const [currentPage, setCurrentPage] = useState("landing");
   const [user, setUser] = useState(null);
