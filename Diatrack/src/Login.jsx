@@ -1,46 +1,21 @@
+// Login.jsx (updated with role selector)
 import React, { useState } from "react";
-import supabase from "./supabaseClient"; // Import Supabase client
-import "./Login.css"; // Ensure the path is correct
-import landingpic from "../picture/landingpic.png"; // Import your image
+import "./Login.css";
 
-const LoginPage = ({ onLogin, goToSignUp }) => {
+const LoginPage = ({ onLogin }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("");
   const [error, setError] = useState("");
-  const [notification, setNotification] = useState(""); // Notification state
 
-  const handleLogin = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Trim values to remove extra spaces
-    const trimmedEmail = email.trim();
-    const trimmedPassword = password.trim();
-
-    try {
-      // Querying Supabase for the user with matching email and password
-      const { data, error } = await supabase
-        .from("doctors")
-        .select("*")
-        .eq("email", trimmedEmail) // Match email
-        .eq("password", trimmedPassword)   // Match password
-        .single(); // Ensure only one user is returned
-
-      if (error) {
-        throw error;
-      }
-
-      if (data) {
-        onLogin(data); // Pass user data to parent for further processing
-        setNotification("Login successful!");
-        setTimeout(() => setNotification(""), 3000); // Clear notification after 3 seconds
-      } else {
-        setError("Invalid credentials.");
-        setNotification(""); // Clear previous notifications
-      }
-    } catch (err) {
-      setError("Login failed: ");
-      setNotification(""); // Clear previous notifications
+    if (!role) {
+      setError("Please select a role.");
+      return;
     }
+    setError("");
+    await onLogin(email, password, role);
   };
 
   return (
@@ -50,46 +25,37 @@ const LoginPage = ({ onLogin, goToSignUp }) => {
         <span className="title-orange">Track</span>
       </h1>
       <div className="login-form-container">
-        <h2>Welcome Back to Diatrack</h2> {/* Added the h2 */}
-        <form onSubmit={handleLogin} className="login-form">
+        <h2>Login</h2>
+        <form onSubmit={handleSubmit} className="login-form">
           <div className="input-group">
             <input
-              type="email" // Changed input type to email
-              id="email" // Changed id to email
+              type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)} // Changed setEmail
-              placeholder="Email" // Changed placeholder
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
               required
             />
           </div>
           <div className="input-group">
             <input
               type="password"
-              id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
               required
             />
           </div>
+          <div className="input-group">
+            <select value={role} onChange={(e) => setRole(e.target.value)} required>
+              <option value="">Select Role</option>
+              <option value="admin">Admin</option>
+              <option value="doctor">Doctor</option>
+              <option value="secretary">Secretary</option>
+            </select>
+          </div>
           {error && <p className="error-message">{error}</p>}
           <button type="submit" className="login-btn">Login</button>
         </form>
-        <p className="signup-link">
-          New here? <span onClick={goToSignUp}>Create a new account</span>
-        </p>
-      </div>
-
-      {/* Notification */}
-      {notification && (
-        <div className="notification">
-          {notification}
-        </div>
-      )}
-
-      {/* Image at the bottom */}
-      <div className="landingpic-container">
-        <img src={landingpic} alt="Landing" className="landingpic"/>
       </div>
     </div>
   );
