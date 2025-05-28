@@ -1,5 +1,5 @@
-// App.jsx (updated with fixed login logic)
-import React, { useState } from "react";
+// App.jsx (updated with session persistence)
+import React, { useState, useEffect } from "react";
 import LandingPage from "./landingpage";
 import LoginPage from "./Login";
 import Dashboard from "./Dashboard";
@@ -12,9 +12,54 @@ const App = () => {
   const [currentPage, setCurrentPage] = useState("landing");
   const [user, setUser] = useState(null);
   const [role, setRole] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   const goToLogin = () => setCurrentPage("login");
   const goToLanding = () => setCurrentPage("landing");
+
+  // Session persistence - load session on app start
+  useEffect(() => {
+    const loadSession = () => {
+      try {
+        const savedUser = sessionStorage.getItem('diatrack_user');
+        const savedRole = sessionStorage.getItem('diatrack_role');
+        const savedPage = sessionStorage.getItem('diatrack_page');
+
+        if (savedUser && savedRole && savedPage) {
+          setUser(JSON.parse(savedUser));
+          setRole(savedRole);
+          setCurrentPage(savedPage);
+          console.log('Session restored:', { role: savedRole, page: savedPage });
+        }
+      } catch (error) {
+        console.error('Error loading session:', error);
+        // Clear corrupted session data
+        sessionStorage.removeItem('diatrack_user');
+        sessionStorage.removeItem('diatrack_role');
+        sessionStorage.removeItem('diatrack_page');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSession();
+  }, []);
+
+  // Save session whenever user, role, or page changes
+  useEffect(() => {
+    if (!isLoading) {
+      if (user && role && currentPage !== 'landing' && currentPage !== 'login') {
+        sessionStorage.setItem('diatrack_user', JSON.stringify(user));
+        sessionStorage.setItem('diatrack_role', role);
+        sessionStorage.setItem('diatrack_page', currentPage);
+      } else if (currentPage === 'landing' || currentPage === 'login') {
+        // Clear session when on landing or login page
+        sessionStorage.removeItem('diatrack_user');
+        sessionStorage.removeItem('diatrack_role');
+        sessionStorage.removeItem('diatrack_page');
+      }
+    }
+  }, [user, role, currentPage, isLoading]);
 
   const handleLogin = async (email, password, role) => {
     let table = "";
@@ -77,10 +122,30 @@ const App = () => {
   };
 
   const handleLogout = () => {
+    // Clear session storage on logout
+    sessionStorage.removeItem('diatrack_user');
+    sessionStorage.removeItem('diatrack_role');
+    sessionStorage.removeItem('diatrack_page');
+    
     setUser(null);
     setRole("");
     setCurrentPage("landing");
   };
+
+  // Show loading spinner while checking for existing session
+  if (isLoading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        fontSize: '18px'
+      }}>
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <div>
