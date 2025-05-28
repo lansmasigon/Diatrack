@@ -1,6 +1,7 @@
-// Login.jsx (updated with role selector)
 import React, { useState } from "react";
 import "./Login.css";
+// Correct image path for assets in public folder
+import landingpic from "/picture/landingpic.png"; // Use absolute path from the public folder
 
 const LoginPage = ({ onLogin }) => {
   const [email, setEmail] = useState("");
@@ -56,6 +57,11 @@ const LoginPage = ({ onLogin }) => {
           {error && <p className="error-message">{error}</p>}
           <button type="submit" className="login-btn">Login</button>
         </form>
+      </div>
+      
+      {/* Image at the bottom */}
+      <div className="landingpic-container">
+        <img src={landingpic} alt="Landing" className="landingpic" />
       </div>
     </div>
   );

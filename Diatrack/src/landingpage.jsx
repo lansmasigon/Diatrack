@@ -22,7 +22,6 @@ const LandingPage = ({ goToLogin, goToSignUp }) => {
           </div>
           <div className="buttons">
             <button className="login-button" onClick={goToLogin}>Login</button>
-            <button className="signup-button" onClick={goToSignUp}>SignUp</button>
           </div>
         </div>
       </div>

@@ -67,7 +67,10 @@ const Dashboard = ({ user, onLogout }) => {
   };
 
   const handleLogout = () => {
-    onLogout();
+    const confirmLogout = window.confirm("Are you sure you want to log out?");
+    if (confirmLogout) {
+      onLogout();
+    }
   };
 
   const handleSearchChange = (event) => {
@@ -153,7 +156,6 @@ const Dashboard = ({ user, onLogout }) => {
         <table className="patient-list">
           <thead>
             <tr>
-              <th>Patient ID</th>
               <th>Patient Name</th>
               <th>Date of Birth</th>
               <th>Contact Info</th>
@@ -165,7 +167,6 @@ const Dashboard = ({ user, onLogout }) => {
           <tbody>
             {filteredPatients.map((patient) => (
               <tr key={patient.patient_id}>
-                <td>{patient.patient_id}</td>
                 <td>{patient.first_name} {patient.last_name}</td>
                 <td>{patient.date_of_birth}</td>
                 <td>{patient.contact_info}</td>
@@ -223,7 +224,6 @@ const Dashboard = ({ user, onLogout }) => {
                 </div>
               </div>
 
-              {/* Always show medication section, even if empty */}
               <div className="latest-medication-display">
                 <h4>Medication</h4>
                 {editingPatientDetails ? (
@@ -297,22 +297,13 @@ const Dashboard = ({ user, onLogout }) => {
                 </div>
               </div>
               <div className="small-metrics">
-                <div className="small-metric-item">
-                  <img src="path/to/icon1.png" alt="Icon 1" />
-                  <span>39 bpm</span>
-                </div>
-                <div className="small-metric-item">
-                  <img src="path/to/icon2.png" alt="Icon 2" />
-                  <span>39 bpm</span>
-                </div>
+                <div className="small-metric-item"></div>
+                <div className="small-metric-item"></div>
               </div>
             </div>
 
             <hr className="card-section-divider" />
 
-            <div className="card-header">
-              <h3>Notes</h3>
-            </div>
             <div className="card-content">
               {latestMetric && latestMetric.notes && (
                 <div className="latest-notes-card">
@@ -324,14 +315,6 @@ const Dashboard = ({ user, onLogout }) => {
                   </div>
                 </div>
               )}
-              <div className="diabetes-visuals">
-                <div className="foot-wound-image">
-                  <img src="path/to/foot-wound.png" alt="Foot Wound" />
-                </div>
-                <div className="patient-body-illustration">
-                  <img src="path/to/patient-body.png" alt="Patient Body" />
-                </div>
-              </div>
             </div>
           </div>
         </div>

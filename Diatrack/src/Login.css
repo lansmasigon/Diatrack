@@ -1,136 +1,143 @@
+/* General Body/Container Styles */
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-body{
+body {
   font-family: 'Inter', sans-serif;
+  margin: 0;
+  background-color: #f4f7fc; /* Light background */
+  height: 100%; /* Ensure the body takes full height */
+  overflow: hidden; /* Prevent scrolling */
 }
-/* Login.css */
+
+/* Login Page */
 .login-page {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 100vh; /* Ensure full viewport height */
-  background-color: #f4f7fc; /* Light background */
-  padding: 10px;
   box-sizing: border-box;
-  position: relative; /* For absolute positioning of the image */
+  padding: 0; /* Remove padding */
+  margin-bottom: 0; /* Remove bottom margin */
+  position: relative;
+  height: 100%; /* Full screen height */
+  text-align: center;
 }
 
 .login-title {
-  font-size: 2.5rem; /* Slightly smaller title */
-  margin-bottom: 10px; /* Slightly less margin */
-  color: #1780C1; /* Blue "Dia" color */
+  font-size: 4.5rem; /* Slightly smaller font size for DiaTrack */
+  color: black;
   font-weight: bold;
+  margin: 0;
+  
 }
 
 .title-blue {
-  color: #1FAAED; /* Blue "Dia" */
-  font-size: 80px;
+  color: #1FAAED;
 }
 
 .title-orange {
-  color: #f8a50d; /* Orange "Track" */
-  font-size: 80px;
+  color: #f8a50d;
 }
 
+.title-text p {
+  font-size: 1rem;
+  color: #333;
+  margin-bottom: 5px; /* Reduced margin */
+  max-width: 600px; /* Limit the width of the paragraph */
+  display: inline-flex;
+}
+
+.title-text .subtitle {
+  font-size: 0.9rem;
+  color: black;
+}
+
+/* Form Container */
 .login-form-container {
-  background-color: white; /* White form background */
-  padding: 10px; /* Slightly less padding */
+  background-color: white;
   border-radius: 10px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  width: 80%; /* Slightly smaller width */
-  max-width: 300px; /* Smaller maximum width */
+  width: 100%;
+  max-width: 280px; /* Reduced form width */
   text-align: center;
-  z-index: 10; /* Ensure the form is on top */
+  z-index: 10;
+  padding: 10px; /* Reduced padding */
+  margin-bottom: 20px; /* Reduced bottom margin */
+  flex-grow: 1; /* Allow it to grow to fill available space */
 }
 
 .login-form-container h2 {
-  font-size: 1.3rem; /* Slightly smaller heading */
-  margin-bottom: 10px; /* Slightly less margin */
-  color: #333;
+  color: black;
+  font-size: 1.5rem;
+  margin-bottom: 10px;
 }
 
-.login-form {
-  display: flex;
-  flex-direction: column;
-}
-
+/* Form Input Fields */
 .input-group {
-  margin-bottom: 5px; /* Slightly less margin */
+  margin-bottom: 6px; /* Reduced margin for inputs */
   text-align: left;
 }
 
 .input-group label {
   display: block;
-  font-size: 0.85rem; /* Slightly smaller label */
+  font-size: 0.8rem; /* Smaller font size for label */
   color: #555;
-  margin-bottom: 4px; /* Slightly less margin */
+  margin-bottom: 4px;
 }
 
 .input-group input {
-  padding: 9px 11px; /* Slightly smaller padding */
-  font-size: 0.95rem; /* Slightly smaller input text */
+  font-size: 0.9rem; /* Smaller font size for input */
   width: 100%;
   border: 1px solid #ccc;
   border-radius: 5px;
   box-sizing: border-box;
+  padding: 6px; /* Reduced padding for compactness */
 }
 
 .input-group input:focus {
-  border-color: #1f8acb;
+  border-color: black;
   outline: none;
   box-shadow: 0 0 6px rgba(31, 138, 203, 0.2);
 }
 
+/* Button */
 .login-btn {
-  background-color: #f8a50d; /* Orange login button */
+  background-color: #f8a50d; /* Orange button */
   color: white;
-  padding: 10px 16px; /* Slightly smaller padding */
   border: none;
   border-radius: 20px;
-  font-size: 0.95rem; /* Slightly smaller button text */
+  font-size: 1rem;
   cursor: pointer;
   transition: background-color 0.3s ease;
-  margin-top: 12px; /* Slightly less margin */
   width: 100%; /* Make button full width */
+  margin-top: 10px; /* Add some space between form and button */
 }
 
 .login-btn:hover {
   background-color: #e09e3a;
 }
 
-.signup-link {
-  margin-top: 18px; /* Slightly less margin */
-  font-size: 0.85rem; /* Slightly smaller link text */
-  color: #555;
-}
-
-.signup-link span {
-  color: #1FAAED; /* Blue for the link text */
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.signup-link span:hover {
-  text-decoration: underline;
-}
-
+/* Error Message */
 .error-message {
   color: #ff4d4f;
-  font-size: 0.85rem; /* Slightly smaller error text */
-  margin-top: 8px; /* Slightly less margin */
+  font-size: 0.85rem;
+  margin-top: 8px;
 }
 
+/* Notification Message */
 .notification {
   background-color: #d4edda;
   color: #155724;
-  padding: 8px 12px; /* Slightly smaller padding */
+  padding: 8px 12px;
   border-radius: 8px;
-  margin-top: 15px; /* Slightly less margin */
-  font-size: 0.85rem; /* Slightly smaller notification text */
+  margin-top: 15px;
+  font-size: 0.85rem;
   text-align: center;
 }
 
+/* Landing Page Image */
 .landingpic-container {
   position: absolute;
   bottom: 0;
@@ -141,76 +148,61 @@ body{
   display: flex;
   justify-content: flex-start;
   align-items: flex-end;
-  z-index: 1; /* Ensure the image is below the form */
+  z-index: 1;
+  margin-top: auto; /* Ensure the image stays at the bottom */
 }
 
 .landingpic {
   display: block;
-  max-width: 40%; /* Made the image smaller here */
+  max-width: 40%;
   height: auto;
 }
 
 /* Media Query for larger screens (e.g., tablets and desktops) */
 @media (min-width: 768px) {
   .login-title {
-    font-size: 3rem;
-    margin-bottom: 20px;
-  }
-
-  .login-form-container {
-    max-width: 400px;
-    padding: 30px;
-  }
-
-  .login-form-container h2 {
-    font-size: 1.5rem;
-    margin-bottom: 20px;
-  }
-
-  .input-group {
+    font-size: 4rem; /* Slightly smaller title size for larger screens */
     margin-bottom: 15px;
   }
 
-  .input-group label {
-    font-size: 0.9rem;
-    margin-bottom: 5px;
+  .login-form-container {
+    max-width: 350px; /* Adjust form width for larger screens */
+    padding: 15px; /* Adjust padding */
+  }
+
+  .input-group {
+    margin-bottom: 10px; /* Adjusted for larger screens */
   }
 
   .input-group input {
-    padding: 10px 12px;
-    font-size: 1rem;
+    padding: 10px;
+    font-size: 1.1rem;
   }
 
   .login-btn {
     padding: 12px 18px;
-    font-size: 1rem;
-    margin-top: 15px;
+    font-size: 1.1rem;
   }
 
   .signup-link {
-    font-size: 0.9rem;
+    font-size: 1rem;
     margin-top: 20px;
   }
 
   .landingpic {
-    max-width: 30%; /* Made the image smaller on larger screens too */
+    max-width: 30%;
   }
 }
 
 /* Media Query for even larger desktops */
 @media (min-width: 1200px) {
   .login-title {
-    font-size: 3.5rem;
+    font-size: 5.5rem; /* Slightly smaller title size for very large screens */
   }
 
   .login-form-container {
-    max-width: 450px;
-    padding: 35px;
-  }
-
-  .login-form-container h2 {
-    font-size: 1.7rem;
-    margin-bottom: 22px;
+    max-width: 400px; /* Adjust form width for even larger screens */
+    padding: 20px; /* Adjust padding */
   }
 
   .input-group label {
@@ -218,20 +210,20 @@ body{
   }
 
   .input-group input {
-    padding: 11px 14px;
-    font-size: 1.1rem;
+    padding: 12px;
+    font-size: 1.2rem;
   }
 
   .login-btn {
     padding: 14px 20px;
-    font-size: 1.1rem;
+    font-size: 1.2rem;
   }
 
   .signup-link {
-    font-size: 1rem;
+    font-size: 1.1rem;
   }
 
   .landingpic {
-    max-width: 25%; /* Made the image even smaller on very large screens */
+    max-width: 25%; /* Adjust image size for very large screens */
   }
 }
