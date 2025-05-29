@@ -1,7 +1,4 @@
 /* General Body/Container Styles */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 body {
   font-family: 'Inter', sans-serif;
   margin: 0;
@@ -27,10 +24,9 @@ body {
 
 .login-title {
   font-size: 4.5rem; /* Slightly smaller font size for DiaTrack */
-  color: black;
+  color: #1780C1;
   font-weight: bold;
   margin: 0;
-  
 }
 
 .title-blue {
@@ -68,12 +64,6 @@ body {
   flex-grow: 1; /* Allow it to grow to fill available space */
 }
 
-.login-form-container h2 {
-  color: black;
-  font-size: 1.5rem;
-  margin-bottom: 10px;
-}
-
 /* Form Input Fields */
 .input-group {
   margin-bottom: 6px; /* Reduced margin for inputs */
@@ -97,7 +87,7 @@ body {
 }
 
 .input-group input:focus {
-  border-color: black;
+  border-color: #1f8acb;
   outline: none;
   box-shadow: 0 0 6px rgba(31, 138, 203, 0.2);
 }
@@ -117,6 +107,23 @@ body {
 
 .login-btn:hover {
   background-color: #e09e3a;
+}
+
+/* Signup Link */
+.signup-link {
+  margin-top: 12px; /* Reduced margin */
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.signup-link span {
+  color: #1FAAED;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.signup-link span:hover {
+  text-decoration: underline;
 }
 
 /* Error Message */

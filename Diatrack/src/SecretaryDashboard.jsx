@@ -1,8 +1,9 @@
+// ✅ SecretaryDashboard.jsx UPDATED WITH APPOINTMENT FUNCTIONALITY
+
 import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
 import "./SecretaryDashboard.css";
 
-// ➜ Summary Widget Component
 const PatientSummaryWidget = ({ totalPatients }) => (
   <div className="summary-widget">
     <h3>Total Patients</h3>
@@ -27,6 +28,14 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPatientDetail, setSelectedPatientDetail] = useState(null);
   const [message, setMessage] = useState("");
+
+  const [appointmentForm, setAppointmentForm] = useState({
+    doctorId: "",
+    patientId: "",
+    date: "",
+    time: "",
+    notes: ""
+  });
 
   useEffect(() => {
     if (user && user.secretary_id) {
@@ -78,6 +87,10 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     setPatientForm(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleAppointmentChange = (field, value) => {
+    setAppointmentForm(prev => ({ ...prev, [field]: value }));
+  };
+
   const createPatient = async () => {
     if (!selectedDoctorId) {
       setMessage("Please select a doctor to assign the patient to.");
@@ -112,7 +125,31 @@ const SecretaryDashboard = ({ user, onLogout }) => {
         contactInfo: ""
       });
       fetchPatients();
-      setActivePage("dashboard"); // go back to dashboard after creating
+      setActivePage("dashboard");
+    }
+  };
+
+  const createAppointment = async () => {
+    if (!appointmentForm.doctorId || !appointmentForm.patientId || !appointmentForm.date || !appointmentForm.time) {
+      setMessage("Please fill all required appointment fields.");
+      return;
+    }
+
+    const appointmentDatetime = `${appointmentForm.date}T${appointmentForm.time}:00`;
+
+    const { error } = await supabase.from("appointments").insert({
+      secretary_id: user.secretary_id,
+      doctor_id: appointmentForm.doctorId,
+      patient_id: appointmentForm.patientId,
+      date_set: new Date().toISOString(),
+      appointment_datetime: appointmentDatetime,
+      notes: appointmentForm.notes
+    });
+
+    if (error) setMessage(`Error creating appointment: ${error.message}`);
+    else {
+      setMessage("Appointment created successfully!");
+      setAppointmentForm({ doctorId: "", patientId: "", date: "", time: "", notes: "" });
     }
   };
 
@@ -148,7 +185,6 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
   return (
     <div className="dashboard-container">
-      {/* Sidebar */}
       <div className="fixed-sidebar">
         <h1 className="app-title">
           <span style={{ color: '#00aaff' }}>DIA</span>
@@ -158,40 +194,22 @@ const SecretaryDashboard = ({ user, onLogout }) => {
           <li className={activePage === "dashboard" ? "active" : ""} onClick={() => setActivePage("dashboard")}>Dashboard</li>
           <li className={activePage === "create" ? "active" : ""} onClick={() => {
             setActivePage("create");
-            setPatientForm({
-              firstName: "",
-              lastName: "",
-              email: "",
-              password: "",
-              dateOfBirth: "",
-              contactInfo: ""
-            });
+            setPatientForm({ firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", contactInfo: "" });
             setEditingPatientId(null);
-          }}>
-            Create Patient
-          </li>
+          }}>Create Patient</li>
         </ul>
         <button className="signout" onClick={() => {
           if (window.confirm("Are you sure you want to sign out?")) onLogout();
-        }}>
-          Sign Out
-        </button>
+        }}>Sign Out</button>
       </div>
 
-      {/* Header */}
       <div className="header">
         <div className="search-bar">
-          <input
-            type="text"
-            placeholder="Search patients..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          <input type="text" placeholder="Search patients..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
         </div>
         <h1>Welcome, {user.first_name}</h1>
       </div>
 
-      {/* Main Content */}
       <div className="main-content">
         <div className="secretary-dashboard-container">
           {activePage === "dashboard" && (
@@ -212,6 +230,27 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                 ))}
               </ul>
 
+              <h2>Schedule Appointment</h2>
+              <select value={appointmentForm.doctorId} onChange={(e) => handleAppointmentChange("doctorId", e.target.value)}>
+                <option value="">Select Doctor</option>
+                {linkedDoctors.map(doc => (
+                  <option key={doc.doctor_id} value={doc.doctor_id}>{doc.doctor_name}</option>
+                ))}
+              </select>
+
+              <select value={appointmentForm.patientId} onChange={(e) => handleAppointmentChange("patientId", e.target.value)}>
+                <option value="">Select Patient</option>
+                {patients.map(pat => (
+                  <option key={pat.patient_id} value={pat.patient_id}>{pat.first_name} {pat.last_name}</option>
+                ))}
+              </select>
+
+              <input type="date" value={appointmentForm.date} onChange={(e) => handleAppointmentChange("date", e.target.value)} />
+              <input type="time" value={appointmentForm.time} onChange={(e) => handleAppointmentChange("time", e.target.value)} />
+              <textarea placeholder="Notes (optional)" value={appointmentForm.notes} onChange={(e) => handleAppointmentChange("notes", e.target.value)} />
+
+              <button onClick={createAppointment}>Schedule Appointment</button>
+
               {selectedPatientDetail && (
                 <div className="patient-detail-card">
                   <h3>Patient Details</h3>
@@ -219,9 +258,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                   <p><strong>Email:</strong> {selectedPatientDetail.email}</p>
                   <p><strong>Date of Birth:</strong> {selectedPatientDetail.date_of_birth}</p>
                   <p><strong>Contact Info:</strong> {selectedPatientDetail.contact_info}</p>
-                  <button className="close-details-button" onClick={() => setSelectedPatientDetail(null)}>
-                    Close Details
-                  </button>
+                  <button className="close-details-button" onClick={() => setSelectedPatientDetail(null)}>Close Details</button>
                 </div>
               )}
             </>

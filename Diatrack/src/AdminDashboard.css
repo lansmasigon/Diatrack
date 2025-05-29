@@ -270,3 +270,52 @@ button.action-button:hover {
   width: 100%;
   padding-left: 30px;
 }
+
+.master-list {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 0.95rem;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+  
+  .master-list thead tr {
+    background-color: #007bff;
+    color: #ffffff;
+    text-align: left;
+  }
+  
+  .master-list th,
+  .master-list td {
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+  }
+  
+  .master-list tbody tr {
+    background-color: #f9f9f9;
+    transition: background-color 0.3s ease;
+  }
+  
+  .master-list tbody tr:nth-child(even) {
+    background-color: #f1f1f1;
+  }
+  
+  .master-list tbody tr:hover {
+    background-color: #e2f0ff;
+  }
+  
+  .master-list th {
+    font-weight: 600;
+  }
+  
+  /* Optional: Make the table responsive */
+  @media screen and (max-width: 768px) {
+    .master-list {
+      font-size: 0.85rem;
+    }
+  
+    .master-list th,
+    .master-list td {
+      padding: 8px 10px;
+    }
+  }

@@ -1,3 +1,5 @@
+// ✅ FULL UPDATED Dashboard.jsx WITH APPOINTMENTS + FULL PATIENT PROFILE MERGED
+
 import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
 import "./Dashboard.css";
@@ -5,6 +7,7 @@ import "./Dashboard.css";
 const Dashboard = ({ user, onLogout }) => {
   const [activeSection, setActiveSection] = useState("doctor-dashboard");
   const [patients, setPatients] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -16,6 +19,7 @@ const Dashboard = ({ user, onLogout }) => {
   useEffect(() => {
     if (activeSection === "doctor-dashboard") {
       fetchPatients();
+      fetchAppointments();
     } else if (activeSection === "patient-profile" && selectedPatient) {
       fetchPatientDetails(selectedPatient.patient_id);
       setEditedPatientData({ ...selectedPatient });
@@ -26,12 +30,6 @@ const Dashboard = ({ user, onLogout }) => {
     setLoading(true);
     setError("");
     try {
-      if (!user || !user.doctor_id) {
-        setError("Doctor ID is not available.");
-        setLoading(false);
-        return;
-      }
-
       const { data, error } = await supabase
         .from("patients")
         .select("*")
@@ -41,9 +39,24 @@ const Dashboard = ({ user, onLogout }) => {
       if (error) throw error;
       setPatients([...data]);
     } catch (err) {
-      setError("Error fetching data: " + err.message);
+      setError("Error fetching patients: " + err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAppointments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("appointments")
+        .select("*, patients(first_name, last_name)")
+        .eq("doctor_id", user.doctor_id)
+        .order("appointment_datetime", { ascending: true });
+
+      if (error) throw error;
+      setAppointments(data);
+    } catch (err) {
+      console.error("Error fetching appointments:", err);
     }
   };
 
@@ -67,8 +80,7 @@ const Dashboard = ({ user, onLogout }) => {
   };
 
   const handleLogout = () => {
-    const confirmLogout = window.confirm("Are you sure you want to log out?");
-    if (confirmLogout) {
+    if (window.confirm("Are you sure you want to log out?")) {
       onLogout();
     }
   };
@@ -87,20 +99,15 @@ const Dashboard = ({ user, onLogout }) => {
       setLoading(true);
       setError("");
       try {
-        const { error } = await supabase
-          .from("patients")
-          .delete()
-          .eq("patient_id", patient.patient_id);
+        const { error } = await supabase.from("patients").delete().eq("patient_id", patient.patient_id);
 
         if (error) {
-          console.error("Supabase Delete Error:", error);
           setError(`Error deleting patient: ${error.message}`);
         } else {
           alert("Patient deleted successfully!");
           fetchPatients();
         }
       } catch (err) {
-        console.error("Frontend Delete Error:", err);
         setError("Error deleting patient: " + err.message);
       } finally {
         setLoading(false);
@@ -124,7 +131,6 @@ const Dashboard = ({ user, onLogout }) => {
         .select();
 
       if (error) {
-        console.error("Supabase Update Error:", error);
         setError("Error updating patient details: " + error.message);
         return;
       }
@@ -133,7 +139,6 @@ const Dashboard = ({ user, onLogout }) => {
       setEditingPatientDetails(false);
       alert("Patient details updated successfully!");
     } catch (err) {
-      console.error("Frontend Update Error:", err);
       setError("Error updating patient details: " + err.message);
     } finally {
       setLoading(false);
@@ -144,13 +149,8 @@ const Dashboard = ({ user, onLogout }) => {
     `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const renderDoctorDashboard = () => {
-    if (loading) return <div>Loading patients...</div>;
-    if (error) return <div className="error-message">{error}</div>;
-    if (filteredPatients.length === 0 && searchTerm) return <div>No patients found matching your search.</div>;
-    if (patients.length === 0 && !searchTerm) return <div>No patients found assigned to you.</div>;
-
-    return (
+  const renderDoctorDashboard = () => (
+    <>
       <div className="table-responsive">
         <h2>My Patients</h2>
         <table className="patient-list">
@@ -189,8 +189,36 @@ const Dashboard = ({ user, onLogout }) => {
           </tbody>
         </table>
       </div>
-    );
-  };
+
+      <div className="appointments-section">
+        <h2>Upcoming Appointments</h2>
+        <table className="appointment-list">
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {appointments.length === 0 ? (
+              <tr><td colSpan="4">No upcoming appointments.</td></tr>
+            ) : (
+              appointments.map((appt) => (
+                <tr key={appt.appointment_id}>
+                  <td>{appt.patients ? `${appt.patients.first_name} ${appt.patients.last_name}` : "Unknown"}</td>
+                  <td>{new Date(appt.appointment_datetime).toLocaleDateString()}</td>
+                  <td>{new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                  <td>{appt.notes || "N/A"}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
 
   const renderPatientProfile = () => {
     if (loading) return <div>Loading patient details...</div>;
@@ -242,7 +270,7 @@ const Dashboard = ({ user, onLogout }) => {
 
           {latestMetric && (latestMetric.wound_photo_url || latestMetric.food_photo_url) && (
             <div className="patient-images-section">
-              <h3>Associated Photos</h3>
+              <h3>Assignment</h3>
               <div className="photo-gallery">
                 {latestMetric.wound_photo_url && (
                   <div className="photo-card">
@@ -350,7 +378,7 @@ const Dashboard = ({ user, onLogout }) => {
       <div className="main-content">
         <h1>Welcome, Dr. {user.first_name}</h1>
         {activeSection === "doctor-dashboard" && renderDoctorDashboard()}
-        {activeSection === "patient-profile" && renderPatientProfile()}
+        {activeSection === "patient-profile" && selectedPatient && renderPatientProfile()}
       </div>
     </div>
   );
