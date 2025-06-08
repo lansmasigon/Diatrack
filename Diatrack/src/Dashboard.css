@@ -912,6 +912,22 @@ body{
     background-color: #5a6268;
 }
 
+.appointment-list {
+  width: 100%;
+  border-spacing: 0;
+  margin-bottom: 20px;
+  border-collapse: collapse;
+}
+
+.appointment-list th {
+  padding: 8px 10px;
+  text-align: center;
+
+.appointment-list .action-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+
 /* Media query for responsiveness */
 @media (max-width: 767px) {
   .dashboard-container {
