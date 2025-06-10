@@ -922,6 +922,42 @@ body{
 .appointment-list th {
   padding: 8px 10px;
   text-align: center;
+  font-weight: bold;
+  font-size: small;
+  color: black;
+}
+
+.appointment-list td {
+  padding: 8px 10px;
+  text-align: center;
+  font-size: small;
+  color: #007bff;
+}
+
+
+.appointment-list td span {
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 0.8em;
+}
+
+.appointment-list td .appointment-note {
+  background-color: #f0f0f0;
+  color: #333;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 0.75em;
+}
+
+/* Optional: align the action buttons to match */
+.appointment-list .action-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9em;
+  padding: 5px 8px;
+  color: #3498db;
+}
 
 .appointment-list .action-button:hover {
   background-color: rgba(0, 0, 0, 0.05);

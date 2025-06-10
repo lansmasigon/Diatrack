@@ -103,6 +103,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   });
   const [editingPatientId, setEditingPatientId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [labEntryStep, setLabEntryStep] = useState(1);
   const [selectedPatientDetail, setSelectedPatientDetail] = useState(null);
   const [message, setMessage] = useState("");
   const [currentPatientStep, setCurrentPatientStep] = useState(0); // Re-added for multi-step form
@@ -724,10 +725,14 @@ const SecretaryDashboard = ({ user, onLogout }) => {
               <table className="patient-table"> {/* Changed from ul to table */}
                 <thead>
                   <tr>
-                    <th>First Name</th>
-                    <th>Last Name</th>
-                    <th>Doctor</th>
-                    <th>Actions</th>
+                  <th>Patient Name</th>
+                  <th>Age/Sex</th>
+                  <th>Assigned Doctor</th>
+                  <th>Classification</th>
+                  <th>Lab Status</th>
+                  <th>Profile Status</th>
+                  <th>Last Visit</th>
+                  <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -737,6 +742,10 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                         <td>{pat.first_name}</td>
                         <td>{pat.last_name}</td>
                         <td>{pat.doctors ? `${pat.doctors.first_name} ${pat.doctors.last_name}` : 'Unknown'}</td>
+                        <td>N/A</td>
+                        <td>n/a</td>
+                        <td>n/a</td>
+                        <td>n/a</td>
                         <td className="patient-actions-cell"> {/* Added class for styling buttons */}
                           <button className="view-button" onClick={() => setSelectedPatientDetail(pat)}>View</button>
                           <button className="edit-button" onClick={() => handleEditPatient(pat)}>Edit</button>
@@ -827,11 +836,178 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
           {activePage === "lab-result-entry" && (
             <div className="lab-result-entry-section">
-              <h2>Lab Result Entry</h2>
-              <p>This section is a placeholder for adding lab results.</p>
+              <h2>Enter Patient Lab Results</h2>
+              <p style={{ marginBottom: "25px", color: "#666", fontSize: "15px" }}>
+                Input the patient's baseline laboratory values to support risk classification and care planning. Once submitted, values will be locked for data integrity.
+              </p>
+
+              <div className="lab-stepper">
+                <div className="step active">
+                  <div className="step-number">1</div>
+                  <div className="step-label">Search Patient</div>
+                </div>
+                <div className="divider"></div>
+                <div className="step">
+                  <div className="step-number">2</div>
+                  <div className="step-label">Lab Input Form</div>
+                </div>
+                <div className="divider"></div>
+                <div className="step">
+                  <div className="step-number">3</div>
+                  <div className="step-label">Lock-in Data</div>
+                </div>
+              </div>
+
+              {labEntryStep === 1 && (<div className="lab-patient-search">
+                <div className="search-header">
+                  <h4>Patient List</h4>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <input type="text" placeholder="Search by name or Patient ID" />
+                    <button><i className="fas fa-filter" style={{ marginRight: "5px" }}></i> Filter</button>
+                  </div>
+                </div>
+
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Patient Name</th>
+                      <th>Age/Sex</th>
+                      <th>Classification</th>
+                      <th>Lab Status</th>
+                      <th>Profile Status</th>
+                      <th>Last Visit</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      {
+                        name: "Mary Shanley Sencil", age: "21", sex: "F", class: "Not Available",
+                        lab: "Awaiting", profile: "Pending", date: "June 9, 2025", action: "Enter Labs"
+                      },
+                      {
+                        name: "Gio Anthony Callos", age: "21", sex: "M", class: "Not Available",
+                        lab: "Requested", profile: "Pending", date: "June 9, 2025", action: "Update"
+                      },
+                      {
+                        name: "Iloy Bugris", age: "46", sex: "F", class: "Not Available",
+                        lab: "Requested", profile: "Pending", date: "June 9, 2025", action: "Update"
+                      }
+                    ].map((p, i) => (
+                      <tr key={i}>
+                        <td>{p.name}</td>
+                        <td>{p.age}/{p.sex}</td>
+                        <td className="classification-not-available">❌ {p.class}</td>
+                        <td className={p.lab === "Awaiting" ? "lab-status-awaiting" : "lab-status-requested"}>
+                          {p.lab === "Awaiting" ? "❌" : "⚠️"} {p.lab}
+                        </td>
+                        <td>🟡 {p.profile}</td>
+                        <td>{p.date}</td>
+                        <td>
+                          <button className="action-button" onClick={() => setLabEntryStep(2)}>
+                            {p.action === "Enter Labs" ? "✏️ Enter Labs" : "🛠️ Update"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>)}
+
+{labEntryStep === 2 && (
+  <div className="lab-input-form">
+    <div className="form-row">
+      <div className="form-group">
+        <label>Patient Name</label>
+        <input type="text" value="Mary Shanley Sencil" readOnly />
+      </div>
+      <div className="form-group">
+        <label>Date Submitted</label>
+        <input type="date" />
+      </div>
+      <div className="form-group">
+        <label>HbA1c (%)</label>
+        <input type="text" />
+      </div>
+    </div>
+    <div className="form-row">
+      <div className="form-group">
+        <label>Creatinine (umol/L)</label>
+        <input type="text" />
+      </div>
+      <div className="form-group">
+        <label>GOT (AST) - U/L</label>
+        <input type="text" />
+      </div>
+      <div className="form-group">
+        <label>GPT (ALT) - U/L</label>
+        <input type="text" />
+      </div>
+    </div>
+    <div className="form-row">
+      <div className="form-group">
+        <label>Cholesterol (mmol/L)</label>
+        <input type="text" />
+      </div>
+      <div className="form-group">
+        <label>Triglycerides (mmol/L)</label>
+        <input type="text" />
+      </div>
+      <div className="form-group">
+        <label>HDL Cholesterol (mmol/L)</label>
+        <input type="text" />
+      </div>
+      <div className="form-group">
+        <label>LDL Cholesterol (mmol/L)</label>
+        <input type="text" />
+      </div>
+    </div>
+    <div className="form-actions">
+      <button className="previous-button" onClick={() => setLabEntryStep(1)}>Previous Step</button>
+      <button className="next-button" onClick={() => setLabEntryStep(3)}>Next Step</button>
+
+    </div>
+  </div>
+)}
+
             </div>
           )}
-
+              {labEntryStep === 3 && (
+              <div className="lab-lock-confirm">
+                <div className="lock-container">
+                  <div className="lock-image">
+                    <img src="/assets/lock-check.png" alt="Locked Padlock" style={{ width: '140px', height: '140px' }} />
+                  </div>
+                  <div className="lock-text">
+                    <h2 style={{ fontSize: '1.8rem', color: '#000', marginBottom: '10px' }}>Confirm Lab Result Submission</h2>
+                    <p style={{ fontSize: '1rem', color: '#666', maxWidth: '500px', lineHeight: '1.6' }}>
+                      Please take a moment to <strong>review all entered laboratory values</strong>.<br/>
+                      If you need to make any corrections, you may go back to the previous step.<br/><br/>
+                      <span style={{ color: '#007bff', fontWeight: '500' }}>
+                        Once you finalize this entry, the <strong>lab results will be permanently locked</strong> and can no longer be edited.
+                      </span>
+                      This ensures clinical accuracy and audit compliance.
+                    </p>
+                    <div style={{ display: 'flex', gap: '20px', marginTop: '30px' }}>
+                      <button
+                        className="cancel-button"
+                        style={{ padding: '12px 30px' }}
+                        onClick={() => setLabEntryStep(2)}
+                      >
+                        Go Back to Edit
+                      </button>
+                      <button
+                        className="create-new-patient-button"
+                        style={{ padding: '12px 30px' }}
+                        onClick={() => setLabEntryStep(4)} // Move to locked success modal
+                      >
+                        Confirm & Finalize
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           {activePage === "reports" && (
             <div className="reports-section">
               <h2>Reports</h2>
