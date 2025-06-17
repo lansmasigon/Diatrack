@@ -3,71 +3,158 @@ import supabase from "./supabaseClient";
 import "./SecretaryDashboard.css";
 import logo from "../picture/logo.png"; // Import the logo image
 
-const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp }) => (
-  <>
-    <div className="summary-widget-grid">
-      <div className="summary-widget total-patients">
-        <div className="summary-widget-icon">
-          <i className="fas fa-users"></i>
-        </div>
-        <div className="summary-widget-content">
-          <h3>Total Patients</h3>
-          {/* TODO: Implement dynamic fetching for totalPatients */}
-          <p className="summary-number">{totalPatients}</p>
-          <p className="summary-subtitle">Patients who have been registered to the system</p>
-        </div>
-      </div>
-      <div className="summary-widget pending-lab-results">
-        <div className="summary-widget-icon">
-          <i className="fas fa-hourglass-half"></i>
-        </div>
-        <div className="summary-widget-content">
-          <h3>Pending Lab Results</h3>
-          {/* TODO: Implement dynamic fetching for pendingLabResults based on lab results table/status */}
-          <p className="summary-number">{pendingLabResults}</p>
-          <p className="summary-subtitle">Patients who have consulted the doctor, but still haven't turned over test results</p>
-        </div>
-      </div>
-    </div>
-    <div className="patient-categories-widget">
-      <h3>Patient Categories</h3>
-      <div className="category-bar-container">
-        {/* These widths are hardcoded to match the image ratios for display, you might want to calculate them dynamically */}
-        {/* TODO: Implement dynamic calculation for preOp and postOp based on patient status/category */}
-        <div className="category-bar pre-op" style={{ width: `${(preOp / (preOp + postOp)) * 100}%` }}></div>
-        <div className="category-bar post-op" style={{ width: `${(postOp / (preOp + postOp)) * 100}%` }}></div>
-      </div>
-      <div className="category-legend">
-        <span><span className="legend-color pre-op-color"></span> Pre-Op ({preOp})</span>
-        <span><span className="legend-color post-op-color"></span> Post-Op ({postOp})</span>
-      </div>
+// Import Chart.js components
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
+import { Doughnut, Bar } from 'react-chartjs-2'; // Using Doughnut for pie-like charts
 
-      <h3>Pre-Op Risk Classes</h3>
-      {/* TODO: Implement dynamic fetching for risk classes */}
-      <div className="risk-class-item">
-        <span className="risk-class-number">69</span>
-        <div className="risk-bar-container">
-          <div className="risk-bar low-risk" style={{ width: "70%" }}></div> {/* Placeholder width to match image */}
+// Register Chart.js components
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
+
+
+const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp, lowRisk, moderateRisk, highRisk }) => {
+
+  // Data for Patient Categories Chart (Doughnut) - This is for your phase chart
+  const patientCategoriesData = {
+    labels: ['Pre-Operative', 'Post-Operative'], // Updated labels
+    datasets: [
+      {
+        data: [preOp, postOp], // Uses the preOp and postOp counts
+        backgroundColor: ['#007bff', '#ffc107'], // Blue for Pre-Op, Orange for Post-Op
+        hoverBackgroundColor: ['#0056b3', '#e0a800'],
+        borderColor: '#ffffff', // White border for slices
+        borderWidth: 2,
+      },
+    ],
+  };
+
+  const patientCategoriesOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+          legend: {
+              position: 'right',
+              labels: {
+                  boxWidth: 20,
+                  padding: 15,
+                  font: {
+                      size: 14,
+                      weight: 'bold'
+                  },
+                  color: '#333'
+              }
+          },
+          tooltip: {
+              callbacks: {
+                  label: function(context) {
+                      let label = context.label || '';
+                      if (label) {
+                          label += ': ';
+                      }
+                      if (context.parsed !== null) {
+                          label += context.parsed + ' patients'; // Add 'patients' to tooltip
+                      }
+                      return label;
+                  }
+              }
+          }
+      },
+      cutout: '70%',
+  };
+
+  // Data for Pre-Op Risk Classes Chart (Doughnut)
+  const riskClassesData = {
+    labels: ['Low Risk', 'Moderate Risk', 'High Risk'],
+    datasets: [
+      {
+        data: [lowRisk, moderateRisk, highRisk],
+        backgroundColor: ['#5cb85c', '#f0ad4e', '#d9534f'], // Green, Yellow/Orange, Red
+        hoverBackgroundColor: ['#4cae4c', '#ec971f', '#c9302c'],
+        borderColor: '#ffffff', // White border for slices
+        borderWidth: 2,
+      },
+    ],
+  };
+
+  const riskClassesOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+          legend: {
+              position: 'right', // Position legend to the right
+              labels: {
+                  boxWidth: 20,
+                  padding: 15,
+                  font: {
+                      size: 14,
+                      weight: 'bold'
+                  },
+                  color: '#333' // Legend label color
+              }
+          },
+          tooltip: {
+              callbacks: {
+                  label: function(context) {
+                      let label = context.label || '';
+                      if (label) {
+                          label += ': ';
+                      }
+                      if (context.parsed !== null) {
+                          label += context.parsed + ' patients'; // Add 'patients' to tooltip
+                      }
+                      return label;
+                  }
+              }
+          }
+      },
+      cutout: '70%', // Makes it a doughnut chart
+  };
+
+  return (
+    <>
+      <div className="summary-widget-grid">
+        <div className="summary-widget total-patients">
+          <div className="summary-widget-icon">
+            <i className="fas fa-users"></i>
+          </div>
+          <div className="summary-widget-content">
+            <h3>Total Patients</h3>
+            <p className="summary-number">{totalPatients}</p>
+            <p className="summary-subtitle">Patients who have been registered to the system</p>
+          </div>
         </div>
-        <span className="risk-label">Low Risk</span>
-      </div>
-      <div className="risk-class-item">
-        <span className="risk-class-number">34</span>
-        <div className="risk-bar-container">
-          <div className="risk-bar moderate-risk" style={{ width: "30%" }}></div> {/* Placeholder width to match image */}
+        <div className="summary-widget pending-lab-results">
+          <div className="summary-widget-icon">
+            <i className="fas fa-hourglass-half"></i>
+          </div>
+          <div className="summary-widget-content">
+            <h3>Pending Lab Results</h3>
+            <p className="summary-number">{pendingLabResults}</p>
+            <p className="summary-subtitle">Patients who have consulted the doctor, but still haven't turned over test results</p>
+          </div>
         </div>
-        <span className="risk-label">Moderate Risk</span>
       </div>
-      <div className="risk-class-item">
-        <span className="risk-class-number">12</span>
-        <div className="risk-bar-container">
-          <div className="risk-bar high-risk" style={{ width: "10%" }}></div> {/* Placeholder width to match image */}
+      <div className="patient-categories-widget">
+        <h3>Patient Categories</h3>
+        <div className="chart-container" style={{ height: '200px', width: '100%' }}>
+          {preOp + postOp > 0 ? (
+            <Doughnut data={patientCategoriesData} options={patientCategoriesOptions} />
+          ) : (
+            <p className="no-chart-data">No patient category data available.</p>
+          )}
         </div>
-        <span className="risk-label">High Risk</span>
+
+        <h3>Pre-Op Risk Classes</h3>
+        <div className="chart-container" style={{ height: '200px', width: '100%' }}>
+          {lowRisk + moderateRisk + highRisk > 0 ? (
+            <Doughnut data={riskClassesData} options={riskClassesOptions} />
+          ) : (
+            <p className="no-chart-data">No risk class data available.</p>
+          )}
+        </div>
       </div>
-    </div>
-  </>
-);
+    </>
+  );
+};
 
 const SecretaryDashboard = ({ user, onLogout }) => {
   const [activePage, setActivePage] = useState("dashboard");
@@ -102,15 +189,19 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [medications, setMedications] = useState([{ drugName: "", dosage: "", frequency: "", prescribedBy: "" }]);
   const [editingPatientId, setEditingPatientId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [labEntryStep, setLabEntryStep] = useState(1);
+  const [labEntryStep, setLabEntryStep] = useState(1); // Corrected to use useState
   const [selectedPatientDetail, setSelectedPatientDetail] = useState(null);
   const [message, setMessage] = useState("");
   const [currentPatientStep, setCurrentPatientStep] = useState(0);
 
+  // State for chart data (dynamically fetched)
   const [totalPatientsCount, setTotalPatientsCount] = useState(0);
-  const [pendingLabResultsCount, setPendingLabResultsCount] = useState(3);
-  const [preOpCount, setPreOpCount] = useState(115);
-  const [postOpCount, setPostOpCount] = useState(39);
+  const [pendingLabResultsCount, setPendingLabResultsCount] = useState(0);
+  const [preOpCount, setPreOpCount] = useState(0);
+  const [postOpCount, setPostOpCount] = useState(0);
+  const [lowRiskCount, setLowRiskCount] = useState(0);
+  const [moderateRiskCount, setModerateRiskCount] = useState(0);
+  const [highRiskCount, setHighRiskCount] = useState(0);
 
   const [appointmentsToday, setAppointmentsToday] = useState([]);
 
@@ -136,22 +227,34 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
   useEffect(() => {
     if (user && user.secretary_id) {
-      fetchLinkedDoctors();
-      fetchAppointmentsToday();
+      const initializeDashboard = async () => {
+        await fetchLinkedDoctors();
+        await fetchAppointmentsToday();
+        // fetchPatients will be called by the linkedDoctors useEffect
+      };
+      initializeDashboard();
     } else {
       console.error("User or secretary_id is undefined");
       setMessage("Error: Secretary account not loaded properly.");
     }
   }, [user]);
 
+  // This useEffect will run when linkedDoctors changes, and then fetch patients and update counts
   useEffect(() => {
-    if (linkedDoctors.length > 0) {
+    if (linkedDoctors.length > 0 && user && user.secretary_id) {
       fetchPatients();
     } else if (linkedDoctors.length === 0 && user && user.secretary_id) {
+      // Reset all patient-related states if no doctors are linked
       setPatients([]);
       setTotalPatientsCount(0);
+      setPreOpCount(0);
+      setPostOpCount(0);
+      setLowRiskCount(0);
+      setModerateRiskCount(0);
+      setHighRiskCount(0);
+      setPendingLabResultsCount(0);
     }
-  }, [linkedDoctors, user]);
+  }, [linkedDoctors, user]); // Dependencies ensure it runs when doctors are fetched
 
   const fetchLinkedDoctors = async () => {
     const { data, error } = await supabase
@@ -178,19 +281,72 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     if (doctorIds.length === 0) {
       setPatients([]);
       setTotalPatientsCount(0);
+      setPreOpCount(0);
+      setPostOpCount(0);
+      setLowRiskCount(0);
+      setModerateRiskCount(0);
+      setHighRiskCount(0);
+      setPendingLabResultsCount(0);
       return;
     }
 
     const { data, error } = await supabase
       .from("patients")
-      .select("*, doctors (doctor_id, first_name, last_name)"); // Changed to select all for now
+      // Select all patient fields. Ensure 'phase', 'risk_classification', 'lab_status' are selected.
+      .select("*, doctors (doctor_id, first_name, last_name)");
 
     if (!error) {
-      // Filter patients by linked doctors on the client-side for now
-      // This is a temporary solution; ideally, you'd filter in the Supabase query if preferred_doctor_id is a direct column.
       const filtered = data.filter(patient => doctorIds.includes(patient.preferred_doctor_id));
       setPatients(filtered);
       setTotalPatientsCount(filtered.length);
+
+      // Calculate counts for charts
+      let preOp = 0;
+      let postOp = 0;
+      let lowRisk = 0;
+      let moderateRisk = 0;
+      let highRisk = 0;
+      let pendingLabs = 0;
+
+      filtered.forEach(patient => {
+          // *** ADD THIS console.log to see the actual value of patient.phase ***
+          console.log(`Patient: ${patient.first_name} ${patient.last_name}, Phase: ${patient.phase}`);
+
+          // Patient Categories (using 'phase' column as per your instruction)
+          // CORRECTED: Now checks for "Pre-Operative" and "Post-Operative" exactly
+          if (patient.phase === 'Pre-Operative') { // Corrected from 'Pre-Operative Phase'
+              preOp++;
+          } else if (patient.phase === 'Post-Operative') { // Corrected from 'Post-Operative Phase'
+              postOp++;
+          }
+
+          // Risk Classification (remains as is, assuming 'low', 'medium', 'high' lowercase in DB or handled by .toLowerCase())
+          const risk = (patient.risk_classification || '').toLowerCase();
+          if (risk === 'low') {
+              lowRisk++;
+          } else if (risk === 'medium') { // Assuming 'Medium' for moderate risk
+              moderateRisk++;
+          } else if (risk === 'high') {
+              highRisk++;
+          }
+
+          // Pending Lab Results (assuming 'lab_status' column)
+          // **IMPORTANT**: Adjust 'lab_status' and 'Awaiting' values if different in your schema.
+          if (patient.lab_status === 'Awaiting') {
+              pendingLabs++;
+          }
+      });
+
+      // *** ADD THIS console.log to see the final counts before setting state ***
+      console.log(`Final Pre-Op Count: ${preOp}, Final Post-Op Count: ${postOp}`);
+
+      setPreOpCount(preOp);
+      setPostOpCount(postOp);
+      setLowRiskCount(lowRisk);
+      setModerateRiskCount(moderateRisk);
+      setHighRiskCount(highRisk);
+      setPendingLabResultsCount(pendingLabs);
+
     }
     else console.error(error);
   };
@@ -301,7 +457,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       } else {
         // Only clear message and refresh patient list. No success modal or immediate page navigation.
         setMessage(""); // Clear any previous messages
-        fetchPatients(); // Refresh patient list
+        fetchPatients(); // Refresh patient list and chart data
       }
     };
 
@@ -385,7 +541,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     if (error) setMessage(`Error deleting patient: ${error.message}`);
     else {
       setMessage("Patient deleted successfully!");
-      fetchPatients();
+      fetchPatients(); // Refresh patient list and chart data
     }
   };
 
@@ -484,7 +640,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
       <div className="main-content">
         <div className="dashboard-header-section">
-          <h2 className="welcome-message">Welcome Back, {user ? user.first_name : 'Maria'} 👋</h2>
+          <h2 className="welcome-message">Welcome Back {user ? user.first_name : 'Maria'} 👋</h2>
           <p className="reports-info">Patient reports here always update in real time</p>
           {(activePage === "dashboard" || activePage === "patient-list") && ( // Conditional rendering for search bar and create patient button
             <div className="header-actions">
@@ -541,6 +697,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                     pendingLabResults={pendingLabResultsCount}
                     preOp={preOpCount}
                     postOp={postOpCount}
+                    lowRisk={lowRiskCount}
+                    moderateRisk={moderateRiskCount}
+                    highRisk={highRiskCount}
                   />
                 </div>
               </div>
@@ -592,7 +751,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                 {steps.map((step, index) => (
                   <React.Fragment key={step}>
                     <div className={`step ${index === currentPatientStep ? "active" : ""} ${index < currentPatientStep ? "completed" : ""}`}>
-                      <div className="step-number">{index + 1}</div>
+                      <div className="step-number">1</div>
                       <div className="step-name">{step}</div>
                     </div>
                     {index < steps.length - 1 && <div className={`progress-line ${index < currentPatientStep ? "completed" : ""}`}></div>}
@@ -852,9 +1011,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                         <td className={`risk-classification-${(pat.risk_classification || 'N/A').toLowerCase()}`}>
                             {pat.risk_classification || 'N/A'}
                         </td>
-                        <td>n/a</td>
-                        <td>n/a</td>
-                        <td>{pat.last_doctor_visit || 'N/A'}</td>
+                        <td>{pat.lab_status || 'N/A'}</td> {/* Display actual lab status */}
+                        <td>{pat.profile_status || 'N/A'}</td> {/* Display actual profile status */}
+                        <td>{pat.last_doctor_visit || 'N/A'}</td> {/* Corrected line */}
                         <td className="patient-actions-cell">
                           <button className="view-button" onClick={() => setSelectedPatientDetail(pat)}>View</button>
                           <button className="edit-button" onClick={() => handleEditPatient(pat)}>Edit</button>
@@ -1008,7 +1167,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
                         const labStatus = p.lab_status || "Awaiting"; // Default to Awaiting if not present
                         const profileStatus = p.profile_status || "Pending";
-                        const lastVisit = p.last_doctor_visit || "N/A";
+                        const lastVisit = p.last_doctor_visit || "N/A"; // This line is correct
                         const isAwaiting = labStatus === "Awaiting";
                         const actionLabel = isAwaiting ? "✏️ Enter Labs" : "🛠️ Update";
 
@@ -1023,7 +1182,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                               {isAwaiting ? "❌" : "⚠️"} {labStatus}
                             </td>
                             <td>🟡 {profileStatus}</td>
-                            <td>{lastVisit}</td>
+                            <td>{lastVisit}</td> {/* Corrected line */}
                             <td>
                               <button className="action-button" onClick={() => setLabEntryStep(2)}>
                                 {actionLabel}
