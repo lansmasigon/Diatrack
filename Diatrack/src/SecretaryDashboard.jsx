@@ -183,12 +183,14 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
     const { data, error } = await supabase
       .from("patients")
-      .select("*, doctors (doctor_id, first_name, last_name)")
-      .in("preferred_doctor_id", doctorIds);
+      .select("*, doctors (doctor_id, first_name, last_name)"); // Changed to select all for now
 
     if (!error) {
-      setPatients(data);
-      setTotalPatientsCount(data.length);
+      // Filter patients by linked doctors on the client-side for now
+      // This is a temporary solution; ideally, you'd filter in the Supabase query if preferred_doctor_id is a direct column.
+      const filtered = data.filter(patient => doctorIds.includes(patient.preferred_doctor_id));
+      setPatients(filtered);
+      setTotalPatientsCount(filtered.length);
     }
     else console.error(error);
   };
@@ -482,7 +484,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
       <div className="main-content">
         <div className="dashboard-header-section">
-          <h2 className="welcome-message">Welcome Back {user ? user.first_name : 'Maria'} 👋</h2>
+          <h2 className="welcome-message">Welcome Back, {user ? user.first_name : 'Maria'} 👋</h2>
           <p className="reports-info">Patient reports here always update in real time</p>
           {(activePage === "dashboard" || activePage === "patient-list") && ( // Conditional rendering for search bar and create patient button
             <div className="header-actions">
@@ -847,10 +849,12 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                         <td>{pat.first_name} {pat.last_name}</td>
                         <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
                         <td>{pat.doctors ? `${pat.doctors.first_name} ${pat.doctors.last_name}` : 'Unknown'}</td>
-                        <td>N/A</td>
+                        <td className={`risk-classification-${(pat.risk_classification || 'N/A').toLowerCase()}`}>
+                            {pat.risk_classification || 'N/A'}
+                        </td>
                         <td>n/a</td>
                         <td>n/a</td>
-                        <td>n/a</td>
+                        <td>{pat.last_doctor_visit || 'N/A'}</td>
                         <td className="patient-actions-cell">
                           <button className="view-button" onClick={() => setSelectedPatientDetail(pat)}>View</button>
                           <button className="edit-button" onClick={() => handleEditPatient(pat)}>Edit</button>
@@ -994,42 +998,45 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                     </thead>
                     <tbody>
                     {patients.length > 0 ? (
-      patients.map((p, i) => {
-        const fullName = `${p.first_name || "N/A"} ${p.last_name || ""}`;
-        const age = p.date_of_birth
-          ? Math.floor((new Date() - new Date(p.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))
-          : "N/A";
-        const sex = p.gender || "N/A";
-        const classification = p.risk_classification || "Not Available";
-        const labStatus = p.lab_status || "Awaiting"; // Default to Awaiting if not present
-        const profileStatus = p.profile_status || "Pending";
-        const lastVisit = p.last_doctor_visit || "N/A";
-        const isAwaiting = labStatus === "Awaiting";
-        const actionLabel = isAwaiting ? "✏️ Enter Labs" : "🛠️ Update";
+                      patients.map((p, i) => {
+                        const fullName = `${p.first_name || "N/A"} ${p.last_name || ""}`;
+                        const age = p.date_of_birth
+                          ? Math.floor((new Date() - new Date(p.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))
+                          : "N/A";
+                        const sex = p.gender || "N/A";
+                        const classification = p.risk_classification || "Not Available";
 
-        return (
-          <tr key={p.patient_id || i}>
-            <td>{fullName}</td>
-            <td>{age}/{sex}</td>
-            <td className="classification-not-available">❌ {classification}</td>
-            <td className={isAwaiting ? "lab-status-awaiting" : "lab-status-requested"}>
-              {isAwaiting ? "❌" : "⚠️"} {labStatus}
-            </td>
-            <td>🟡 {profileStatus}</td>
-            <td>{lastVisit}</td>
-            <td>
-              <button className="action-button" onClick={() => setLabEntryStep(2)}>
-                {actionLabel}
-              </button>
-            </td>
-          </tr>
-        );
-      })
-    ) : (
-      <tr>
-        <td colSpan="7">No patients available.</td>
-      </tr>
-    )}
+                        const labStatus = p.lab_status || "Awaiting"; // Default to Awaiting if not present
+                        const profileStatus = p.profile_status || "Pending";
+                        const lastVisit = p.last_doctor_visit || "N/A";
+                        const isAwaiting = labStatus === "Awaiting";
+                        const actionLabel = isAwaiting ? "✏️ Enter Labs" : "🛠️ Update";
+
+                        return (
+                          <tr key={p.patient_id || i}>
+                            <td>{fullName}</td>
+                            <td>{age}/{sex}</td>
+                            <td className={`risk-classification-${(classification === "Not Available" ? "not-available" : classification).toLowerCase()}`}>
+                                {classification}
+                            </td>
+                            <td className={isAwaiting ? "lab-status-awaiting" : "lab-status-requested"}>
+                              {isAwaiting ? "❌" : "⚠️"} {labStatus}
+                            </td>
+                            <td>🟡 {profileStatus}</td>
+                            <td>{lastVisit}</td>
+                            <td>
+                              <button className="action-button" onClick={() => setLabEntryStep(2)}>
+                                {actionLabel}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan="7">No patients available.</td>
+                      </tr>
+                    )}
                     </tbody>
                   </table>
                 </div>)}
