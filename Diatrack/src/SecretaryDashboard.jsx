@@ -81,14 +81,12 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     password: "",
     dateOfBirth: "",
     contactInfo: "",
-    // Retaining all these fields for UI, but not sending to DB for now
     middleName: "",
     gender: "",
     address: "",
     emergencyContactNumber: "",
     diabetesType: "",
     allergies: "",
-    currentMedications: "",
     footUlcersAmputation: "",
     eyeIssues: "",
     kidneyIssues: "",
@@ -101,14 +99,14 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     lastEyeExam: "",
     preparedBy: "", // This will be set by the secretary's ID
   });
+  const [medications, setMedications] = useState([{ drugName: "", dosage: "", frequency: "", prescribedBy: "" }]);
   const [editingPatientId, setEditingPatientId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [labEntryStep, setLabEntryStep] = useState(1);
   const [selectedPatientDetail, setSelectedPatientDetail] = useState(null);
   const [message, setMessage] = useState("");
-  const [currentPatientStep, setCurrentPatientStep] = useState(0); // Re-added for multi-step form
+  const [currentPatientStep, setCurrentPatientStep] = useState(0);
 
-  // Static values from the image for dashboard display - these are now placeholders
   const [totalPatientsCount, setTotalPatientsCount] = useState(0);
   const [pendingLabResultsCount, setPendingLabResultsCount] = useState(3);
   const [preOpCount, setPreOpCount] = useState(115);
@@ -123,6 +121,10 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     time: "",
     notes: ""
   });
+
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showPatientConfirmationModal, setShowPatientConfirmationModal] = useState(false);
+
 
   const steps = [
     "Demographics",
@@ -232,73 +234,141 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     setAppointmentForm(prev => ({ ...prev, [field]: value }));
   };
 
-  const createPatient = async () => {
-    if (currentPatientStep < steps.length - 1) {
-      setMessage("Please complete all steps before creating the patient.");
-      return;
-    }
+  const handleMedicationChange = (index, field, value) => {
+    const newMedications = [...medications];
+    newMedications[index][field] = value;
+    setMedications(newMedications);
+  };
 
-    if (!selectedDoctorId) {
-      setMessage("Please select a doctor to assign the patient to.");
-      return;
-    }
+  const handleAddMedication = () => {
+    setMedications([...medications, { drugName: "", dosage: "", frequency: "", prescribedBy: "" }]);
+  };
 
-    const confirmAction = window.confirm("Are you sure you want to create this patient?");
-    if (!confirmAction) {
-      setMessage("Action canceled by user.");
-      return;
-    }
+  const handleRemoveMedication = (index) => {
+    const newMedications = medications.filter((_, i) => i !== index);
+    setMedications(newMedications);
+  };
 
-    // Only send fields that are confirmed to be in the database
+  const savePatient = async () => {
     const patientData = {
-      first_name: patientForm.firstName,
-      last_name: patientForm.lastName,
-      email: patientForm.email,
-      password: patientForm.password, // IMPORTANT: In a real app, hash this password!
-      date_of_birth: patientForm.dateOfBirth,
-      contact_info: patientForm.contactInfo,
-      preferred_doctor_id: selectedDoctorId,
-      // Do NOT include fields like middle_name, gender, address, diabetes_type, etc.,
-      // as they are not yet confirmed in the database schema.
+        first_name: patientForm.firstName,
+        last_name: patientForm.lastName,
+        email: patientForm.email,
+        password: patientForm.password, // Consider hashing in production
+        preferred_doctor_id: selectedDoctorId,
+        date_of_birth: patientForm.dateOfBirth,
+        contact_info: patientForm.contactInfo,
+        gender: patientForm.gender,
+        address: patientForm.address,
+        emergency_contact: patientForm.emergencyContactNumber,
+        diabetes_type: patientForm.diabetesType,
+        allergies: patientForm.allergies,
+        medication: JSON.stringify(medications), // Store medications as a JSON string
+        complication_history: [
+          patientForm.footUlcersAmputation && "Foot Ulcers/Amputation",
+          patientForm.eyeIssues && "Eye Issues",
+          patientForm.kidneyIssues && "Kidney Issues",
+          patientForm.stroke && "Stroke",
+          patientForm.heartAttack && "Heart Attack",
+          patientForm.hypertensive && "Hypertensive",
+        ].filter(Boolean).join(", ") || null,
+        smoking_status: patientForm.smokingStatus,
+        monitoring_frequency: patientForm.monitoringFrequencyGlucose,
+        last_doctor_visit: patientForm.lastDoctorVisit,
+        last_eye_exam: patientForm.lastEyeExam,
+      };
+
+      let error;
+      if (editingPatientId) {
+        // Update existing patient
+        const { error: updateError } = await supabase
+          .from("patients")
+          .update(patientData)
+          .eq("patient_id", editingPatientId);
+        error = updateError;
+      } else {
+        // Create new patient
+        const { error: insertError } = await supabase
+          .from("patients")
+          .insert([patientData]);
+        error = insertError;
+      }
+
+      if (error) {
+        setMessage(`Error saving patient: ${error.message}`);
+      } else {
+        // Only clear message and refresh patient list. No success modal or immediate page navigation.
+        setMessage(""); // Clear any previous messages
+        fetchPatients(); // Refresh patient list
+      }
     };
 
-    const { error } = await supabase.from("patients").insert([patientData]);
+    const handleSavePatientWithConfirmation = () => {
+      if (currentPatientStep < steps.length - 1) {
+        setMessage("Please complete all steps before saving the patient.");
+        return;
+      }
+      if (!selectedDoctorId) {
+        setMessage("Please select a doctor to assign the patient to.");
+        return;
+      }
+      setMessage(""); // Clear any previous messages
+      setShowPatientConfirmationModal(true); // Show the confirmation modal
+    };
 
-    if (error) setMessage(`Error creating patient: ${error.message}`);
-    else {
-      setMessage(`Patient ${patientForm.firstName} created successfully!`);
-      // Reset form fields after creation
+    const confirmAndSavePatient = async () => {
+      setShowPatientConfirmationModal(false); // Hide confirmation modal
+      await savePatient(); // Proceed with saving the patient
+      // After save, the patient creation/edit form will remain open.
+      // If the user wants to clear the form or navigate, they can use the "Cancel" button.
+      // Reset form and navigate after confirmed action, so it's ready for a new entry
       setPatientForm({
         firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", contactInfo: "",
         middleName: "", gender: "", address: "", emergencyContactNumber: "", diabetesType: "", allergies: "",
-        currentMedications: "", footUlcersAmputation: "", eyeIssues: "", kidneyIssues: "", stroke: "",
-        heartAttack: "", hypertensive: "", smokingStatus: "", monitoringFrequencyGlucose: "", lastDoctorVisit: "",
+        footUlcersAmputation: false, eyeIssues: false, kidneyIssues: false, stroke: false,
+        heartAttack: false, hypertensive: false, smokingStatus: "", monitoringFrequencyGlucose: "", lastDoctorVisit: "",
         lastEyeExam: "", preparedBy: ""
       });
+      setMedications([{ drugName: "", dosage: "", frequency: "", prescribedBy: "" }]);
       setSelectedDoctorId("");
       setEditingPatientId(null);
-      setCurrentPatientStep(0); // Reset step
-      fetchPatients();
-      setActivePage("dashboard");
-    }
-  };
+      setCurrentPatientStep(0);
+      setActivePage("patient-list"); // Navigate to patient list after successful confirmation and save
+    };
+
 
   const handleEditPatient = (patient) => {
-    // Populate form fields for editing with only existing database fields
-    // Other fields in patientForm will remain at their default (empty) values
     setPatientForm({
       firstName: patient.first_name || "",
       lastName: patient.last_name || "",
       email: patient.email || "",
-      password: patient.password || "", // Security warning: do not pre-fill passwords
+      password: patient.password || "", // In a real app, never pre-fill password
       dateOfBirth: patient.date_of_birth || "",
       contactInfo: patient.contact_info || "",
-      // Placeholder for other fields, they won't be filled from DB unless explicitly added
-      middleName: "", gender: "", address: "", emergencyContactNumber: "", diabetesType: "", allergies: "",
-      currentMedications: "", footUlcersAmputation: "", eyeIssues: "", kidneyIssues: "", stroke: "",
-      heartAttack: "", hypertensive: "", smokingStatus: "", monitoringFrequencyGlucose: "", lastDoctorVisit: "",
-      lastEyeExam: "", preparedBy: ""
+      middleName: patient.middle_name || "",
+      gender: patient.gender || "",
+      address: patient.address || "",
+      emergencyContactNumber: patient.emergency_contact || "",
+      diabetesType: patient.diabetes_type || "",
+      allergies: patient.allergies || "",
+      footUlcersAmputation: patient.complication_history?.includes("Foot Ulcers/Amputation") || false,
+      eyeIssues: patient.complication_history?.includes("Eye Issues") || false,
+      kidneyIssues: patient.complication_history?.includes("Kidney Issues") || false,
+      stroke: patient.complication_history?.includes("Stroke") || false,
+      heartAttack: patient.complication_history?.includes("Heart Attack") || false,
+      hypertensive: patient.complication_history?.includes("Hypertensive") || false,
+      smokingStatus: patient.smoking_status || "",
+      monitoringFrequencyGlucose: patient.monitoring_frequency || "",
+      lastDoctorVisit: patient.last_doctor_visit || "",
+      lastEyeExam: patient.last_eye_exam || ""
     });
+    try {
+      setMedications(patient.medication ? JSON.parse(patient.medication) : [{ drugName: "", dosage: "", frequency: "", prescribedBy: "" }]);
+    } catch (e) {
+      console.error("Error parsing medications:", e);
+      setMedications([{ drugName: "", dosage: "", frequency: "", prescribedBy: "" }]); // Fallback
+    }
+
     setSelectedDoctorId(patient.preferred_doctor_id || "");
     setEditingPatientId(patient.patient_id);
     setCurrentPatientStep(0); // Start from the first step for editing
@@ -373,10 +443,14 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     `${pat.first_name} ${pat.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleFinalizeLabSubmission = () => {
+    // Save logic goes here later
+    setShowSuccessModal(true);
+  };
+
   return (
     <div className="dashboard-container">
       <div className="top-navbar">
-        {/* Updated title to include logo and styled text */}
         <h1 className="app-title">
           <img src={logo} alt="DiaTrack Logo" className="app-logo" />
           <span style={{ color: 'var(--primary-blue)' }}>Dia</span>
@@ -390,7 +464,6 @@ const SecretaryDashboard = ({ user, onLogout }) => {
         </ul>
         <div className="navbar-right">
           <div className="user-profile">
-            {/* Using a placeholder image with a fallback */}
             <img src="https://placehold.co/40x40/aabbcc/ffffff?text=User" alt="User Avatar" className="user-avatar" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/aabbcc/ffffff?text=User"; }}/>
             <div className="user-info">
               <span className="user-name">{user ? `${user.first_name} ${user.last_name}` : 'Maria Batumbakal'}</span>
@@ -411,33 +484,35 @@ const SecretaryDashboard = ({ user, onLogout }) => {
         <div className="dashboard-header-section">
           <h2 className="welcome-message">Welcome Back {user ? user.first_name : 'Maria'} 👋</h2>
           <p className="reports-info">Patient reports here always update in real time</p>
-          <div className="header-actions">
-            <div className="search-bar">
-              <input type="text" placeholder="Search for patients here" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-              <i className="fas fa-search"></i>
+          {(activePage === "dashboard" || activePage === "patient-list") && ( // Conditional rendering for search bar and create patient button
+            <div className="header-actions">
+              <div className="search-bar">
+                <input type="text" placeholder="Search for patients here" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <i className="fas fa-search"></i>
+              </div>
+              <button className="create-new-patient-button" onClick={() => {
+                setActivePage("create-patient");
+                setPatientForm({ // Reset all fields
+                  firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", contactInfo: "",
+                  middleName: "", gender: "", address: "", emergencyContactNumber: "", diabetesType: "", allergies: "",
+                  footUlcersAmputation: "", eyeIssues: "", kidneyIssues: "", stroke: "",
+                  heartAttack: "", hypertensive: "", smokingStatus: "", monitoringFrequencyGlucose: "", lastDoctorVisit: "",
+                  lastEyeExam: "", preparedBy: ""
+                });
+                setMedications([{ drugName: "", dosage: "", frequency: "", prescribedBy: "" }]); // Reset medications state
+                setSelectedDoctorId("");
+                setEditingPatientId(null);
+                setCurrentPatientStep(0); // Reset step
+              }}>
+                <i className="fas fa-plus"></i> Create New Patient
+              </button>
             </div>
-            <button className="create-new-patient-button" onClick={() => {
-              setActivePage("create-patient");
-              setPatientForm({ // Reset all fields
-                firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", contactInfo: "",
-                middleName: "", gender: "", address: "", emergencyContactNumber: "", diabetesType: "", allergies: "",
-                currentMedications: "", footUlcersAmputation: "", eyeIssues: "", kidneyIssues: "", stroke: "",
-                heartAttack: "", hypertensive: "", smokingStatus: "", monitoringFrequencyGlucose: "", lastDoctorVisit: "",
-                lastEyeExam: "", preparedBy: ""
-              });
-              setSelectedDoctorId("");
-              setEditingPatientId(null);
-              setCurrentPatientStep(0); // Reset step
-            }}>
-              <i className="fas fa-plus"></i> Create New Patient
-            </button>
-          </div>
+          )}
         </div>
 
         <div className="dashboard-content">
           {activePage === "dashboard" && (
             <div className="dashboard-columns-container">
-              {/* Left Column */}
               <div className="dashboard-left-column">
                 <div className="quick-links">
                   <h3>Quick links</h3>
@@ -468,7 +543,6 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                 </div>
               </div>
 
-              {/* Right Column */}
               <div className="dashboard-right-column">
                 <div className="appointments-today">
                   <h3>Appointments Today</h3>
@@ -512,7 +586,6 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                 </button>
               </div>
 
-              {/* Progress Indicator */}
               <div className="progress-indicator">
                 {steps.map((step, index) => (
                   <React.Fragment key={step}>
@@ -602,10 +675,43 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                         <label>Allergies:</label>
                         <input className="patient-input" placeholder="Allergies" value={patientForm.allergies} onChange={(e) => handleInputChange("allergies", e.target.value)} />
                       </div>
-                      <div className="form-group">
-                        <label>Current Medications:</label>
-                        <input className="patient-input" placeholder="Current Medications" value={patientForm.currentMedications} onChange={(e) => handleInputChange("currentMedications", e.target.value)} />
-                      </div>
+                    </div>
+
+                    <div className="medications-table-container">
+                      <label>Current Medications:</label>
+                      <table className="medications-table">
+                        <thead>
+                          <tr>
+                            <th>Drug Name</th>
+                            <th>Dosage</th>
+                            <th>Frequency</th>
+                            <th>Prescribed by</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {medications.map((med, index) => (
+                            <tr key={index}>
+                              <td><input type="text" className="med-input" value={med.drugName} onChange={(e) => handleMedicationChange(index, "drugName", e.target.value)} /></td>
+                              <td><input type="text" className="med-input" value={med.dosage} onChange={(e) => handleMedicationChange(index, "dosage", e.target.value)} /></td>
+                              <td><input type="text" className="med-input" value={med.frequency} onChange={(e) => handleMedicationChange(index, "frequency", e.target.value)} /></td>
+                              <td><input type="text" className="med-input" value={med.prescribedBy} onChange={(e) => handleMedicationChange(index, "prescribedBy", e.target.value)} /></td>
+                              <td className="med-actions">
+                                {medications.length > 1 && (
+                                  <button type="button" className="remove-med-button" onClick={() => handleRemoveMedication(index)}>
+                                    <i className="fas fa-minus-circle"></i>
+                                  </button>
+                                )}
+                                {index === medications.length - 1 && (
+                                  <button type="button" className="add-med-button" onClick={handleAddMedication}>
+                                    <i className="fas fa-plus-circle"></i>
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 )}
@@ -692,7 +798,6 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                     <div className="form-row">
                       <div className="form-group full-width">
                         <label>Prepared By:</label>
-                        {/* This field is read-only and should display the current secretary's name */}
                         <input className="patient-input" type="text" value={user ? `${user.first_name} ${user.last_name}` : ''} readOnly />
                       </div>
                     </div>
@@ -710,7 +815,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                   <button className="next-step-button" onClick={handleNextStep}>Next</button>
                 )}
                 {currentPatientStep === steps.length - 1 && (
-                  <button className="next-step-button" onClick={createPatient}>
+                  <button className="next-step-button" onClick={handleSavePatientWithConfirmation}>
                     {editingPatientId ? "Update Patient" : "Create Patient"}
                   </button>
                 )}
@@ -722,7 +827,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
           {activePage === "patient-list" && (
             <div className="patient-list-section">
               <h2>My Patients</h2>
-              <table className="patient-table"> {/* Changed from ul to table */}
+              <table className="patient-table">
                 <thead>
                   <tr>
                   <th>Patient Name</th>
@@ -739,14 +844,14 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                   {filteredPatients.length > 0 ? (
                     filteredPatients.map((pat) => (
                       <tr key={pat.patient_id}>
-                        <td>{pat.first_name}</td>
-                        <td>{pat.last_name}</td>
+                        <td>{pat.first_name} {pat.last_name}</td>
+                        <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
                         <td>{pat.doctors ? `${pat.doctors.first_name} ${pat.doctors.last_name}` : 'Unknown'}</td>
                         <td>N/A</td>
                         <td>n/a</td>
                         <td>n/a</td>
                         <td>n/a</td>
-                        <td className="patient-actions-cell"> {/* Added class for styling buttons */}
+                        <td className="patient-actions-cell">
                           <button className="view-button" onClick={() => setSelectedPatientDetail(pat)}>View</button>
                           <button className="edit-button" onClick={() => handleEditPatient(pat)}>Edit</button>
                           <button className="delete-button" onClick={() => handleDeletePatient(pat.patient_id)}>Delete</button>
@@ -755,7 +860,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="4">No patients found.</td>
+                      <td colSpan="8">No patients found.</td>
                     </tr>
                   )}
                 </tbody>
@@ -768,22 +873,28 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                   <p><strong>Email:</strong> {selectedPatientDetail.email}</p>
                   <p><strong>Date of Birth:</strong> {selectedPatientDetail.date_of_birth}</p>
                   <p><strong>Contact Info:</strong> {selectedPatientDetail.contact_info}</p>
-                  {/* These fields won't populate if they are not in the DB, but their placeholders are ready */}
                   <p><strong>Middle Name:</strong> {selectedPatientDetail.middle_name || 'N/A'}</p>
                   <p><strong>Gender:</strong> {selectedPatientDetail.gender || 'N/A'}</p>
                   <p><strong>Address:</strong> {selectedPatientDetail.address || 'N/A'}</p>
-                  <p><strong>Emergency Contact:</strong> {selectedPatientDetail.emergency_contact_number || 'N/A'}</p>
+                  <p><strong>Emergency Contact:</strong> {selectedPatientDetail.emergency_contact || 'N/A'}</p>
                   <p><strong>Diabetes Type:</strong> {selectedPatientDetail.diabetes_type || 'N/A'}</p>
                   <p><strong>Allergies:</strong> {selectedPatientDetail.allergies || 'N/A'}</p>
-                  <p><strong>Current Medications:</strong> {selectedPatientDetail.current_medications || 'N/A'}</p>
-                  <p><strong>Foot Ulcers/Amputation:</strong> {selectedPatientDetail.foot_ulcers_amputation ? 'Yes' : 'No'}</p>
-                  <p><strong>Eye Issues:</strong> {selectedPatientDetail.eye_issues ? 'Yes' : 'No'}</p>
-                  <p><strong>Kidney Issues:</strong> {selectedPatientDetail.kidney_issues ? 'Yes' : 'No'}</p>
-                  <p><strong>Stroke:</strong> {selectedPatientDetail.stroke ? 'Yes' : 'No'}</p>
-                  <p><strong>Heart Attack:</strong> {selectedPatientDetail.heart_attack ? 'Yes' : 'No'}</p>
-                  <p><strong>Hypertensive:</strong> {selectedPatientDetail.hypertensive ? 'Yes' : 'No'}</p>
+                  <p><strong>Current Medications:</strong></p>
+                  {selectedPatientDetail.medication && JSON.parse(selectedPatientDetail.medication).length > 0 ? (
+                    <ul>
+                      {JSON.parse(selectedPatientDetail.medication).map((med, idx) => (
+                        <li key={idx}>
+                          {med.drugName} - {med.dosage} ({med.frequency}) by {med.prescribedBy}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>N/A</p>
+                  )}
+
+                  <p><strong>Complication History:</strong> {selectedPatientDetail.complication_history || 'N/A'}</p>
                   <p><strong>Smoking Status:</strong> {selectedPatientDetail.smoking_status || 'N/A'}</p>
-                  <p><strong>Glucose Monitoring Frequency:</strong> {selectedPatientDetail.monitoring_frequency_glucose || 'N/A'}</p>
+                  <p><strong>Glucose Monitoring Frequency:</strong> {selectedPatientDetail.monitoring_frequency || 'N/A'}</p>
                   <p><strong>Last Doctor Visit:</strong> {selectedPatientDetail.last_doctor_visit || 'N/A'}</p>
                   <p><strong>Last Eye Exam:</strong> {selectedPatientDetail.last_eye_exam || 'N/A'}</p>
                   <button className="close-details-button" onClick={() => setSelectedPatientDetail(null)}>Close Details</button>
@@ -835,179 +946,243 @@ const SecretaryDashboard = ({ user, onLogout }) => {
           )}
 
           {activePage === "lab-result-entry" && (
-            <div className="lab-result-entry-section">
-              <h2>Enter Patient Lab Results</h2>
-              <p style={{ marginBottom: "25px", color: "#666", fontSize: "15px" }}>
-                Input the patient's baseline laboratory values to support risk classification and care planning. Once submitted, values will be locked for data integrity.
-              </p>
+            <>
+              <div className="lab-result-entry-section">
+                <h2>Enter Patient Lab Results</h2>
+                <p style={{ marginBottom: "25px", color: "#666", fontSize: "15px" }}>
+                  Input the patient's baseline laboratory values to support risk classification and care planning. Once submitted, values will be locked for data integrity.
+                </p>
 
-              <div className="lab-stepper">
-                <div className="step active">
-                  <div className="step-number">1</div>
-                  <div className="step-label">Search Patient</div>
+                <div className="lab-stepper">
+                  <div className={`step ${labEntryStep >= 1 ? "completed" : ""} ${labEntryStep === 1 ? "active" : ""}`}>
+                    <div className="step-number">1</div>
+                    <div className="step-label">Search Patient</div>
+                  </div>
+                  <div className="divider"></div>
+                  <div className={`step ${labEntryStep >= 2 ? "completed" : ""} ${labEntryStep === 2 ? "active" : ""}`}>
+                    <div className="step-number">2</div>
+                    <div className="step-label">Lab Input Form</div>
+                  </div>
+                  <div className="divider"></div>
+                  <div className={`step ${labEntryStep >= 3 ? "completed" : ""} ${labEntryStep === 3 ? "active" : ""}`}>
+                    <div className="step-number">3</div>
+                    <div className="step-label">Lock-in Data</div>
+                  </div>
                 </div>
-                <div className="divider"></div>
-                <div className="step">
-                  <div className="step-number">2</div>
-                  <div className="step-label">Lab Input Form</div>
-                </div>
-                <div className="divider"></div>
-                <div className="step">
-                  <div className="step-number">3</div>
-                  <div className="step-label">Lock-in Data</div>
-                </div>
+
+
+                {labEntryStep === 1 && (<div className="lab-patient-search">
+                  <div className="search-header">
+                    <h4>Patient List</h4>
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      <input type="text" placeholder="Search by name or Patient ID" />
+                      <button><i className="fas fa-filter" style={{ marginRight: "5px" }}></i> Filter</button>
+                    </div>
+                  </div>
+
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Patient Name</th>
+                        <th>Age/Sex</th>
+                        <th>Classification</th>
+                        <th>Lab Status</th>
+                        <th>Profile Status</th>
+                        <th>Last Visit</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    {patients.length > 0 ? (
+      patients.map((p, i) => {
+        const fullName = `${p.first_name || "N/A"} ${p.last_name || ""}`;
+        const age = p.date_of_birth
+          ? Math.floor((new Date() - new Date(p.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))
+          : "N/A";
+        const sex = p.gender || "N/A";
+        const classification = p.risk_classification || "Not Available";
+        const labStatus = p.lab_status || "Awaiting"; // Default to Awaiting if not present
+        const profileStatus = p.profile_status || "Pending";
+        const lastVisit = p.last_doctor_visit || "N/A";
+        const isAwaiting = labStatus === "Awaiting";
+        const actionLabel = isAwaiting ? "✏️ Enter Labs" : "🛠️ Update";
+
+        return (
+          <tr key={p.patient_id || i}>
+            <td>{fullName}</td>
+            <td>{age}/{sex}</td>
+            <td className="classification-not-available">❌ {classification}</td>
+            <td className={isAwaiting ? "lab-status-awaiting" : "lab-status-requested"}>
+              {isAwaiting ? "❌" : "⚠️"} {labStatus}
+            </td>
+            <td>🟡 {profileStatus}</td>
+            <td>{lastVisit}</td>
+            <td>
+              <button className="action-button" onClick={() => setLabEntryStep(2)}>
+                {actionLabel}
+              </button>
+            </td>
+          </tr>
+        );
+      })
+    ) : (
+      <tr>
+        <td colSpan="7">No patients available.</td>
+      </tr>
+    )}
+                    </tbody>
+                  </table>
+                </div>)}
+
+                {labEntryStep === 2 && (
+                  <div className="lab-input-form">
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Patient Name</label>
+                        <input type="text" value="Mary Shanley Sencil" readOnly />
+                      </div>
+                      <div className="form-group">
+                        <label>Date Submitted</label>
+                        <input type="date" />
+                      </div>
+                      <div className="form-group">
+                        <label>HbA1c (%)</label>
+                        <input type="text" />
+                      </div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Creatinine (umol/L)</label>
+                        <input type="text" />
+                      </div>
+                      <div className="form-group">
+                        <label>GOT (AST) - U/L</label>
+                        <input type="text" />
+                      </div>
+                      <div className="form-group">
+                        <label>GPT (ALT) - U/L</label>
+                        <input type="text" />
+                      </div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Cholesterol (mmol/L)</label>
+                        <input type="text" />
+                      </div>
+                      <div className="form-group">
+                        <label>Triglycerides (mmol/L)</label>
+                        <input type="text" />
+                      </div>
+                      <div className="form-group">
+                        <label>HDL Cholesterol (mmol/L)</label>
+                        <input type="text" />
+                      </div>
+                      <div className="form-group">
+                        <label>LDL Cholesterol (mmol/L)</label>
+                        <input type="text" />
+                      </div>
+                    </div>
+                    <div className="form-actions">
+                      <button className="previous-button" onClick={() => setLabEntryStep(1)}>Previous Step</button>
+                      <button className="next-button" onClick={() => setLabEntryStep(3)}>Next Step</button>
+
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {labEntryStep === 1 && (<div className="lab-patient-search">
-                <div className="search-header">
-                  <h4>Patient List</h4>
-                  <div style={{ display: "flex", gap: "10px" }}>
-                    <input type="text" placeholder="Search by name or Patient ID" />
-                    <button><i className="fas fa-filter" style={{ marginRight: "5px" }}></i> Filter</button>
-                  </div>
-                </div>
-
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Patient Name</th>
-                      <th>Age/Sex</th>
-                      <th>Classification</th>
-                      <th>Lab Status</th>
-                      <th>Profile Status</th>
-                      <th>Last Visit</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      {
-                        name: "Mary Shanley Sencil", age: "21", sex: "F", class: "Not Available",
-                        lab: "Awaiting", profile: "Pending", date: "June 9, 2025", action: "Enter Labs"
-                      },
-                      {
-                        name: "Gio Anthony Callos", age: "21", sex: "M", class: "Not Available",
-                        lab: "Requested", profile: "Pending", date: "June 9, 2025", action: "Update"
-                      },
-                      {
-                        name: "Iloy Bugris", age: "46", sex: "F", class: "Not Available",
-                        lab: "Requested", profile: "Pending", date: "June 9, 2025", action: "Update"
-                      }
-                    ].map((p, i) => (
-                      <tr key={i}>
-                        <td>{p.name}</td>
-                        <td>{p.age}/{p.sex}</td>
-                        <td className="classification-not-available">❌ {p.class}</td>
-                        <td className={p.lab === "Awaiting" ? "lab-status-awaiting" : "lab-status-requested"}>
-                          {p.lab === "Awaiting" ? "❌" : "⚠️"} {p.lab}
-                        </td>
-                        <td>🟡 {p.profile}</td>
-                        <td>{p.date}</td>
-                        <td>
-                          <button className="action-button" onClick={() => setLabEntryStep(2)}>
-                            {p.action === "Enter Labs" ? "✏️ Enter Labs" : "🛠️ Update"}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>)}
-
-{labEntryStep === 2 && (
-  <div className="lab-input-form">
-    <div className="form-row">
-      <div className="form-group">
-        <label>Patient Name</label>
-        <input type="text" value="Mary Shanley Sencil" readOnly />
-      </div>
-      <div className="form-group">
-        <label>Date Submitted</label>
-        <input type="date" />
-      </div>
-      <div className="form-group">
-        <label>HbA1c (%)</label>
-        <input type="text" />
-      </div>
-    </div>
-    <div className="form-row">
-      <div className="form-group">
-        <label>Creatinine (umol/L)</label>
-        <input type="text" />
-      </div>
-      <div className="form-group">
-        <label>GOT (AST) - U/L</label>
-        <input type="text" />
-      </div>
-      <div className="form-group">
-        <label>GPT (ALT) - U/L</label>
-        <input type="text" />
-      </div>
-    </div>
-    <div className="form-row">
-      <div className="form-group">
-        <label>Cholesterol (mmol/L)</label>
-        <input type="text" />
-      </div>
-      <div className="form-group">
-        <label>Triglycerides (mmol/L)</label>
-        <input type="text" />
-      </div>
-      <div className="form-group">
-        <label>HDL Cholesterol (mmol/L)</label>
-        <input type="text" />
-      </div>
-      <div className="form-group">
-        <label>LDL Cholesterol (mmol/L)</label>
-        <input type="text" />
-      </div>
-    </div>
-    <div className="form-actions">
-      <button className="previous-button" onClick={() => setLabEntryStep(1)}>Previous Step</button>
-      <button className="next-button" onClick={() => setLabEntryStep(3)}>Next Step</button>
-
-    </div>
-  </div>
-)}
-
-            </div>
-          )}
               {labEntryStep === 3 && (
-              <div className="lab-lock-confirm">
-                <div className="lock-container">
-                  <div className="lock-image">
-                    <img src="/assets/lock-check.png" alt="Locked Padlock" style={{ width: '140px', height: '140px' }} />
-                  </div>
-                  <div className="lock-text">
-                    <h2 style={{ fontSize: '1.8rem', color: '#000', marginBottom: '10px' }}>Confirm Lab Result Submission</h2>
-                    <p style={{ fontSize: '1rem', color: '#666', maxWidth: '500px', lineHeight: '1.6' }}>
-                      Please take a moment to <strong>review all entered laboratory values</strong>.<br/>
-                      If you need to make any corrections, you may go back to the previous step.<br/><br/>
-                      <span style={{ color: '#007bff', fontWeight: '500' }}>
-                        Once you finalize this entry, the <strong>lab results will be permanently locked</strong> and can no longer be edited.
-                      </span>
-                      This ensures clinical accuracy and audit compliance.
-                    </p>
-                    <div style={{ display: 'flex', gap: '20px', marginTop: '30px' }}>
-                      <button
-                        className="cancel-button"
-                        style={{ padding: '12px 30px' }}
-                        onClick={() => setLabEntryStep(2)}
-                      >
-                        Go Back to Edit
-                      </button>
-                      <button
-                        className="create-new-patient-button"
-                        style={{ padding: '12px 30px' }}
-                        onClick={() => setLabEntryStep(4)} // Move to locked success modal
-                      >
-                        Confirm & Finalize
-                      </button>
+                <div className="lab-lock-confirm">
+                  <div className="lock-container">
+                    <div className="lock-image">
+                      <img
+                        src="picture/padlock.png"
+                        alt="Locked Padlock"
+                        className="lock-image-icon"
+                      />
+                    </div>
+                    <div className="lock-text">
+                      <h2 className="lock-title">Confirm Lab Result Submission</h2>
+                      <p className="lock-description">
+                        Please take a moment to <strong>review all entered laboratory values</strong>.<br />
+                        If you need to make any corrections, you may go back to the previous step.<br /><br />
+                        <span className="lock-warning">
+                          Once you finalize this entry, the <strong>lab results will be permanently locked</strong> and can no longer be edited.
+                        </span>
+                        This ensures clinical accuracy and audit compliance.
+                      </p>
+                      <div className="lock-buttons">
+                        <button
+                          className="cancel-button"
+                          style={{ padding: '12px 30px' }}
+                          onClick={() => setLabEntryStep(2)}
+                        >
+                          Go Back to Edit
+                        </button>
+                        <button
+                          className="create-new-patient-button"
+                          style={{ padding: '12px 30px' }}
+                          onClick={handleFinalizeLabSubmission}
+                        >
+                          Confirm & Finalize
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
+              )}
+            {showSuccessModal && (
+              <div className="lab-success-modal-overlay">
+                <div className="lab-success-modal">
+                  <button className="modal-close"
+                    onClick={() => setShowSuccessModal(false)}>
+                    ✖
+                  </button>
+                    <img src="picture/lab-success.png" alt="Doctor Success" className="modal-doctor-image"/>
+                  <h2 className="modal-title"> Lab Results Successfully<br />Submitted & Locked</h2>
+                    <p className="modal-subtext">
+                      The laboratory data has been securely stored and is now locked for editing to ensure accuracy and audit compliance.<br /><br />
+                      You may now proceed to finalize the patient profile with the attending doctor.
+                    </p>
+                    <button className="modal-green-button"
+                      onClick={() => {
+                      setShowSuccessModal(false);
+                      setLabEntryStep(1);
+                     }}>
+                      Go to Patient Profile
+                      </button>
+                    </div>
+                  </div>
+                    )}
+            </>
+          )}
+
+          {/* Patient Profile Confirmation Modal (appears BEFORE saving) */}
+          {showPatientConfirmationModal && (
+            <div className="lab-success-modal-overlay"> {/* Reusing common modal styling */}
+              <div className="lab-success-modal">
+                  <img src="picture/confirm.png" alt="Confirmation Icon" className="modal-doctor-image"/> {/* Placeholder for a confirmation icon */}
+                <h2 className="modal-title"> Finalize Patient Profile?</h2>
+                  <p className="modal-subtext">
+                    Are you sure you want to finalize this patient's profile?
+                    Please ensure all details are accurate before proceeding.
+                    <br /><br />
+                    This action will {editingPatientId ? "update the existing" : "create a new"} patient record.
+                  </p>
+                  <div className="modal-buttons">
+                    <button className="cancel-button"
+                      onClick={() => setShowPatientConfirmationModal(false)}>
+                      Go Back to Edit
+                    </button>
+                    <button className="modal-green-button"
+                      onClick={confirmAndSavePatient}>
+                      Yes, Continue
+                    </button>
+                  </div>
+                </div>
               </div>
-            )}
+          )}
+
           {activePage === "reports" && (
             <div className="reports-section">
               <h2>Reports</h2>
