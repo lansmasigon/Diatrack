@@ -3,9 +3,9 @@ import supabase from "./supabaseClient";
 import "./SecretaryDashboard.css";
 import logo from "../picture/logo.png"; // Import the logo image
 
-// Import Chart.js components
+// Import Chart.js components - These will no longer be directly used for the bars but might be used elsewhere
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
-import { Doughnut, Bar } from 'react-chartjs-2'; // Using Doughnut for pie-like charts
+import { Doughnut, Bar } from 'react-chartjs-2'; // Doughnut will be removed for the bars
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
@@ -13,101 +13,17 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarEle
 
 const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp, lowRisk, moderateRisk, highRisk }) => {
 
-  // Data for Patient Categories Chart (Doughnut) - This is for your phase chart
-  const patientCategoriesData = {
-    labels: ['Pre-Operative', 'Post-Operative'], // Updated labels
-    datasets: [
-      {
-        data: [preOp, postOp], // Uses the preOp and postOp counts
-        backgroundColor: ['#007bff', '#ffc107'], // Blue for Pre-Op, Orange for Post-Op
-        hoverBackgroundColor: ['#0056b3', '#e0a800'],
-        borderColor: '#ffffff', // White border for slices
-        borderWidth: 2,
-      },
-    ],
-  };
+  // Calculate percentages for Patient Categories
+  const totalPatientCategories = preOp + postOp;
+  const preOpPercentage = totalPatientCategories > 0 ? (preOp / totalPatientCategories) * 100 : 0;
+  const postOpPercentage = totalPatientCategories > 0 ? (postOp / totalPatientCategories) * 100 : 0;
 
-  const patientCategoriesOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-          legend: {
-              position: 'right',
-              labels: {
-                  boxWidth: 20,
-                  padding: 15,
-                  font: {
-                      size: 14,
-                      weight: 'bold'
-                  },
-                  color: '#333'
-              }
-          },
-          tooltip: {
-              callbacks: {
-                  label: function(context) {
-                      let label = context.label || '';
-                      if (label) {
-                          label += ': ';
-                      }
-                      if (context.parsed !== null) {
-                          label += context.parsed + ' patients'; // Add 'patients' to tooltip
-                      }
-                      return label;
-                  }
-              }
-          }
-      },
-      cutout: '70%',
-  };
+  // Calculate percentages for Pre-Op Risk Classes
+  const totalRiskClasses = lowRisk + moderateRisk + highRisk;
+  const lowRiskPercentage = totalRiskClasses > 0 ? (lowRisk / totalRiskClasses) * 100 : 0;
+  const moderateRiskPercentage = totalRiskClasses > 0 ? (moderateRisk / totalRiskClasses) * 100 : 0;
+  const highRiskPercentage = totalRiskClasses > 0 ? (highRisk / totalRiskClasses) * 100 : 0;
 
-  // Data for Pre-Op Risk Classes Chart (Doughnut)
-  const riskClassesData = {
-    labels: ['Low Risk', 'Moderate Risk', 'High Risk'],
-    datasets: [
-      {
-        data: [lowRisk, moderateRisk, highRisk],
-        backgroundColor: ['#5cb85c', '#f0ad4e', '#d9534f'], // Green, Yellow/Orange, Red
-        hoverBackgroundColor: ['#4cae4c', '#ec971f', '#c9302c'],
-        borderColor: '#ffffff', // White border for slices
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  const riskClassesOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-          legend: {
-              position: 'right', // Position legend to the right
-              labels: {
-                  boxWidth: 20,
-                  padding: 15,
-                  font: {
-                      size: 14,
-                      weight: 'bold'
-                  },
-                  color: '#333' // Legend label color
-              }
-          },
-          tooltip: {
-              callbacks: {
-                  label: function(context) {
-                      let label = context.label || '';
-                      if (label) {
-                          label += ': ';
-                      }
-                      if (context.parsed !== null) {
-                          label += context.parsed + ' patients'; // Add 'patients' to tooltip
-                      }
-                      return label;
-                  }
-              }
-          }
-      },
-      cutout: '70%', // Makes it a doughnut chart
-  };
 
   return (
     <>
@@ -133,29 +49,85 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
           </div>
         </div>
       </div>
-      <div className="patient-categories-widget">
-        <h3>Patient Categories</h3>
-        <div className="chart-container" style={{ height: '200px', width: '100%' }}>
-          {preOp + postOp > 0 ? (
-            <Doughnut data={patientCategoriesData} options={patientCategoriesOptions} />
-          ) : (
-            <p className="no-chart-data">No patient category data available.</p>
-          )}
+      <div className="patient-categories-widget"> {/* Replaced inline style with class */}
+        <h3>
+          Patient Categories
+        </h3>
+        <div className="progress-bars-container"> {/* Replaced inline style with class */}
+          {/* Pre-Op Bar */}
+          <div className="progress-bar-row"> {/* Replaced inline style with class */}
+            <span className="progress-count">{preOp}</span> {/* Replaced inline style with class */}
+            <div className="progress-bar-background"> {/* Replaced inline style with class */}
+              <div className="progress-bar-fill progress-bar-pre-op" style={{ width: `${preOpPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+            </div>
+          </div>
+          {/* Post-Op Bar */}
+          <div className="progress-bar-row"> {/* Replaced inline style with class */}
+            <span className="progress-count">{postOp}</span> {/* Replaced inline style with class */}
+            <div className="progress-bar-background"> {/* Replaced inline style with class */}
+              <div className="progress-bar-fill progress-bar-post-op" style={{ width: `${postOpPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+            </div>
+          </div>
         </div>
+        <div className="legend-container"> {/* Replaced inline style with class */}
+          <div className="legend-item"> {/* Replaced inline style with class */}
+            <span className="legend-color-box legend-color-pre-op"></span> {/* Replaced inline style with class */}
+            Pre-Op
+          </div>
+          <div className="legend-item"> {/* Replaced inline style with class */}
+            <span className="legend-color-box legend-color-post-op"></span> {/* Replaced inline style with class */}
+            Post-Op
+          </div>
+        </div>
+      </div>
 
-        <h3>Pre-Op Risk Classes</h3>
-        <div className="chart-container" style={{ height: '200px', width: '100%' }}>
-          {lowRisk + moderateRisk + highRisk > 0 ? (
-            <Doughnut data={riskClassesData} options={riskClassesOptions} />
-          ) : (
-            <p className="no-chart-data">No risk class data available.</p>
-          )}
+      <div className="risk-classes-widget"> {/* Replaced inline style with class */}
+        <h3>
+          Pre-Op Risk Classes
+        </h3>
+        <div className="progress-bars-container"> {/* Replaced inline style with class */}
+          {/* Low Risk Bar */}
+          <div className="progress-bar-row"> {/* Replaced inline style with class */}
+            <span className="progress-count">{lowRisk}</span> {/* Replaced inline style with class */}
+            <div className="progress-bar-background"> {/* Replaced inline style with class */}
+              <div className="progress-bar-fill progress-bar-low-risk" style={{ width: `${lowRiskPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+            </div>
+          </div>
+          {/* Moderate Risk Bar */}
+          <div className="progress-bar-row"> {/* Replaced inline style with class */}
+            <span className="progress-count">{moderateRisk}</span> {/* Replaced inline style with class */}
+            <div className="progress-bar-background"> {/* Replaced inline style with class */}
+              <div className="progress-bar-fill progress-bar-moderate-risk" style={{ width: `${moderateRiskPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+            </div>
+          </div>
+          {/* High Risk Bar */}
+          <div className="progress-bar-row"> {/* Replaced inline style with class */}
+            <span className="progress-count">{highRisk}</span> {/* Replaced inline style with class */}
+            <div className="progress-bar-background"> {/* Replaced inline style with class */}
+              <div className="progress-bar-fill progress-bar-high-risk" style={{ width: `${highRiskPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+            </div>
+          </div>
+        </div>
+        <div className="legend-container"> {/* Replaced inline style with class */}
+          <div className="legend-item"> {/* Replaced inline style with class */}
+            <span className="legend-color-box legend-color-low-risk"></span> {/* Replaced inline style with class */}
+            Low Risk
+          </div>
+          <div className="legend-item"> {/* Replaced inline style with class */}
+            <span className="legend-color-box legend-color-moderate-risk"></span> {/* Replaced inline style with class */}
+            Moderate Risk
+          </div>
+          <div className="legend-item"> {/* Replaced inline style with class */}
+            <span className="legend-color-box legend-color-high-risk"></span> {/* Replaced inline style with class */}
+            High Risk
+          </div>
         </div>
       </div>
     </>
   );
 };
 
+// ... (rest of the SecretaryDashboard component remains unchanged) ...
 const SecretaryDashboard = ({ user, onLogout }) => {
   const [activePage, setActivePage] = useState("dashboard");
   const [linkedDoctors, setLinkedDoctors] = useState([]);
