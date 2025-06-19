@@ -915,7 +915,6 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                             <th>Dosage</th>
                             <th>Frequency</th>
                             <th>Prescribed by</th>
-                            <th>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
