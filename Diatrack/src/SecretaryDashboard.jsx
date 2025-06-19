@@ -83,6 +83,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
 
       <div className="risk-classes-widget"> {/* Replaced inline style with class */}
         <h3>
+
           Pre-Op Risk Classes
         </h3>
         <div className="progress-bars-container"> {/* Replaced inline style with class */}
@@ -188,6 +189,20 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showPatientConfirmationModal, setShowPatientConfirmationModal] = useState(false);
 
+  // New state for lab result inputs
+  const [labResults, setLabResults] = useState({
+    selectedPatientForLab: null, // To store the patient object selected for lab entry
+    dateSubmitted: "",
+    hba1c: "", // Keep this lowercase for the state variable
+    creatinine: "",
+    gotAst: "",
+    gptAlt: "",
+    cholesterol: "",
+    triglycerides: "",
+    hdlCholesterol: "",
+    ldlCholesterol: "",
+  });
+
 
   const steps = [
     "Demographics",
@@ -278,7 +293,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       let lowRisk = 0;
       let moderateRisk = 0;
       let highRisk = 0;
-      let pendingLabs = 0;
+      let pendingLabs = 0; // Keep this, as it still reflects a UI count
 
       filtered.forEach(patient => {
           // *** ADD THIS console.log to see the actual value of patient.phase ***
@@ -302,8 +317,8 @@ const SecretaryDashboard = ({ user, onLogout }) => {
               highRisk++;
           }
 
-          // Pending Lab Results (assuming 'lab_status' column)
-          // **IMPORTANT**: Adjust 'lab_status' and 'Awaiting' values if different in your schema.
+          // Pending Lab Results (keeping this logic for now, even if lab_status column is not yet in DB)
+          // It will just count patients where this property might be 'Awaiting' or undefined.
           if (patient.lab_status === 'Awaiting') {
               pendingLabs++;
           }
@@ -573,10 +588,91 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     `${pat.first_name} ${pat.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleFinalizeLabSubmission = () => {
-    // Save logic goes here later
-    setShowSuccessModal(true);
+  const handleLabInputChange = (field, value) => {
+    setLabResults(prev => ({ ...prev, [field]: value }));
   };
+
+  const handleSelectPatientForLab = (patient) => {
+    setLabResults(prev => ({ ...prev, selectedPatientForLab: patient }));
+    setLabEntryStep(2);
+    // Optionally pre-fill date if desired, or leave it for manual entry
+    setLabResults(prev => ({ ...prev, dateSubmitted: new Date().toISOString().slice(0, 10) }));
+  };
+
+
+  const handleFinalizeLabSubmission = async () => {
+    // --- Start Debugging ---
+    console.log("handleFinalizeLabSubmission called.");
+
+    if (!labResults.selectedPatientForLab) {
+      setMessage("Please select a patient to submit lab results for.");
+      console.error("No patient selected for lab results.");
+      return;
+    }
+
+    // Validate if required fields have values before parsing
+    if (!labResults.dateSubmitted ||
+        labResults.hba1c === "" ||
+        labResults.creatinine === "" ||
+        labResults.gotAst === "" ||
+        labResults.gptAlt === "" ||
+        labResults.cholesterol === "" ||
+        labResults.triglycerides === "" ||
+        labResults.hdlCholesterol === "" ||
+        labResults.ldlCholesterol === "") {
+        setMessage("Please fill in all lab result fields.");
+        console.error("Missing lab result fields.");
+        return;
+    }
+
+    // Prepare data for insertion into the 'patient_labs' table
+    const dataToInsert = {
+      patient_id: labResults.selectedPatientForLab.patient_id,
+      date_submitted: labResults.dateSubmitted,
+      // !!! IMPORTANT CHANGE HERE: Use 'HbA1c' to match your database column name exactly !!!
+      Hba1c: parseFloat(labResults.hba1c) || null,
+      creatinine: parseFloat(labResults.creatinine) || null,
+      got_ast: parseFloat(labResults.gotAst) || null,
+      gpt_alt: parseFloat(labResults.gptAlt) || null,
+      cholesterol: parseFloat(labResults.cholesterol) || null,
+      triglycerides: parseFloat(labResults.triglycerides) || null,
+      hdl_cholesterol: parseFloat(labResults.hdlCholesterol) || null,
+      ldl_cholesterol: parseFloat(labResults.ldlCholesterol) || null,
+    };
+
+    console.log("Attempting to insert lab data:", dataToInsert);
+    // --- End Debugging ---
+
+    const { error: labInsertError } = await supabase
+      .from("patient_labs") // Targeting the correct table
+      .insert([dataToInsert]);
+
+    if (labInsertError) {
+      console.error("Error inserting lab results:", labInsertError);
+      setMessage(`Error submitting lab results: ${labInsertError.message}`);
+    } else {
+      console.log("Lab results successfully submitted.");
+      setMessage("Lab results successfully submitted!");
+      setShowSuccessModal(true);
+      // Clear the lab input form after successful submission
+      setLabResults({
+        selectedPatientForLab: null,
+        dateSubmitted: "",
+        hba1c: "",
+        creatinine: "",
+        gotAst: "",
+        gptAlt: "",
+        cholesterol: "",
+        triglycerides: "",
+        hdlCholesterol: "",
+        ldlCholesterol: "",
+      });
+      // No fetchPatients() here as we are not updating patient_status yet.
+      // If you want to see the patient list update for *other reasons*, you might keep it.
+      // For now, let's keep it minimal as requested.
+    }
+  };
+
 
   return (
     <div className="dashboard-container">
@@ -612,7 +708,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
       <div className="main-content">
         <div className="dashboard-header-section">
-          <h2 className="welcome-message">Welcome Back {user ? user.first_name : 'Maria'} 👋</h2>
+          <h2 className="welcome-message">Welcome Back, {user ? user.first_name : 'Maria'} 👋</h2>
           <p className="reports-info">Patient reports here always update in real time</p>
           {(activePage === "dashboard" || activePage === "patient-list") && ( // Conditional rendering for search bar and create patient button
             <div className="header-actions">
@@ -723,7 +819,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                 {steps.map((step, index) => (
                   <React.Fragment key={step}>
                     <div className={`step ${index === currentPatientStep ? "active" : ""} ${index < currentPatientStep ? "completed" : ""}`}>
-                      <div className="step-number">1</div>
+                      <div className="step-number"></div>
                       <div className="step-name">{step}</div>
                     </div>
                     {index < steps.length - 1 && <div className={`progress-line ${index < currentPatientStep ? "completed" : ""}`}></div>}
@@ -1137,11 +1233,12 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                         const sex = p.gender || "N/A";
                         const classification = p.risk_classification || "Not Available";
 
-                        const labStatus = p.lab_status || "Awaiting"; // Default to Awaiting if not present
+                        const labStatus = p.lab_status || "N/A"; // Display N/A as we're not using 'Awaiting' for now
                         const profileStatus = p.profile_status || "Pending";
-                        const lastVisit = p.last_doctor_visit || "N/A"; // This line is correct
-                        const isAwaiting = labStatus === "Awaiting";
-                        const actionLabel = isAwaiting ? "✏️ Enter Labs" : "🛠️ Update";
+                        const lastVisit = p.last_doctor_visit || "N/A";
+                        // labStatus is not being updated, so always show "N/A" or whatever is in DB if column exists
+                        const isAwaiting = false; // Temporarily set to false, as we are not relying on lab_status for this logic
+                        const actionLabel = "✏️ Enter Labs"; // Always allow entry
 
                         return (
                           <tr key={p.patient_id || i}>
@@ -1150,13 +1247,15 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                             <td className={`risk-classification-${(classification === "Not Available" ? "not-available" : classification).toLowerCase()}`}>
                                 {classification}
                             </td>
-                            <td className={isAwaiting ? "lab-status-awaiting" : "lab-status-requested"}>
-                              {isAwaiting ? "❌" : "⚠️"} {labStatus}
-                            </td>
+                            {/* Adjusted display for lab_status since we're not managing it here yet */}
+                            <td>{labStatus === "N/A" ? "N/A" : `Currently: ${labStatus}`}</td>
                             <td>🟡 {profileStatus}</td>
-                            <td>{lastVisit}</td> {/* Corrected line */}
+                            <td>{lastVisit}</td>
                             <td>
-                              <button className="action-button" onClick={() => setLabEntryStep(2)}>
+                              <button
+                                className="action-button"
+                                onClick={() => handleSelectPatientForLab(p)}
+                              >
                                 {actionLabel}
                               </button>
                             </td>
@@ -1177,47 +1276,47 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                     <div className="form-row">
                       <div className="form-group">
                         <label>Patient Name</label>
-                        <input type="text" value="Mary Shanley Sencil" readOnly />
+                        <input type="text" value={labResults.selectedPatientForLab ? `${labResults.selectedPatientForLab.first_name} ${labResults.selectedPatientForLab.last_name}` : ""} readOnly />
                       </div>
                       <div className="form-group">
                         <label>Date Submitted</label>
-                        <input type="date" />
+                        <input type="date" value={labResults.dateSubmitted} onChange={(e) => handleLabInputChange("dateSubmitted", e.target.value)} />
                       </div>
                       <div className="form-group">
                         <label>HbA1c (%)</label>
-                        <input type="text" />
+                        <input type="number" step="0.01" value={labResults.hba1c} onChange={(e) => handleLabInputChange("hba1c", e.target.value)} />
                       </div>
                     </div>
                     <div className="form-row">
                       <div className="form-group">
                         <label>Creatinine (umol/L)</label>
-                        <input type="text" />
+                        <input type="number" step="0.01" value={labResults.creatinine} onChange={(e) => handleLabInputChange("creatinine", e.target.value)} />
                       </div>
                       <div className="form-group">
                         <label>GOT (AST) - U/L</label>
-                        <input type="text" />
+                        <input type="number" step="0.01" value={labResults.gotAst} onChange={(e) => handleLabInputChange("gotAst", e.target.value)} />
                       </div>
                       <div className="form-group">
                         <label>GPT (ALT) - U/L</label>
-                        <input type="text" />
+                        <input type="number" step="0.01" value={labResults.gptAlt} onChange={(e) => handleLabInputChange("gptAlt", e.target.value)} />
                       </div>
                     </div>
                     <div className="form-row">
                       <div className="form-group">
                         <label>Cholesterol (mmol/L)</label>
-                        <input type="text" />
+                        <input type="number" step="0.01" value={labResults.cholesterol} onChange={(e) => handleLabInputChange("cholesterol", e.target.value)} />
                       </div>
                       <div className="form-group">
                         <label>Triglycerides (mmol/L)</label>
-                        <input type="text" />
+                        <input type="number" step="0.01" value={labResults.triglycerides} onChange={(e) => handleLabInputChange("triglycerides", e.target.value)} />
                       </div>
                       <div className="form-group">
                         <label>HDL Cholesterol (mmol/L)</label>
-                        <input type="text" />
+                        <input type="number" step="0.01" value={labResults.hdlCholesterol} onChange={(e) => handleLabInputChange("hdlCholesterol", e.target.value)} />
                       </div>
                       <div className="form-group">
                         <label>LDL Cholesterol (mmol/L)</label>
-                        <input type="text" />
+                        <input type="number" step="0.01" value={labResults.ldlCholesterol} onChange={(e) => handleLabInputChange("ldlCholesterol", e.target.value)} />
                       </div>
                     </div>
                     <div className="form-actions">
@@ -1285,7 +1384,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                     <button className="modal-green-button"
                       onClick={() => {
                       setShowSuccessModal(false);
-                      setLabEntryStep(1);
+                      setLabEntryStep(1); // Go back to the patient search step
                      }}>
                       Go to Patient Profile
                       </button>
