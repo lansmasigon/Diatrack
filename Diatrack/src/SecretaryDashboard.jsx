@@ -4,7 +4,7 @@ import "./SecretaryDashboard.css";
 import logo from "../picture/logo.png"; // Import the logo image
 
 // Import Chart.js components - These will no longer be directly used for the bars but might be used elsewhere
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2'; // Doughnut will be removed for the bars
 
 // Register Chart.js components
@@ -22,6 +22,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
   const totalRiskClasses = lowRisk + moderateRisk + highRisk;
   const lowRiskPercentage = totalRiskClasses > 0 ? (lowRisk / totalRiskClasses) * 100 : 0;
   const moderateRiskPercentage = totalRiskClasses > 0 ? (moderateRisk / totalRiskClasses) * 100 : 0;
+  highRisk = highRisk || 0; // Ensure highRisk is a number
   const highRiskPercentage = totalRiskClasses > 0 ? (highRisk / totalRiskClasses) * 100 : 0;
 
 
@@ -166,6 +167,8 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [selectedPatientDetail, setSelectedPatientDetail] = useState(null);
   const [message, setMessage] = useState("");
   const [currentPatientStep, setCurrentPatientStep] = useState(0);
+  // const [showPatientDetailModal, setShowPatientDetailModal] = useState(false); // REMOVED: No longer a modal
+  const [selectedPatientForDetail, setSelectedPatientForDetail] = useState(null); // This is good, renamed for clarity
 
   // State for chart data (dynamically fetched)
   const [totalPatientsCount, setTotalPatientsCount] = useState(0);
@@ -203,6 +206,8 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     ldlCholesterol: "",
   });
 
+  // NEW STATE FOR LAST LAB DATE
+  const [lastLabDate, setLastLabDate] = useState('N/A');
 
   const steps = [
     "Demographics",
@@ -242,6 +247,36 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       setPendingLabResultsCount(0);
     }
   }, [linkedDoctors, user]); // Dependencies ensure it runs when doctors are fetched
+
+  // NEW useEffect to fetch last lab submission date for the selected patient
+  useEffect(() => {
+    const fetchLastLabDateForPatient = async () => {
+      if (selectedPatientForDetail && selectedPatientForDetail.patient_id) {
+        const { data, error } = await supabase
+          .from('patient_labs')
+          .select('date_submitted')
+          .eq('patient_id', selectedPatientForDetail.patient_id)
+          .order('date_submitted', { ascending: false }) // Get the latest date
+          .limit(1);
+
+        if (error) {
+          console.error("Error fetching last lab date:", error);
+          setLastLabDate('Error');
+        } else if (data && data.length > 0) {
+          setLastLabDate(new Date(data[0].date_submitted).toLocaleDateString('en-US', {
+              year: 'numeric', month: 'long', day: 'numeric'
+          })); // Format date
+        } else {
+          setLastLabDate('N/A');
+        }
+      } else {
+        setLastLabDate('N/A');
+      }
+    };
+
+    fetchLastLabDateForPatient();
+  }, [selectedPatientForDetail]); // Re-run when selectedPatientForDetail changes
+
 
   const fetchLinkedDoctors = async () => {
     const { data, error } = await supabase
@@ -297,7 +332,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
       filtered.forEach(patient => {
           // *** ADD THIS console.log to see the actual value of patient.phase ***
-          console.log(`Patient: ${patient.first_name} ${patient.last_name}, Phase: ${patient.phase}`);
+          // console.log(`Patient: ${patient.first_name} ${patient.last_name}, Phase: ${patient.phase}`);
 
           // Patient Categories (using 'phase' column as per your instruction)
           // CORRECTED: Now checks for "Pre-Operative" and "Post-Operative" exactly
@@ -325,7 +360,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       });
 
       // *** ADD THIS console.log to see the final counts before setting state ***
-      console.log(`Final Pre-Op Count: ${preOp}, Final Post-Op Count: ${postOp}`);
+      // console.log(`Final Pre-Op Count: ${preOp}, Final Post-Op Count: ${postOp}`);
 
       setPreOpCount(preOp);
       setPostOpCount(postOp);
@@ -510,8 +545,8 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     try {
       setMedications(patient.medication ? JSON.parse(patient.medication) : [{ drugName: "", dosage: "", frequency: "", prescribedBy: "" }]);
     } catch (e) {
-      console.error("Error parsing medications:", e);
-      setMedications([{ drugName: "", dosage: "", frequency: "", prescribedBy: "" }]); // Fallback
+      console.error("Error parsing medications in handleEditPatient:", e);
+      setMedications([{ drugName: String(patient.medication) || "", dosage: "", frequency: "", prescribedBy: "" }]); // Fallback: put raw string if not JSON
     }
 
     setSelectedDoctorId(patient.preferred_doctor_id || "");
@@ -597,6 +632,19 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     setLabEntryStep(2);
     // Optionally pre-fill date if desired, or leave it for manual entry
     setLabResults(prev => ({ ...prev, dateSubmitted: new Date().toISOString().slice(0, 10) }));
+  };
+
+  // Function to open the patient detail view (not a modal anymore)
+  const handleViewPatientDetails = (patient) => {
+    setSelectedPatientForDetail(patient);
+    setActivePage("patient-detail-view"); // Change to new page state
+  };
+
+  // Function to close the patient detail view and return to patient list
+  const handleClosePatientDetailModal = () => {
+    setActivePage("patient-list"); // Go back to patient list
+    setSelectedPatientForDetail(null); // Clear the selected patient when closing
+    setLastLabDate('N/A'); // Reset last lab date
   };
 
 
@@ -707,10 +755,10 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       </div>
 
       <div className="main-content">
-        <div className="dashboard-header-section">
-          <h2 className="welcome-message">Welcome Back, {user ? user.first_name : 'Maria'} 👋</h2>
-          <p className="reports-info">Patient reports here always update in real time</p>
-          {(activePage === "dashboard" || activePage === "patient-list") && ( // Conditional rendering for search bar and create patient button
+        {activePage === "dashboard" && ( // MODIFIED: Only show header actions on dashboard
+          <div className="dashboard-header-section">
+            <h2 className="welcome-message">Welcome Back, {user ? user.first_name : 'Maria'} 👋</h2>
+            <p className="reports-info">Patient reports here always update in real time</p>
             <div className="header-actions">
               <div className="search-bar">
                 <input type="text" placeholder="Search for patients here" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
@@ -733,8 +781,8 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                 <i className="fas fa-plus"></i> Create New Patient
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="dashboard-content">
           {activePage === "dashboard" && (
@@ -1082,7 +1130,8 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                         <td>{pat.profile_status || 'N/A'}</td> {/* Display actual profile status */}
                         <td>{pat.last_doctor_visit || 'N/A'}</td> {/* Corrected line */}
                         <td className="patient-actions-cell">
-                          <button className="view-button" onClick={() => setSelectedPatientDetail(pat)}>View</button>
+                          {/* Updated View button to use the new handler */}
+                          <button className="view-button" onClick={() => handleViewPatientDetails(pat)}>View</button>
                           <button className="edit-button" onClick={() => handleEditPatient(pat)}>Edit</button>
                           <button className="delete-button" onClick={() => handleDeletePatient(pat.patient_id)}>Delete</button>
                         </td>
@@ -1096,41 +1145,77 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                 </tbody>
               </table>
 
-              {selectedPatientDetail && (
-                <div className="patient-detail-card">
-                  <h3>Patient Details</h3>
-                  <p><strong>Name:</strong> {selectedPatientDetail.first_name} {selectedPatientDetail.last_name}</p>
-                  <p><strong>Email:</strong> {selectedPatientDetail.email}</p>
-                  <p><strong>Date of Birth:</strong> {selectedPatientDetail.date_of_birth}</p>
-                  <p><strong>Contact Info:</strong> {selectedPatientDetail.contact_info}</p>
-                  <p><strong>Middle Name:</strong> {selectedPatientDetail.middle_name || 'N/A'}</p>
-                  <p><strong>Gender:</strong> {selectedPatientDetail.gender || 'N/A'}</p>
-                  <p><strong>Address:</strong> {selectedPatientDetail.address || 'N/A'}</p>
-                  <p><strong>Emergency Contact:</strong> {selectedPatientDetail.emergency_contact || 'N/A'}</p>
-                  <p><strong>Diabetes Type:</strong> {selectedPatientDetail.diabetes_type || 'N/A'}</p>
-                  <p><strong>Allergies:</strong> {selectedPatientDetail.allergies || 'N/A'}</p>
-                  <p><strong>Current Medications:</strong></p>
-                  {selectedPatientDetail.medication && JSON.parse(selectedPatientDetail.medication).length > 0 ? (
-                    <ul>
-                      {JSON.parse(selectedPatientDetail.medication).map((med, idx) => (
-                        <li key={idx}>
-                          {med.drugName} - {med.dosage} ({med.frequency}) by {med.prescribedBy}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p>N/A</p>
-                  )}
-
-                  <p><strong>Complication History:</strong> {selectedPatientDetail.complication_history || 'N/A'}</p>
-                  <p><strong>Smoking Status:</strong> {selectedPatientDetail.smoking_status || 'N/A'}</p>
-                  <p><strong>Glucose Monitoring Frequency:</strong> {selectedPatientDetail.monitoring_frequency || 'N/A'}</p>
-                  <p><strong>Last Doctor Visit:</strong> {selectedPatientDetail.last_doctor_visit || 'N/A'}</p>
-                  <p><strong>Last Eye Exam:</strong> {selectedPatientDetail.last_eye_exam || 'N/A'}</p>
-                  <button className="close-details-button" onClick={() => setSelectedPatientDetail(null)}>Close Details</button>
-                </div>
-              )}
+              {/* Message display for patient list */}
               {message && <p className="form-message">{message}</p>}
+            </div>
+          )}
+
+          {/* Patient Detail View - Rendered as a full screen page */}
+          {activePage === "patient-detail-view" && selectedPatientForDetail && (
+            <div className="patient-detail-view-section">
+                <div className="detail-view-header">
+                    <h2>Patient Details</h2>
+                    <button className="back-to-list-button" onClick={handleClosePatientDetailModal}>
+                        <i className="fas fa-arrow-left"></i> Back to List
+                    </button>
+                </div>
+                <div className="patient-details-content-container"> {/* New container for details content */}
+                    <div className="patient-details-left-column">
+                        <p><strong>Patient ID:</strong> {selectedPatientForDetail.patient_id || 'N/A'}</p>
+                        <p><strong>Name:</strong> {selectedPatientForDetail.first_name} {selectedPatientForDetail.middle_name ? selectedPatientForDetail.middle_name + ' ' : ''}{selectedPatientForDetail.last_name}</p>
+                        <p><strong>Gender:</strong> {selectedPatientForDetail.gender || 'N/A'}</p>
+                        <p><strong>Date of Birth:</strong> {selectedPatientForDetail.date_of_birth || 'N/A'}</p>
+                        <p><strong>Age:</strong> {selectedPatientForDetail.date_of_birth ? Math.floor((new Date() - new Date(selectedPatientForDetail.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</p>
+                        <p><strong>Email Address:</strong> {selectedPatientForDetail.email || 'N/A'}</p>
+                        <p><strong>Contact Number:</strong> {selectedPatientForDetail.contact_info || 'N/A'}</p>
+                        <p><strong>Address:</strong> {selectedPatientForDetail.address || 'N/A'}</p>
+                        <p><strong>Emergency Contact:</strong> {selectedPatientForDetail.emergency_contact || 'N/A'}</p>
+                    </div>
+                    <div className="patient-details-right-column">
+                        <p><strong>Diabetes Type:</strong> {selectedPatientForDetail.diabetes_type || 'N/A'}</p>
+                        <p><strong>Allergies:</strong> {selectedPatientForDetail.allergies || 'N/A'}</p>
+                        <p><strong>Current Medications:</strong></p>
+                        {(() => {
+                          let parsedMedications = [];
+                          try {
+                            if (selectedPatientForDetail.medication) {
+                              parsedMedications = JSON.parse(selectedPatientForDetail.medication);
+                              if (!Array.isArray(parsedMedications)) {
+                                console.warn("Medication data is not an array:", parsedMedications);
+                                parsedMedications = []; // Treat as empty if not an array
+                              }
+                            }
+                          } catch (e) {
+                            console.error("Error parsing medication for patient", selectedPatientForDetail.patient_id, e);
+                            // Fallback: If parsing fails, display the raw string as a single medication
+                            parsedMedications = [{ drugName: String(selectedPatientForDetail.medication) || 'N/A', dosage: '', frequency: '', prescribedBy: '' }];
+                          }
+
+                          if (parsedMedications.length > 0 && parsedMedications[0].drugName !== 'N/A') {
+                            return (
+                              <ul className="medication-list"> {/* Added class for styling */}
+                                {parsedMedications.map((med, idx) => (
+                                  <li key={idx}>
+                                    {med.drugName || 'N/A'} - {med.dosage || 'N/A'} ({med.frequency || 'N/A'}) by {med.prescribedBy || 'N/A'}
+                                  </li>
+                                ))}
+                              </ul>
+                            );
+                          } else {
+                            return <p className="medication-list-empty">N/A</p>; // Use a distinct class for empty list
+                          }
+                        })()}
+                        <p><strong>Complication History:</strong> {selectedPatientForDetail.complication_history || 'N/A'}</p>
+                        <p><strong>Smoking Status:</strong> {selectedPatientForDetail.smoking_status || 'N/A'}</p>
+                        <p><strong>Monitoring Frequency (Glucose):</strong> {selectedPatientForDetail.monitoring_frequency || 'N/A'}</p>
+                        <p><strong>Last Doctor Visit:</strong> {selectedPatientForDetail.last_doctor_visit || 'N/A'}</p>
+                        <p><strong>Last Eye Exam:</strong> {selectedPatientForDetail.last_eye_exam || 'N/A'}</p>
+                        <p><strong>Current Risk Classification:</strong> {selectedPatientForDetail.risk_classification || 'N/A'}</p>
+                        <p><strong>Current Lab Status:</strong> {selectedPatientForDetail.lab_status || 'N/A'}</p>
+                        <p><strong>Patient Phase:</strong> {selectedPatientForDetail.phase || 'N/A'}</p>
+                        <p><strong>Last Lab Submitted:</strong> {lastLabDate}</p> {/* Display the fetched last lab date */}
+                    </div>
+                </div>
             </div>
           )}
 
