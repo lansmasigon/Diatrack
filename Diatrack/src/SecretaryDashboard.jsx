@@ -22,7 +22,6 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
   const totalRiskClasses = lowRisk + moderateRisk + highRisk;
   const lowRiskPercentage = totalRiskClasses > 0 ? (lowRisk / totalRiskClasses) * 100 : 0;
   const moderateRiskPercentage = totalRiskClasses > 0 ? (moderateRisk / totalRiskClasses) * 100 : 0;
-  highRisk = highRisk || 0; // Ensure highRisk is a number
   const highRiskPercentage = totalRiskClasses > 0 ? (highRisk / totalRiskClasses) * 100 : 0;
 
 
@@ -209,6 +208,15 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   // NEW STATE FOR LAST LAB DATE
   const [lastLabDate, setLastLabDate] = useState('N/A');
 
+  // NEW STATE FOR PATIENT-SPECIFIC LAB RESULTS AND APPOINTMENTS
+  const [patientLabResults, setPatientLabResults] = useState({
+    hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
+    cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
+    bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' // Added these as placeholders
+  });
+  const [patientAppointments, setPatientAppointments] = useState([]);
+
+
   const steps = [
     "Demographics",
     "Diabetes History",
@@ -254,7 +262,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       if (selectedPatientForDetail && selectedPatientForDetail.patient_id) {
         const { data, error } = await supabase
           .from('patient_labs')
-          .select('date_submitted')
+          .select('*') // Select all columns for lab results
           .eq('patient_id', selectedPatientForDetail.patient_id)
           .order('date_submitted', { ascending: false }) // Get the latest date
           .limit(1);
@@ -262,15 +270,61 @@ const SecretaryDashboard = ({ user, onLogout }) => {
         if (error) {
           console.error("Error fetching last lab date:", error);
           setLastLabDate('Error');
+          setPatientLabResults({ // Reset on error
+            hba1c: 'Error', creatinine: 'Error', gotAst: 'Error', gptAlt: 'Error',
+            cholesterol: 'Error', triglycerides: 'Error', hdlCholesterol: 'Error', ldlCholesterol: 'Error',
+            bloodGlucoseLevel: 'Error', bloodPressure: 'Error'
+          });
         } else if (data && data.length > 0) {
-          setLastLabDate(new Date(data[0].date_submitted).toLocaleDateString('en-US', {
+          const latestLab = data[0];
+          setLastLabDate(new Date(latestLab.date_submitted).toLocaleDateString('en-US', {
               year: 'numeric', month: 'long', day: 'numeric'
           })); // Format date
+          setPatientLabResults({
+            hba1c: latestLab.Hba1c || 'N/A', // Use 'Hba1c' as per DB column
+            creatinine: latestLab.creatinine || 'N/A',
+            gotAst: latestLab.got_ast || 'N/A', // Use 'got_ast' as per DB column
+            gptAlt: latestLab.gpt_alt || 'N/A', // Use 'gpt_alt' as per DB column
+            cholesterol: latestLab.cholesterol || 'N/A',
+            triglycerides: latestLab.triglycerides || 'N/A',
+            hdlCholesterol: latestLab.hdl_cholesterol || 'N/A', // Use 'hdl_cholesterol' as per DB column
+            ldlCholesterol: latestLab.ldl_cholesterol || 'N/A', // Use 'ldl_cholesterol' as per DB column
+            bloodGlucoseLevel: 'N/A', // Placeholder, needs actual data
+            bloodPressure: 'N/A' // Placeholder, needs actual data
+          });
         } else {
           setLastLabDate('N/A');
+          setPatientLabResults({ // Reset to N/A if no data
+            hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
+            cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
+            bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A'
+          });
         }
+
+        // Fetch appointments for the patient
+        const { data: apptData, error: apptError } = await supabase
+          .from('appointments')
+          .select('*')
+          .eq('patient_id', selectedPatientForDetail.patient_id)
+          .order('appointment_datetime', { ascending: false });
+
+        if (apptError) {
+          console.error("Error fetching patient appointments:", apptError);
+          setPatientAppointments([]); // Clear appointments on error
+        } else if (apptData) {
+          setPatientAppointments(apptData);
+        } else {
+          setPatientAppointments([]);
+        }
+
       } else {
         setLastLabDate('N/A');
+        setPatientLabResults({ // Reset all to N/A if no patient selected
+          hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
+          cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
+          bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A'
+        });
+        setPatientAppointments([]);
       }
     };
 
@@ -645,6 +699,12 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     setActivePage("patient-list"); // Go back to patient list
     setSelectedPatientForDetail(null); // Clear the selected patient when closing
     setLastLabDate('N/A'); // Reset last lab date
+    setPatientLabResults({ // Reset lab results when closing
+      hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
+      cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
+      bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A'
+    });
+    setPatientAppointments([]); // Clear appointments when closing
   };
 
 
@@ -1150,7 +1210,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {/* Patient Detail View - Rendered as a full screen page */}
+          {/* Patient Detail View Section */}
           {activePage === "patient-detail-view" && selectedPatientForDetail && (
             <div className="patient-detail-view-section">
                 <div className="detail-view-header">
@@ -1161,60 +1221,125 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                 </div>
                 <div className="patient-details-content-container"> {/* New container for details content */}
                     <div className="patient-details-left-column">
-                        <p><strong>Patient ID:</strong> {selectedPatientForDetail.patient_id || 'N/A'}</p>
-                        <p><strong>Name:</strong> {selectedPatientForDetail.first_name} {selectedPatientForDetail.middle_name ? selectedPatientForDetail.middle_name + ' ' : ''}{selectedPatientForDetail.last_name}</p>
-                        <p><strong>Gender:</strong> {selectedPatientForDetail.gender || 'N/A'}</p>
-                        <p><strong>Date of Birth:</strong> {selectedPatientForDetail.date_of_birth || 'N/A'}</p>
-                        <p><strong>Age:</strong> {selectedPatientForDetail.date_of_birth ? Math.floor((new Date() - new Date(selectedPatientForDetail.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</p>
-                        <p><strong>Email Address:</strong> {selectedPatientForDetail.email || 'N/A'}</p>
-                        <p><strong>Contact Number:</strong> {selectedPatientForDetail.contact_info || 'N/A'}</p>
-                        <p><strong>Address:</strong> {selectedPatientForDetail.address || 'N/A'}</p>
-                        <p><strong>Emergency Contact:</strong> {selectedPatientForDetail.emergency_contact || 'N/A'}</p>
+                        {/* Basic Patient Information Section */}
+                        <div className="patient-basic-info-section">
+                            <p><strong>Patient ID:</strong> {selectedPatientForDetail.patient_id || 'N/A'}</p>
+                            <p><strong>Name:</strong> {selectedPatientForDetail.first_name} {selectedPatientForDetail.middle_name ? selectedPatientForDetail.middle_name + ' ' : ''}{selectedPatientForDetail.last_name}</p>
+                            <p><strong>Gender:</strong> {selectedPatientForDetail.gender || 'N/A'}</p>
+                            <p><strong>Date of Birth:</strong> {selectedPatientForDetail.date_of_birth ? new Date(selectedPatientForDetail.date_of_birth).toLocaleDateString() : 'N/A'}</p>
+                            <p><strong>Contact Number:</strong> {selectedPatientForDetail.contact_info || 'N/A'}</p>
+                            <p><strong>BMI:</strong> {'[BMI Placeholder - Requires Height & Weight data]'}</p> {/* Placeholder for BMI */}
+                            <p><strong>Diabetes Type:</strong> {selectedPatientForDetail.diabetes_type || 'N/A'}</p>
+                            <p><strong>Smoking History:</strong> {selectedPatientForDetail.smoking_status || 'N/A'}</p>
+                            <p><strong>Hypertensive:</strong> {selectedPatientForDetail.complication_history?.includes("Hypertensive") ? "Yes" : "No"}</p>
+                            <p><strong>Patient Phase:</strong> {selectedPatientForDetail.phase || 'N/A'}</p>
+                        </div>
+                        {/* Laboratory Result Section */}
+                        <div className="laboratory-results-section">
+                            <h3>Laboratory Results (Latest)</h3>
+                            <p><strong>Date Submitted:</strong> {lastLabDate}</p>
+                            <p><strong>HbA1c:</strong> {patientLabResults.hba1c}</p>
+                            <p><strong>Creatinine:</strong> {patientLabResults.creatinine}</p>
+                            <p><strong>GOT (AST):</strong> {patientLabResults.gotAst}</p>
+                            <p><strong>GPT (ALT):</strong> {patientLabResults.gptAlt}</p>
+                            <p><strong>Cholesterol:</strong> {patientLabResults.cholesterol}</p>
+                            <p><strong>Triglycerides:</strong> {patientLabResults.triglycerides}</p>
+                            <p><strong>HDL Cholesterol:</strong> {patientLabResults.hdlCholesterol}</p>
+                            <p><strong>LDL Cholesterol:</strong> {patientLabResults.ldlCholesterol}</p>
+                        </div>
+                        {/* Latest Health Metrics Section */}
+                        <div className="latest-health-metrics-section">
+                            <h3>Latest Health Metrics (From Labs)</h3>
+                            <p><strong>Blood Glucose Level:</strong> {patientLabResults.bloodGlucoseLevel}</p>
+                            <p><strong>Blood Pressure:</strong> {patientLabResults.bloodPressure}</p>
+                            <p><strong>Risk Classification:</strong> {selectedPatientForDetail.risk_classification || 'N/A'}</p>
+                        </div>
+                        {/* History Charts Section */}
+                        <div className="history-charts-section">
+                            <h3>History Charts</h3>
+                            <p>[Placeholder for Blood Sugar Timeline Chart]</p>
+                            <p>[Placeholder for Blood Pressure Timeline Chart]</p>
+                        </div>
                     </div>
                     <div className="patient-details-right-column">
-                        <p><strong>Diabetes Type:</strong> {selectedPatientForDetail.diabetes_type || 'N/A'}</p>
-                        <p><strong>Allergies:</strong> {selectedPatientForDetail.allergies || 'N/A'}</p>
-                        <p><strong>Current Medications:</strong></p>
-                        {(() => {
-                          let parsedMedications = [];
-                          try {
-                            if (selectedPatientForDetail.medication) {
-                              parsedMedications = JSON.parse(selectedPatientForDetail.medication);
-                              if (!Array.isArray(parsedMedications)) {
-                                console.warn("Medication data is not an array:", parsedMedications);
-                                parsedMedications = []; // Treat as empty if not an array
-                              }
-                            }
-                          } catch (e) {
-                            console.error("Error parsing medication for patient", selectedPatientForDetail.patient_id, e);
-                            // Fallback: If parsing fails, display the raw string as a single medication
-                            parsedMedications = [{ drugName: String(selectedPatientForDetail.medication) || 'N/A', dosage: '', frequency: '', prescribedBy: '' }];
-                          }
-
-                          if (parsedMedications.length > 0 && parsedMedications[0].drugName !== 'N/A') {
-                            return (
-                              <ul className="medication-list"> {/* Added class for styling */}
-                                {parsedMedications.map((med, idx) => (
-                                  <li key={idx}>
-                                    {med.drugName || 'N/A'} - {med.dosage || 'N/A'} ({med.frequency || 'N/A'}) by {med.prescribedBy || 'N/A'}
-                                  </li>
-                                ))}
-                              </ul>
-                            );
-                          } else {
-                            return <p className="medication-list-empty">N/A</p>; // Use a distinct class for empty list
-                          }
-                        })()}
-                        <p><strong>Complication History:</strong> {selectedPatientForDetail.complication_history || 'N/A'}</p>
-                        <p><strong>Smoking Status:</strong> {selectedPatientForDetail.smoking_status || 'N/A'}</p>
-                        <p><strong>Monitoring Frequency (Glucose):</strong> {selectedPatientForDetail.monitoring_frequency || 'N/A'}</p>
-                        <p><strong>Last Doctor Visit:</strong> {selectedPatientForDetail.last_doctor_visit || 'N/A'}</p>
-                        <p><strong>Last Eye Exam:</strong> {selectedPatientForDetail.last_eye_exam || 'N/A'}</p>
-                        <p><strong>Current Risk Classification:</strong> {selectedPatientForDetail.risk_classification || 'N/A'}</p>
-                        <p><strong>Current Lab Status:</strong> {selectedPatientForDetail.lab_status || 'N/A'}</p>
-                        <p><strong>Patient Phase:</strong> {selectedPatientForDetail.phase || 'N/A'}</p>
-                        <p><strong>Last Lab Submitted:</strong> {lastLabDate}</p> {/* Display the fetched last lab date */}
+                        {/* Doctor Assigned Section */}
+                        <div className="doctor-assigned-section">
+                            <p><strong>Assigned Doctor:</strong> {selectedPatientForDetail.doctors ? `${selectedPatientForDetail.doctors.first_name} ${selectedPatientForDetail.doctors.last_name}` : 'N/A'}</p>
+                        </div>
+                        {/* Current Medications Section */}
+                        <div className="current-medications-section">
+                            <p><strong>Current Medications:</strong></p>
+                            {(() => {
+                                let parsedMedications = [];
+                                try {
+                                  if (selectedPatientForDetail.medication) {
+                                    parsedMedications = JSON.parse(selectedPatientForDetail.medication);
+                                    if (!Array.isArray(parsedMedications)) {
+                                      console.warn("Medication data is not an array:", parsedMedications);
+                                      parsedMedications = []; // Treat as empty if not an array
+                                    }
+                                  }
+                                } catch (e) {
+                                  console.error("Error parsing medication for patient", selectedPatientForDetail.patient_id, e);
+                                  parsedMedications = [{ drugName: String(selectedPatientForDetail.medication) || 'N/A', dosage: '', frequency: '', prescribedBy: '' }];
+                                }
+                                if (parsedMedications.length > 0 && parsedMedications[0].drugName !== 'N/A') {
+                                  return (
+                                    <ul className="medication-list">
+                                      {parsedMedications.map((med, idx) => (
+                                        <li key={idx}>
+                                          {med.drugName || 'N/A'} - {med.dosage || 'N/A'} ({med.frequency || 'N/A'}) by {med.prescribedBy || 'N/A'}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  );
+                                } else {
+                                  return <p className="medication-list-empty">N/A</p>;
+                                }
+                            })()}
+                        </div>
+                        {/* Appointment Schedule Section */}
+                        <div className="appointment-schedule-section">
+                            <h3>Appointment Schedule</h3>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Time</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {patientAppointments.length > 0 ? (
+                                        patientAppointments.map((appointment, idx) => (
+                                            <tr key={idx}>
+                                                <td>{new Date(appointment.appointment_datetime).toLocaleDateString()}</td>
+                                                <td>{new Date(appointment.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                                                <td>{appointment.notes || 'N/A'}</td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="3">No appointments scheduled for this patient.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
+                </div>
+                {/* Wound Photo Timeline Section - Added as a footer-like section */}
+                <div className="wound-photo-timeline-section">
+                    <h3>Wound Photo Timeline</h3>
+                    <div className="wound-photo-entry">
+                        <p><strong>Date:</strong> [Date Submitted]</p>
+                        <p><strong>Time:</strong> [Time Submitted]</p>
+                        {/* Placeholder for the wound photo */}
+                        <div className="wound-photo-placeholder">
+                            [Wound Photo Here]
+                        </div>
+                    </div>
+                    {/* More wound photo entries would go here */}
                 </div>
             </div>
           )}
