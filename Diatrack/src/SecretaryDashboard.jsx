@@ -172,9 +172,10 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [editingPatientId, setEditingPatientId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [labEntryStep, setLabEntryStep] = useState(1); // Corrected to use useState
-  const [selectedPatientDetail, setSelectedPatientDetail] = useState(null);
+  const [selectedPatientDetail, setSelectedPatientDetail] = useState(null); // Corrected syntax here
   const [message, setMessage] = useState("");
-  const [currentPatientStep, setCurrentPatientStep] = useState(0);
+  const [currentPatientStep, setCurrentPatientStep] = useState(0); // Initialize with 0
+
   // const [showPatientDetailModal, setShowPatientDetailModal] = useState(false); // REMOVED: No longer a modal
   const [selectedPatientForDetail, setSelectedPatientForDetail] = useState(null); // This is good, renamed for clarity
 
@@ -216,14 +217,20 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     ldlCholesterol: "",
   });
 
-  // NEW STATE FOR LAST LAB DATE
+  // NEW STATE FOR LAST LAB DATE AND HEALTH METRICS
   const [lastLabDate, setLastLabDate] = useState('N/A');
+  const [patientHealthMetrics, setPatientHealthMetrics] = useState({
+    bloodGlucoseLevel: 'N/A',
+    bloodPressure: 'N/A'
+  });
+  // NEW STATE FOR WOUND PHOTO URL
+  const [woundPhotoUrl, setWoundPhotoUrl] = useState('');
+
 
   // NEW STATE FOR PATIENT-SPECIFIC LAB RESULTS AND APPOINTMENTS
   const [patientLabResults, setPatientLabResults] = useState({
     hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
     cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
-    bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' // Added these as placeholders
   });
   const [patientAppointments, setPatientAppointments] = useState([]);
 
@@ -269,54 +276,85 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
   // NEW useEffect to fetch last lab submission date for the selected patient
   useEffect(() => {
-    const fetchLastLabDateForPatient = async () => {
+    const fetchPatientDetailsData = async () => {
       if (selectedPatientForDetail && selectedPatientForDetail.patient_id) {
-        const { data, error } = await supabase
+        // --- Fetch Latest Lab Results ---
+        const { data: labData, error: labError } = await supabase
           .from('patient_labs')
-          .select('*') // Select all columns for lab results
+          .select('date_submitted, Hba1c, creatinine, got_ast, gpt_alt, cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol')
           .eq('patient_id', selectedPatientForDetail.patient_id)
-          .order('date_submitted', { ascending: false }) // Get the latest date
+          .order('date_submitted', { ascending: false })
           .limit(1);
 
-        if (error) {
-          console.error("Error fetching last lab date:", error);
+        if (labError) {
+          console.error("Error fetching latest lab results:", labError);
           setLastLabDate('Error');
-          setPatientLabResults({ // Reset on error
+          setPatientLabResults({
             hba1c: 'Error', creatinine: 'Error', gotAst: 'Error', gptAlt: 'Error',
             cholesterol: 'Error', triglycerides: 'Error', hdlCholesterol: 'Error', ldlCholesterol: 'Error',
-            bloodGlucoseLevel: 'Error', bloodPressure: 'Error'
           });
-        } else if (data && data.length > 0) {
-          const latestLab = data[0];
-          // Format date explicitly for display<ctrl42>-MM-DD
+        } else if (labData && labData.length > 0) {
+          const latestLab = labData[0];
           const dateObj = new Date(latestLab.date_submitted);
           const year = dateObj.getUTCFullYear();
-          const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+          const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
           const day = String(dateObj.getUTCDate()).padStart(2, '0');
           setLastLabDate(`${year}-${month}-${day}`);
-
           setPatientLabResults({
-            hba1c: latestLab.Hba1c || 'N/A', // Use 'Hba1c' as per DB column
+            hba1c: latestLab.Hba1c || 'N/A',
             creatinine: latestLab.creatinine || 'N/A',
-            gotAst: latestLab.got_ast || 'N/A', // Use 'got_ast' as per DB column
-            gptAlt: latestLab.gpt_alt || 'N/A', // Use 'gpt_alt' as per DB column
+            gotAst: latestLab.got_ast || 'N/A',
+            gptAlt: latestLab.gpt_alt || 'N/A',
             cholesterol: latestLab.cholesterol || 'N/A',
             triglycerides: latestLab.triglycerides || 'N/A',
-            hdlCholesterol: latestLab.hdl_cholesterol || 'N/A', // Use 'hdl_cholesterol' as per DB column
-            ldlCholesterol: latestLab.ldl_cholesterol || 'N/A', // Use 'ldl_cholesterol' as per DB column
-            bloodGlucoseLevel: 'N/A', // Placeholder, needs actual data
-            bloodPressure: 'N/A' // Placeholder, needs actual data
+            hdlCholesterol: latestLab.hdl_cholesterol || 'N/A',
+            ldlCholesterol: latestLab.ldl_cholesterol || 'N/A',
           });
         } else {
           setLastLabDate('N/A');
-          setPatientLabResults({ // Reset to N/A if no data
+          setPatientLabResults({
             hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
             cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
-            bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A'
           });
         }
 
-        // Fetch appointments for the patient
+        // --- Fetch Latest Health Metrics (Blood Glucose, Blood Pressure, Wound Photo URL) ---
+        console.log("Fetching health metrics for patient ID:", selectedPatientForDetail.patient_id); // Added log
+        const { data: healthData, error: healthError } = await supabase
+          .from('health_metrics')
+          .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url') // Added wound_photo_url
+          .eq('patient_id', selectedPatientForDetail.patient_id)
+          // Removed .order('created_at', { ascending: false }) as per user request
+          .limit(1);
+
+        console.log("Raw healthData from Supabase:", healthData); // Added log
+        console.log("Health Metrics Error:", healthError ? healthError.message : "No error object or message"); // Log error message
+        console.log("Is healthData an array and not empty?", Array.isArray(healthData) && healthData.length > 0);
+
+        if (healthError) {
+          console.error("Error fetching latest health metrics:", healthError.message); // Log specific error message
+          setPatientHealthMetrics({ bloodGlucoseLevel: 'Error', bloodPressure: 'Error' });
+          setWoundPhotoUrl(''); // Reset wound photo URL on error
+        } else if (healthData && healthData.length > 0) {
+          const latestHealth = healthData[0];
+          console.log("Latest Health Metric Entry:", latestHealth); // Log the latest entry
+
+          setPatientHealthMetrics({
+            bloodGlucoseLevel: latestHealth.blood_glucose || 'N/A',
+            bloodPressure: (latestHealth.bp_systolic !== null && latestHealth.bp_diastolic !== null) ? `${latestHealth.bp_systolic}/${latestHealth.bp_diastolic}` : 'N/A'
+          });
+          setWoundPhotoUrl(latestHealth.wound_photo_url || ''); // Set wound photo URL
+          // Added console.log for debugging wound photo URL
+          console.log("Wound Photo URL extracted from latestHealth:", latestHealth.wound_photo_url); // Added log
+        } else {
+          console.log("No health metrics found for this patient.");
+          setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' });
+          setWoundPhotoUrl(''); // Reset wound photo URL if no data
+          console.log("Wound Photo URL extracted from latestHealth: (empty string/null/undefined)"); // Adjusted log for clarity
+        }
+
+
+        // --- Fetch Appointments for the Patient ---
         const { data: apptData, error: apptError } = await supabase
           .from('appointments')
           .select('*')
@@ -333,17 +371,19 @@ const SecretaryDashboard = ({ user, onLogout }) => {
         }
 
       } else {
+        // Reset all states if no patient selected
         setLastLabDate('N/A');
-        setPatientLabResults({ // Reset all to N/A if no patient selected
+        setPatientLabResults({
           hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
           cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
-          bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A'
         });
+        setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' });
+        setWoundPhotoUrl(''); // Reset wound photo URL
         setPatientAppointments([]);
       }
     };
 
-    fetchLastLabDateForPatient();
+    fetchPatientDetailsData();
   }, [selectedPatientForDetail]); // Re-run when selectedPatientForDetail changes
 
 
@@ -617,7 +657,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       heartAttack: patient.complication_history?.includes("Heart Attack") || false,
       hypertensive: patient.complication_history?.includes("Hypertensive") || false,
       smokingStatus: patient.smoking_status || "",
-      monitoringFrequencyGlucose: patient.monitoring_frequency || "",
+      monitoringFrequencyGlucose: patient.monitoringFrequencyGlucose || "",
       lastDoctorVisit: patient.last_doctor_visit || "",
       lastEyeExam: patient.last_eye_exam || ""
     });
@@ -741,7 +781,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
   // Handler for "Edit" button
   const handleEditAppointment = (appointment) => {
-    // Format date to<ctrl42>-MM-DD for input type="date"
+    // Format date toYYYY-MM-DD for input type="date"
     const formattedDate = appointment.appointment_datetime.split('T')[0];
     // Extract time to HH:MM directly from the ISO string.
     // NOTE: input type="time" expects 24-hour format, so no 12-hour conversion here.
@@ -788,8 +828,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     setPatientLabResults({ // Reset lab results when closing
       hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
       cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
-      bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A'
     });
+    setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' }); // Reset health metrics
+    setWoundPhotoUrl(''); // Reset wound photo URL
     setPatientAppointments([]);
   };
 
@@ -994,772 +1035,798 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                               <button
                                 className="cancel-button"
                                 onClick={() => handleDeleteAppointment(appointment.appointment_id, 'cancel')}
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                className="done-button"
-                                onClick={() => handleDeleteAppointment(appointment.appointment_id, 'done')}
-                              >
-                                Done
-                              </button>
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    className="done-button"
+                                    onClick={() => handleDeleteAppointment(appointment.appointment_id, 'done')}
+                                  >
+                                    Done
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan="3">No appointments found.</td> {/* Changed message */}
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activePage === "create-patient" && (
+                <div className="create-patient-section">
+                  <div className="create-patient-header">
+                    <h2>{editingPatientId ? "Edit Patient Account" : "Create Patient Account"}</h2>
+                    <button className="close-form-button" onClick={() => setActivePage("dashboard")}>
+                      <i className="fas fa-times"></i>
+                    </button>
+                  </div>
+
+                  <div className="progress-indicator">
+                    {steps.map((step, index) => (
+                      <React.Fragment key={step}>
+                        <div className={`step ${index === currentPatientStep ? "active" : ""} ${index < currentPatientStep ? "completed" : ""}`}>
+                          <div className="step-number"></div>
+                          <div className="step-name">{step}</div>
+                        </div>
+                        {index < steps.length - 1 && <div className={`progress-line ${index < currentPatientStep ? "completed" : ""}`}></div>}
+                      </React.Fragment>
+                    ))}
+                  </div>
+
+                  <div className="patient-form-content">
+                    {currentPatientStep === 0 && (
+                      <div className="form-step demographics-form-step">
+                        <h3>Demographics</h3>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>First Name:</label>
+                            <input className="patient-input" placeholder="First Name" value={patientForm.firstName} onChange={(e) => handleInputChange("firstName", e.target.value)} />
+                          </div>
+                          <div className="form-group">
+                            <label>Middle Name (Optional):</label>
+                            <input className="patient-input" placeholder="Middle Name" value={patientForm.middleName} onChange={(e) => handleInputChange("middleName", e.target.value)} />
+                          </div>
+                          <div className="form-group">
+                            <label>Last Name:</label>
+                            <input className="patient-input" placeholder="Last Name" value={patientForm.lastName} onChange={(e) => handleInputChange("lastName", e.target.value)} />
+                          </div>
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Email:</label>
+                            <input className="patient-input" placeholder="Email" type="email" value={patientForm.email} onChange={(e) => handleInputChange("email", e.target.value)} />
+                          </div>
+                          <div className="form-group">
+                            <label>Password:</label>
+                            <input className="patient-input" placeholder="Password" type="password" value={patientForm.password} onChange={(e) => handleInputChange("password", e.target.value)} />
+                          </div>
+                          <div className="form-group">
+                            <label>Gender:</label>
+                            <select className="patient-input" value={patientForm.gender} onChange={(e) => handleInputChange("gender", e.target.value)}>
+                              <option value="">Select Gender</option>
+                              <option value="Male">Male</option>
+                              <option value="Female">Female</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Date of Birth:</label>
+                            <input className="patient-input" placeholder="Date of Birth" type="date" value={patientForm.dateOfBirth} onChange={(e) => handleInputChange("dateOfBirth", e.target.value)} />
+                          </div>
+                          <div className="form-group">
+                            <label>Contact Info:</label>
+                            <input className="patient-input" placeholder="Contact Info" value={patientForm.contactInfo} onChange={(e) => handleInputChange("contactInfo", e.target.value)} />
+                          </div>
+                          <div className="form-group">
+                            <label>Address:</label>
+                            <input className="patient-input" placeholder="Address" value={patientForm.address} onChange={(e) => handleInputChange("address", e.target.value)} />
+                          </div>
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group full-width">
+                            <label>Emergency Contact Number:</label>
+                            <input className="patient-input" placeholder="Emergency Contact Number" value={patientForm.emergencyContactNumber} onChange={(e) => handleInputChange("emergencyContactNumber", e.target.value)} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {currentPatientStep === 1 && (
+                      <div className="form-step diabetes-history-form-step">
+                        <h3>Diabetes History</h3>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Diabetes Type:</label>
+                            <select className="patient-input" value={patientForm.diabetesType} onChange={(e) => handleInputChange("diabetesType", e.target.value)}>
+                              <option value="">Select Type</option>
+                              <option value="Type 1">Type 1</option>
+                              <option value="Type 2">Type 2</option>
+                              <option value="Gestational">Gestational</option>
+                            </select>
+                          </div>
+                          <div className="form-group">
+                            <label>Allergies:</label>
+                            <input className="patient-input" placeholder="Allergies" value={patientForm.allergies} onChange={(e) => handleInputChange("allergies", e.target.value)} />
+                          </div>
+                        </div>
+
+                        <div className="medications-table-container">
+                          <label>Current Medications:</label>
+                          <table className="medications-table">
+                            <thead>
+                              <tr>
+                                <th>Drug Name</th>
+                                <th>Dosage</th>
+                                <th>Frequency</th>
+                                <th>Prescribed by</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {medications.map((med, index) => (
+                                <tr key={index}>
+                                  <td><input type="text" className="med-input" value={med.drugName} onChange={(e) => handleMedicationChange(index, "drugName", e.target.value)} /></td>
+                                  <td><input type="text" className="med-input" value={med.dosage} onChange={(e) => handleMedicationChange(index, "dosage", e.target.value)} /></td>
+                                  <td><input type="text" className="med-input" value={med.frequency} onChange={(e) => handleMedicationChange(index, "frequency", e.target.value)} /></td>
+                                  <td><input type="text" className="med-input" value={med.prescribedBy} onChange={(e) => handleMedicationChange(index, "prescribedBy", e.target.value)} /></td>
+                                  <td className="med-actions">
+                                    {medications.length > 1 && (
+                                      <button type="button" className="remove-med-button" onClick={() => handleRemoveMedication(index)}>
+                                        <i className="fas fa-minus-circle"></i>
+                                      </button>
+                                    )}
+                                    {index === medications.length - 1 && (
+                                      <button type="button" className="add-med-button" onClick={handleAddMedication}>
+                                        <i className="fas fa-plus-circle"></i>
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {currentPatientStep === 2 && (
+                      <div className="form-step complication-history-form-step">
+                        <h3>Complication History</h3>
+                        <div className="form-row">
+                          <div className="form-group checkbox-group">
+                            <input type="checkbox" id="footUlcers" checked={patientForm.footUlcersAmputation} onChange={(e) => handleInputChange("footUlcersAmputation", e.target.checked)} />
+                            <label htmlFor="footUlcers">Foot Ulcers/Amputation</label>
+                          </div>
+                          <div className="form-group checkbox-group">
+                            <input type="checkbox" id="eyeIssues" checked={patientForm.eyeIssues} onChange={(e) => handleInputChange("eyeIssues", e.target.checked)} />
+                            <label htmlFor="eyeIssues">Eye Issues</label>
+                          </div>
+                          <div className="form-group checkbox-group">
+                            <input type="checkbox" id="kidneyIssues" checked={patientForm.kidneyIssues} onChange={(e) => handleInputChange("kidneyIssues", e.target.checked)} />
+                            <label htmlFor="kidneyIssues">Kidney Issues</label>
+                          </div>
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group checkbox-group">
+                            <input type="checkbox" id="stroke" checked={patientForm.stroke} onChange={(e) => handleInputChange("stroke", e.target.checked)} />
+                            <label htmlFor="stroke">Stroke</label>
+                          </div>
+                          <div className="form-group checkbox-group">
+                            <input type="checkbox" id="heartAttack" checked={patientForm.heartAttack} onChange={(e) => handleInputChange("heartAttack", e.target.checked)} />
+                            <label htmlFor="heartAttack">Heart Attack</label>
+                          </div>
+                          <div className="form-group checkbox-group">
+                            <input type="checkbox" id="hypertensive" checked={patientForm.hypertensive} onChange={(e) => handleInputChange("hypertensive", e.target.checked)} />
+                            <label htmlFor="hypertensive">Hypertensive</label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {currentPatientStep === 3 && (
+                      <div className="form-step lifestyle-form-step">
+                        <h3>Lifestyle</h3>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Smoking Status:</label>
+                            <select className="patient-input" value={patientForm.smokingStatus} onChange={(e) => handleInputChange("smokingStatus", e.target.value)}>
+                              <option value="">Select Status</option>
+                              <option value="Never Smoked">Never Smoked</option>
+                              <option value="Former Smoker">Former Smoker</option>
+                              <option value="Current Smoker">Current Smoker</option>
+                            </select>
+                          </div>
+                          <div className="form-group">
+                            <label>Monitoring Frequency (Glucose):</label>
+                            <input className="patient-input" placeholder="e.g., Daily, Weekly" value={patientForm.monitoringFrequencyGlucose} onChange={(e) => handleInputChange("monitoringFrequencyGlucose", e.target.value)} />
+                          </div>
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Last Doctor Visit:</label>
+                            <input className="patient-input" type="date" value={patientForm.lastDoctorVisit} onChange={(e) => handleInputChange("lastDoctorVisit", e.target.value)} />
+                          </div>
+                          <div className="form-group">
+                            <label>Last Eye Exam:</label>
+                            <input className="patient-input" type="date" value={patientForm.lastEyeExam} onChange={(e) => handleInputChange("lastEyeExam", e.target.value)} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {currentPatientStep === 4 && (
+                      <div className="form-step assignment-form-step">
+                        <h3>Assignment</h3>
+                        <div className="form-row">
+                          <div className="form-group full-width">
+                            <label>Assign Doctor:</label>
+                            <select className="doctor-select" value={selectedDoctorId} onChange={(e) => setSelectedDoctorId(e.target.value)}>
+                              <option value="">Select Doctor</option>
+                              {linkedDoctors.map((doc) => (
+                                <option key={doc.doctor_id} value={doc.doctor_id}>{doc.doctor_name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group full-width">
+                            <label>Prepared By:</label>
+                            <input className="patient-input" type="text" value={user ? `${user.first_name} ${user.last_name}` : ''} readOnly />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {message && <p className="form-message">{message}</p>}
+
+                  <div className="form-navigation-buttons">
+                    {currentPatientStep > 0 && (
+                      <button className="previous-step-button" onClick={handlePreviousStep}>Previous</button>
+                    )}
+                    {currentPatientStep < steps.length - 1 && (
+                      <button className="next-step-button" onClick={handleNextStep}>Next</button>
+                    )}
+                    {currentPatientStep === steps.length - 1 && (
+                      <button className="next-step-button" onClick={handleSavePatientWithConfirmation}>
+                        {editingPatientId ? "Update Patient" : "Create Patient"}
+                      </button>
+                    )}
+                    <button className="cancel-button" onClick={() => setActivePage("dashboard")}>Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {activePage === "patient-list" && (
+                <div className="patient-list-section">
+                  <h2>My Patients</h2>
+                  <table className="patient-table">
+                    <thead>
+                      <tr>
+                      <th>Patient Name</th>
+                      <th>Age/Sex</th>
+                      <th>Assigned Doctor</th>
+                      <th>Classification</th>
+                      <th>Lab Status</th>
+                      <th>Profile Status</th>
+                      <th>Last Visit</th>
+                      <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredPatients.length > 0 ? (
+                        filteredPatients.map((pat) => (
+                          <tr key={pat.patient_id}>
+                            <td>{pat.first_name} {pat.last_name}</td>
+                            <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                            <td>{pat.doctors ? `${pat.doctors.first_name} ${pat.doctors.last_name}` : 'Unknown'}</td>
+                            <td className={`risk-classification-${(pat.risk_classification || 'N/A').toLowerCase()}`}>
+                                {pat.risk_classification || 'N/A'}
+                            </td>
+                            <td>{pat.lab_status || 'N/A'}</td> {/* Display actual lab status */}
+                            <td>{pat.profile_status || 'N/A'}</td> {/* Display actual profile status */}
+                            <td>{pat.last_doctor_visit || 'N/A'}</td> {/* Corrected line */}
+                            <td className="patient-actions-cell">
+                              {/* Updated View button to use the new handler */}
+                              <button className="view-button" onClick={() => handleViewPatientDetails(pat)}>View</button>
+                              <button className="edit-button" onClick={() => handleEditPatient(pat)}>Edit</button>
+                              <button className="delete-button" onClick={() => handleDeletePatient(pat.patient_id)}>Delete</button>
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="3">No appointments found.</td> {/* Changed message */}
+                          <td colSpan="8">No patients found.</td>
                         </tr>
                       )}
                     </tbody>
                   </table>
+
+                  {/* Message display for patient list */}
+                  {message && <p className="form-message">{message}</p>}
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {activePage === "create-patient" && (
-            <div className="create-patient-section">
-              <div className="create-patient-header">
-                <h2>{editingPatientId ? "Edit Patient Account" : "Create Patient Account"}</h2>
-                <button className="close-form-button" onClick={() => setActivePage("dashboard")}>
-                  <i className="fas fa-times"></i>
-                </button>
-              </div>
+              {/* Patient Detail View Section */}
+              {activePage === "patient-detail-view" && selectedPatientForDetail && (
+                <div className="patient-detail-view-section">
+                    <div className="detail-view-header">
+                        <h2>Patient Details</h2>
+                        <button className="back-to-list-button" onClick={handleClosePatientDetailModal}>
+                            <i className="fas fa-arrow-left"></i> Back to List
+                        </button>
+                    </div>
+                    <div className="patient-details-content-container"> {/* New container for details content */}
+                        <div className="patient-details-left-column">
+                            {/* Basic Patient Information Section */}
+                            <div className="patient-basic-info-section">
+                                <p><strong>Patient ID:</strong> {selectedPatientForDetail.patient_id || 'N/A'}</p>
+                                <p><strong>Name:</strong> {selectedPatientForDetail.first_name} {selectedPatientForDetail.middle_name ? selectedPatientForDetail.middle_name + ' ' : ''}{selectedPatientForDetail.last_name}</p>
+                                <p><strong>Gender:</strong> {selectedPatientForDetail.gender || 'N/A'}</p>
+                                {/* Display date of birth directly as stored (YYYY-MM-DD) */}
+                                <p><strong>Date of Birth:</strong> {selectedPatientForDetail.date_of_birth || 'N/A'}</p>
+                                <p><strong>Contact Number:</strong> {selectedPatientForDetail.contact_info || 'N/A'}</p>
+                                <p><strong>BMI:</strong> {'[BMI Placeholder - Requires Height & Weight data]'}</p> {/* Placeholder for BMI */}
+                                <p><strong>Diabetes Type:</strong> {selectedPatientForDetail.diabetes_type || 'N/A'}</p>
+                                <p><strong>Smoking History:</strong> {selectedPatientForDetail.smoking_status || 'N/A'}</p>
+                                <p><strong>Hypertensive:</strong> {selectedPatientForDetail.complication_history?.includes("Hypertensive") ? "Yes" : "No"}</p>
+                                <p><strong>Patient Phase:</strong> {selectedPatientForDetail.phase || 'N/A'}</p>
+                            </div>
+                            {/* Laboratory Result Section */}
+                            <div className="laboratory-results-section">
+                                <h3>Laboratory Results (Latest)</h3>
+                                <p><strong>Date Submitted:</strong> {lastLabDate}</p>
+                                <p><strong>HbA1c:</strong> {patientLabResults.hba1c}</p>
+                                <p><strong>Creatinine:</strong> {patientLabResults.creatinine}</p>
+                                <p><strong>GOT (AST):</strong> {patientLabResults.gotAst}</p>
+                                <p><strong>GPT (ALT):</strong> {patientLabResults.gptAlt}</p>
+                                <p><strong>Cholesterol:</strong> {patientLabResults.cholesterol}</p>
+                                <p><strong>Triglycerides:</strong> {patientLabResults.triglycerides}</p>
+                                <p><strong>HDL Cholesterol:</strong> {patientLabResults.hdlCholesterol}</p>
+                                <p><strong>LDL Cholesterol:</strong> {patientLabResults.ldlCholesterol}</p>
+                            </div>
+                            {/* Latest Health Metrics Section */}
+                            <div className="latest-health-metrics-section">
+                                <h3>Latest Health Metrics</h3>
+                                {/* Updated to use patientHealthMetrics state */}
+                                <p><strong>Blood Glucose Level:</strong> {patientHealthMetrics.bloodGlucoseLevel}</p>
+                                <p><strong>Blood Pressure:</strong> {patientHealthMetrics.bloodPressure}</p>
+                                {/* Risk Classification fetched from selectedPatientForDetail (patients table) */}
+                                <p><strong>Risk Classification:</strong> {selectedPatientForDetail.risk_classification || 'N/A'}</p>
+                            </div>
+                            {/* History Charts Section */}
+                            <div className="history-charts-section">
+                                <h3>History Charts</h3>
+                                <p>[Placeholder for Blood Sugar Timeline Chart]</p>
+                                <p>[Placeholder for Blood Pressure Timeline Chart]</p>
+                            </div>
+                        </div>
+                        <div className="patient-details-right-column">
+                            {/* Doctor Assigned Section */}
+                            <div className="doctor-assigned-section">
+                                <p><strong>Assigned Doctor:</strong> {selectedPatientForDetail.doctors ? `${selectedPatientForDetail.doctors.first_name} ${selectedPatientForDetail.doctors.last_name}` : 'N/A'}</p>
+                            </div>
+                            {/* Current Medications Section */}
+                            <div className="current-medications-section">
+                                <h3>Current Medications:</h3>
+                                <div className="medications-table-container"> {/* Use the same container class for styling */}
+                                  <table className="medications-table"> {/* Use the same table class for styling */}
+                                    <thead>
+                                      <tr>
+                                        <th>Drug Name</th>
+                                        <th>Dosage</th>
+                                        <th>Frequency</th>
+                                        <th>Prescribed by</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(() => {
+                                          let parsedMedications = [];
+                                          try {
+                                            if (selectedPatientForDetail.medication) {
+                                              parsedMedications = JSON.parse(selectedPatientForDetail.medication);
+                                              if (!Array.isArray(parsedMedications)) {
+                                                console.warn("Medication data is not an array:", parsedMedications);
+                                                parsedMedications = []; // Treat as empty if not an array
+                                              }
+                                            }
+                                          } catch (e) {
+                                            console.error("Error parsing medication for patient", selectedPatientForDetail.patient_id, e);
+                                            // Fallback for invalid JSON: create a single entry with the raw string
+                                            parsedMedications = [{ drugName: String(selectedPatientForDetail.medication) || 'N/A', dosage: '', frequency: '', prescribedBy: '' }];
+                                          }
 
-              <div className="progress-indicator">
-                {steps.map((step, index) => (
-                  <React.Fragment key={step}>
-                    <div className={`step ${index === currentPatientStep ? "active" : ""} ${index < currentPatientStep ? "completed" : ""}`}>
-                      <div className="step-number"></div>
-                      <div className="step-name">{step}</div>
+                                          if (parsedMedications.length > 0 && parsedMedications[0].drugName !== 'N/A') {
+                                            return (
+                                              parsedMedications.map((med, idx) => (
+                                                <tr key={idx}>
+                                                  <td>{med.drugName || 'N/A'}</td>
+                                                  <td>{med.dosage || 'N/A'}</td>
+                                                  <td>{med.frequency || 'N/A'}</td>
+                                                  <td>{med.prescribedBy || 'N/A'}</td>
+                                                </tr>
+                                              ))
+                                            );
+                                          } else {
+                                            return (
+                                              <tr>
+                                                <td colSpan="4">No medications listed.</td>
+                                              </tr>
+                                            );
+                                          }
+                                      })()}
+                                    </tbody>
+                                  </table>
+                                </div>
+                            </div>
+                            {/* Appointment Schedule Section */}
+                            <div className="appointment-schedule-section">
+                                <h3>Appointment Schedule</h3>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Time</th>
+                                            <th>Notes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {patientAppointments.length > 0 ? (
+                                            patientAppointments.map((appointment, idx) => (
+                                                <tr key={idx}>
+                                                    {/* Display date from ISO stringYYYY-MM-DD */}
+                                                    <td>{appointment.appointment_datetime.split('T')[0]}</td>
+                                                    {/* Display time from ISO string HH:MM, converted to 12-hour */}
+                                                    <td>{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</td>
+                                                    <td>{appointment.notes || 'N/A'}</td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="3">No appointments scheduled for this patient.</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
-                    {index < steps.length - 1 && <div className={`progress-line ${index < currentPatientStep ? "completed" : ""}`}></div>}
-                  </React.Fragment>
-                ))}
-              </div>
+                    {/* Wound Photo Timeline Section - Added as a footer-like section */}
+                    <div className="wound-photo-timeline-section">
+                        <h3>Wound Photo Timeline</h3>
+                        <div className="wound-photo-entry">
+                            {/* Removed Date and Time placeholders */}
+                            {/* Display the wound photo if URL exists */}
+                            <div className="wound-photo-placeholder">
+                                {woundPhotoUrl ? (
+                                    <img src={woundPhotoUrl} alt="Wound Photo" style={{ maxWidth: '100%', height: 'auto', borderRadius: '8px' }} />
+                                ) : (
+                                    <span>No wound photo available.</span>
+                                )}
+                            </div>
+                        </div>
+                        {/* More wound photo entries would go here */}
+                    </div>
+                </div>
+              )}
 
-              <div className="patient-form-content">
-                {currentPatientStep === 0 && (
-                  <div className="form-step demographics-form-step">
-                    <h3>Demographics</h3>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>First Name:</label>
-                        <input className="patient-input" placeholder="First Name" value={patientForm.firstName} onChange={(e) => handleInputChange("firstName", e.target.value)} />
-                      </div>
-                      <div className="form-group">
-                        <label>Middle Name (Optional):</label>
-                        <input className="patient-input" placeholder="Middle Name" value={patientForm.middleName} onChange={(e) => handleInputChange("middleName", e.target.value)} />
-                      </div>
-                      <div className="form-group">
-                        <label>Last Name:</label>
-                        <input className="patient-input" placeholder="Last Name" value={patientForm.lastName} onChange={(e) => handleInputChange("lastName", e.target.value)} />
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Email:</label>
-                        <input className="patient-input" placeholder="Email" type="email" value={patientForm.email} onChange={(e) => handleInputChange("email", e.target.value)} />
-                      </div>
-                      <div className="form-group">
-                        <label>Password:</label>
-                        <input className="patient-input" placeholder="Password" type="password" value={patientForm.password} onChange={(e) => handleInputChange("password", e.target.value)} />
-                      </div>
-                      <div className="form-group">
-                        <label>Gender:</label>
-                        <select className="patient-input" value={patientForm.gender} onChange={(e) => handleInputChange("gender", e.target.value)}>
-                          <option value="">Select Gender</option>
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Date of Birth:</label>
-                        <input className="patient-input" placeholder="Date of Birth" type="date" value={patientForm.dateOfBirth} onChange={(e) => handleInputChange("dateOfBirth", e.target.value)} />
-                      </div>
-                      <div className="form-group">
-                        <label>Contact Info:</label>
-                        <input className="patient-input" placeholder="Contact Info" value={patientForm.contactInfo} onChange={(e) => handleInputChange("contactInfo", e.target.value)} />
-                      </div>
-                      <div className="form-group">
-                        <label>Address:</label>
-                        <input className="patient-input" placeholder="Address" value={patientForm.address} onChange={(e) => handleInputChange("address", e.target.value)} />
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group full-width">
-                        <label>Emergency Contact Number:</label>
-                        <input className="patient-input" placeholder="Emergency Contact Number" value={patientForm.emergencyContactNumber} onChange={(e) => handleInputChange("emergencyContactNumber", e.target.value)} />
-                      </div>
-                    </div>
+              {activePage === "appointments" && (
+                <div className="appointments-section">
+                  <h2>{editingAppointmentId ? "Edit Appointment" : "Schedule New Appointment"}</h2> {/* Dynamic title */}
+                  <div className="form-group">
+                    <label>Select Doctor:</label>
+                    <select value={appointmentForm.doctorId} onChange={(e) => handleAppointmentChange("doctorId", e.target.value)}>
+                      <option value="">Select Doctor</option>
+                      {linkedDoctors.map(doc => (
+                        <option key={doc.doctor_id} value={doc.doctor_id}>{doc.doctor_name}</option>
+                      ))}
+                    </select>
                   </div>
-                )}
 
-                {currentPatientStep === 1 && (
-                  <div className="form-step diabetes-history-form-step">
-                    <h3>Diabetes History</h3>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Diabetes Type:</label>
-                        <select className="patient-input" value={patientForm.diabetesType} onChange={(e) => handleInputChange("diabetesType", e.target.value)}>
-                          <option value="">Select Type</option>
-                          <option value="Type 1">Type 1</option>
-                          <option value="Type 2">Type 2</option>
-                          <option value="Gestational">Gestational</option>
-                        </select>
+                  <div className="form-group">
+                    <label>Select Patient:</label>
+                    <select value={appointmentForm.patientId} onChange={(e) => handleAppointmentChange("patientId", e.target.value)}>
+                      <option value="">Select Patient</option>
+                      {patients.map(pat => (
+                        <option key={pat.patient_id} value={pat.patient_id}>{pat.first_name} {pat.last_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Date:</label>
+                    <input type="date" value={appointmentForm.date} onChange={(e) => handleAppointmentChange("date", e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>Time:</label>
+                    {/* Input type="time" uses 24-hour format by default, no change here */}
+                    <input type="time" value={appointmentForm.time} onChange={(e) => handleAppointmentChange("time", e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>Notes (optional):</label>
+                    <textarea placeholder="Notes (optional)" value={appointmentForm.notes} onChange={(e) => handleAppointmentChange("notes", e.target.value)} />
+                  </div>
+                  <button onClick={createAppointment}>{editingAppointmentId ? "Update Appointment" : "Schedule Appointment"}</button> {/* Dynamic button text */}
+                  {editingAppointmentId && (
+                    <button
+                      className="cancel-button"
+                      onClick={() => {
+                        setEditingAppointmentId(null);
+                        setAppointmentForm({ doctorId: "", patientId: "", date: "", time: "", notes: "" });
+                        setActivePage("appointments"); // Stay on appointments page but clear form
+                      }}
+                      style={{ marginLeft: '10px' }}
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
+                  {message && <p className="form-message">{message}</p>}
+
+                </div>
+              )}
+
+              {activePage === "lab-result-entry" && (
+                <>
+                  <div className="lab-result-entry-section">
+                    <h2>Enter Patient Lab Results</h2>
+                    <p style={{ marginBottom: "25px", color: "#666", fontSize: "15px" }}>
+                      Input the patient's baseline laboratory values to support risk classification and care planning. Once submitted, values will be locked for data integrity.
+                    </p>
+
+                    <div className="lab-stepper">
+                      <div className={`step ${labEntryStep >= 1 ? "completed" : ""} ${labEntryStep === 1 ? "active" : ""}`}>
+                        <div className="step-number">1</div>
+                        <div className="step-label">Search Patient</div>
                       </div>
-                      <div className="form-group">
-                        <label>Allergies:</label>
-                        <input className="patient-input" placeholder="Allergies" value={patientForm.allergies} onChange={(e) => handleInputChange("allergies", e.target.value)} />
+                      <div className="divider"></div>
+                      <div className={`step ${labEntryStep >= 2 ? "completed" : ""} ${labEntryStep === 2 ? "active" : ""}`}>
+                        <div className="step-number">2</div>
+                        <div className="step-label">Lab Input Form</div>
+                      </div>
+                      <div className="divider"></div>
+                      <div className={`step ${labEntryStep >= 3 ? "completed" : ""} ${labEntryStep === 3 ? "active" : ""}`}>
+                        <div className="step-number">3</div>
+                        <div className="step-label">Lock-in Data</div>
                       </div>
                     </div>
 
-                    <div className="medications-table-container">
-                      <label>Current Medications:</label>
-                      <table className="medications-table">
+
+                    {labEntryStep === 1 && (<div className="lab-patient-search">
+                      <div className="search-header">
+                        <h4>Patient List</h4>
+                        <div style={{ display: "flex", gap: "10px" }}>
+                          <input type="text" placeholder="Search by name or Patient ID" />
+                          <button><i className="fas fa-filter" style={{ marginRight: "5px" }}></i> Filter</button>
+                        </div>
+                      </div>
+
+                      <table>
                         <thead>
                           <tr>
-                            <th>Drug Name</th>
-                            <th>Dosage</th>
-                            <th>Frequency</th>
-                            <th>Prescribed by</th>
+                            <th>Patient Name</th>
+                            <th>Age/Sex</th>
+                            <th>Classification</th>
+                            <th>Lab Status</th>
+                            <th>Profile Status</th>
+                            <th>Last Visit</th>
+                            <th>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {medications.map((med, index) => (
-                            <tr key={index}>
-                              <td><input type="text" className="med-input" value={med.drugName} onChange={(e) => handleMedicationChange(index, "drugName", e.target.value)} /></td>
-                              <td><input type="text" className="med-input" value={med.dosage} onChange={(e) => handleMedicationChange(index, "dosage", e.target.value)} /></td>
-                              <td><input type="text" className="med-input" value={med.frequency} onChange={(e) => handleMedicationChange(index, "frequency", e.target.value)} /></td>
-                              <td><input type="text" className="med-input" value={med.prescribedBy} onChange={(e) => handleMedicationChange(index, "prescribedBy", e.target.value)} /></td>
-                              <td className="med-actions">
-                                {medications.length > 1 && (
-                                  <button type="button" className="remove-med-button" onClick={() => handleRemoveMedication(index)}>
-                                    <i className="fas fa-minus-circle"></i>
+                        {patients.length > 0 ? (
+                          patients.map((p, i) => {
+                            const fullName = `${p.first_name || "N/A"} ${p.last_name || ""}`;
+                            const age = p.date_of_birth
+                              ? Math.floor((new Date() - new Date(p.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))
+                              : "N/A";
+                            const sex = p.gender || "N/A";
+                            const classification = p.risk_classification || "Not Available";
+
+                            const labStatus = p.lab_status || "N/A"; // Display N/A as we're not using 'Awaiting' for now
+                            const profileStatus = p.profile_status || "Pending";
+                            const lastVisit = p.last_doctor_visit || "N/A";
+                            // labStatus is not being updated, so always show "N/A" or whatever is in DB if column exists
+                            const isAwaiting = false; // Temporarily set to false, as we are not relying on lab_status for this logic
+                            const actionLabel = "✏️ Enter Labs"; // Always allow entry
+
+                            return (
+                              <tr key={p.patient_id || i}>
+                                <td>{fullName}</td>
+                                <td>{age}/{sex}</td>
+                                <td className={`risk-classification-${(classification === "Not Available" ? "not-available" : classification).toLowerCase()}`}>
+                                    {classification}
+                                </td>
+                                {/* Adjusted display for lab_status since we're not managing it here yet */}
+                                <td>{labStatus === "N/A" ? "N/A" : `Currently: ${labStatus}`}</td>
+                                <td>🟡 {profileStatus}</td>
+                                <td>{lastVisit}</td>
+                                <td>
+                                  <button
+                                    className="action-button"
+                                    onClick={() => handleSelectPatientForLab(p)}
+                                  >
+                                    {actionLabel}
                                   </button>
-                                )}
-                                {index === medications.length - 1 && (
-                                  <button type="button" className="add-med-button" onClick={handleAddMedication}>
-                                    <i className="fas fa-plus-circle"></i>
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        ) : (
+                          <tr>
+                            <td colSpan="7">No patients available.</td>
+                          </tr>
+                        )}
                         </tbody>
                       </table>
-                    </div>
-                  </div>
-                )}
+                    </div>)}
 
-                {currentPatientStep === 2 && (
-                  <div className="form-step complication-history-form-step">
-                    <h3>Complication History</h3>
-                    <div className="form-row">
-                      <div className="form-group checkbox-group">
-                        <input type="checkbox" id="footUlcers" checked={patientForm.footUlcersAmputation} onChange={(e) => handleInputChange("footUlcersAmputation", e.target.checked)} />
-                        <label htmlFor="footUlcers">Foot Ulcers/Amputation</label>
-                      </div>
-                      <div className="form-group checkbox-group">
-                        <input type="checkbox" id="eyeIssues" checked={patientForm.eyeIssues} onChange={(e) => handleInputChange("eyeIssues", e.target.checked)} />
-                        <label htmlFor="eyeIssues">Eye Issues</label>
-                      </div>
-                      <div className="form-group checkbox-group">
-                        <input type="checkbox" id="kidneyIssues" checked={patientForm.kidneyIssues} onChange={(e) => handleInputChange("kidneyIssues", e.target.checked)} />
-                        <label htmlFor="kidneyIssues">Kidney Issues</label>
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group checkbox-group">
-                        <input type="checkbox" id="stroke" checked={patientForm.stroke} onChange={(e) => handleInputChange("stroke", e.target.checked)} />
-                        <label htmlFor="stroke">Stroke</label>
-                      </div>
-                      <div className="form-group checkbox-group">
-                        <input type="checkbox" id="heartAttack" checked={patientForm.heartAttack} onChange={(e) => handleInputChange("heartAttack", e.target.checked)} />
-                        <label htmlFor="heartAttack">Heart Attack</label>
-                      </div>
-                      <div className="form-group checkbox-group">
-                        <input type="checkbox" id="hypertensive" checked={patientForm.hypertensive} onChange={(e) => handleInputChange("hypertensive", e.target.checked)} />
-                        <label htmlFor="hypertensive">Hypertensive</label>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {currentPatientStep === 3 && (
-                  <div className="form-step lifestyle-form-step">
-                    <h3>Lifestyle</h3>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Smoking Status:</label>
-                        <select className="patient-input" value={patientForm.smokingStatus} onChange={(e) => handleInputChange("smokingStatus", e.target.value)}>
-                          <option value="">Select Status</option>
-                          <option value="Never Smoked">Never Smoked</option>
-                          <option value="Former Smoker">Former Smoker</option>
-                          <option value="Current Smoker">Current Smoker</option>
-                        </select>
-                      </div>
-                      <div className="form-group">
-                        <label>Monitoring Frequency (Glucose):</label>
-                        <input className="patient-input" placeholder="e.g., Daily, Weekly" value={patientForm.monitoringFrequencyGlucose} onChange={(e) => handleInputChange("monitoringFrequencyGlucose", e.target.value)} />
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Last Doctor Visit:</label>
-                        <input className="patient-input" type="date" value={patientForm.lastDoctorVisit} onChange={(e) => handleInputChange("lastDoctorVisit", e.target.value)} />
-                      </div>
-                      <div className="form-group">
-                        <label>Last Eye Exam:</label>
-                        <input className="patient-input" type="date" value={patientForm.lastEyeExam} onChange={(e) => handleInputChange("lastEyeExam", e.target.value)} />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {currentPatientStep === 4 && (
-                  <div className="form-step assignment-form-step">
-                    <h3>Assignment</h3>
-                    <div className="form-row">
-                      <div className="form-group full-width">
-                        <label>Assign Doctor:</label>
-                        <select className="doctor-select" value={selectedDoctorId} onChange={(e) => setSelectedDoctorId(e.target.value)}>
-                          <option value="">Select Doctor</option>
-                          {linkedDoctors.map((doc) => (
-                            <option key={doc.doctor_id} value={doc.doctor_id}>{doc.doctor_name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group full-width">
-                        <label>Prepared By:</label>
-                        <input className="patient-input" type="text" value={user ? `${user.first_name} ${user.last_name}` : ''} readOnly />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {message && <p className="form-message">{message}</p>}
-
-              <div className="form-navigation-buttons">
-                {currentPatientStep > 0 && (
-                  <button className="previous-step-button" onClick={handlePreviousStep}>Previous</button>
-                )}
-                {currentPatientStep < steps.length - 1 && (
-                  <button className="next-step-button" onClick={handleNextStep}>Next</button>
-                )}
-                {currentPatientStep === steps.length - 1 && (
-                  <button className="next-step-button" onClick={handleSavePatientWithConfirmation}>
-                    {editingPatientId ? "Update Patient" : "Create Patient"}
-                  </button>
-                )}
-                <button className="cancel-button" onClick={() => setActivePage("dashboard")}>Cancel</button>
-              </div>
-            </div>
-          )}
-
-          {activePage === "patient-list" && (
-            <div className="patient-list-section">
-              <h2>My Patients</h2>
-              <table className="patient-table">
-                <thead>
-                  <tr>
-                  <th>Patient Name</th>
-                  <th>Age/Sex</th>
-                  <th>Assigned Doctor</th>
-                  <th>Classification</th>
-                  <th>Lab Status</th>
-                  <th>Profile Status</th>
-                  <th>Last Visit</th>
-                  <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPatients.length > 0 ? (
-                    filteredPatients.map((pat) => (
-                      <tr key={pat.patient_id}>
-                        <td>{pat.first_name} {pat.last_name}</td>
-                        <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
-                        <td>{pat.doctors ? `${pat.doctors.first_name} ${pat.doctors.last_name}` : 'Unknown'}</td>
-                        <td className={`risk-classification-${(pat.risk_classification || 'N/A').toLowerCase()}`}>
-                            {pat.risk_classification || 'N/A'}
-                        </td>
-                        <td>{pat.lab_status || 'N/A'}</td> {/* Display actual lab status */}
-                        <td>{pat.profile_status || 'N/A'}</td> {/* Display actual profile status */}
-                        <td>{pat.last_doctor_visit || 'N/A'}</td> {/* Corrected line */}
-                        <td className="patient-actions-cell">
-                          {/* Updated View button to use the new handler */}
-                          <button className="view-button" onClick={() => handleViewPatientDetails(pat)}>View</button>
-                          <button className="edit-button" onClick={() => handleEditPatient(pat)}>Edit</button>
-                          <button className="delete-button" onClick={() => handleDeletePatient(pat.patient_id)}>Delete</button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="8">No patients found.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-
-              {/* Message display for patient list */}
-              {message && <p className="form-message">{message}</p>}
-            </div>
-          )}
-
-          {/* Patient Detail View Section */}
-          {activePage === "patient-detail-view" && selectedPatientForDetail && (
-            <div className="patient-detail-view-section">
-                <div className="detail-view-header">
-                    <h2>Patient Details</h2>
-                    <button className="back-to-list-button" onClick={handleClosePatientDetailModal}>
-                        <i className="fas fa-arrow-left"></i> Back to List
-                    </button>
-                </div>
-                <div className="patient-details-content-container"> {/* New container for details content */}
-                    <div className="patient-details-left-column">
-                        {/* Basic Patient Information Section */}
-                        <div className="patient-basic-info-section">
-                            <p><strong>Patient ID:</strong> {selectedPatientForDetail.patient_id || 'N/A'}</p>
-                            <p><strong>Name:</strong> {selectedPatientForDetail.first_name} {selectedPatientForDetail.middle_name ? selectedPatientForDetail.middle_name + ' ' : ''}{selectedPatientForDetail.last_name}</p>
-                            <p><strong>Gender:</strong> {selectedPatientForDetail.gender || 'N/A'}</p>
-                            {/* Display date of birth directly as stored (YYYY-MM-DD) */}
-                            <p><strong>Date of Birth:</strong> {selectedPatientForDetail.date_of_birth || 'N/A'}</p>
-                            <p><strong>Contact Number:</strong> {selectedPatientForDetail.contact_info || 'N/A'}</p>
-                            <p><strong>BMI:</strong> {'[BMI Placeholder - Requires Height & Weight data]'}</p> {/* Placeholder for BMI */}
-                            <p><strong>Diabetes Type:</strong> {selectedPatientForDetail.diabetes_type || 'N/A'}</p>
-                            <p><strong>Smoking History:</strong> {selectedPatientForDetail.smoking_status || 'N/A'}</p>
-                            <p><strong>Hypertensive:</strong> {selectedPatientForDetail.complication_history?.includes("Hypertensive") ? "Yes" : "No"}</p>
-                            <p><strong>Patient Phase:</strong> {selectedPatientForDetail.phase || 'N/A'}</p>
+                    {labEntryStep === 2 && (
+                      <div className="lab-input-form">
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Patient Name</label>
+                            <input type="text" value={labResults.selectedPatientForLab ? `${labResults.selectedPatientForLab.first_name} ${labResults.selectedPatientForLab.last_name}` : ""} readOnly />
+                          </div>
+                          <div className="form-group">
+                            <label>Date Submitted</label>
+                            <input type="date" value={labResults.dateSubmitted} onChange={(e) => handleLabInputChange("dateSubmitted", e.target.value)} />
+                          </div>
+                          <div className="form-group">
+                            <label>HbA1c (%)</label>
+                            <input type="number" step="0.01" value={labResults.hba1c} onChange={(e) => handleLabInputChange("hba1c", e.target.value)} />
+                          </div>
                         </div>
-                        {/* Laboratory Result Section */}
-                        <div className="laboratory-results-section">
-                            <h3>Laboratory Results (Latest)</h3>
-                            <p><strong>Date Submitted:</strong> {lastLabDate}</p>
-                            <p><strong>HbA1c:</strong> {patientLabResults.hba1c}</p>
-                            <p><strong>Creatinine:</strong> {patientLabResults.creatinine}</p>
-                            <p><strong>GOT (AST):</strong> {patientLabResults.gotAst}</p>
-                            <p><strong>GPT (ALT):</strong> {patientLabResults.gptAlt}</p>
-                            <p><strong>Cholesterol:</strong> {patientLabResults.cholesterol}</p>
-                            <p><strong>Triglycerides:</strong> {patientLabResults.triglycerides}</p>
-                            <p><strong>HDL Cholesterol:</strong> {patientLabResults.hdlCholesterol}</p>
-                            <p><strong>LDL Cholesterol:</strong> {patientLabResults.ldlCholesterol}</p>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Creatinine (umol/L)</label>
+                            <input type="number" step="0.01" value={labResults.creatinine} onChange={(e) => handleLabInputChange("creatinine", e.target.value)} />
+                          </div>
+                          <div className="form-group">
+                            <label>GOT (AST) - U/L</label>
+                            <input type="number" step="0.01" value={labResults.gotAst} onChange={(e) => handleLabInputChange("gotAst", e.target.value)} />
+                          </div>
+                          <div className="form-group">
+                            <label>GPT (ALT) - U/L</label>
+                            <input type="number" step="0.01" value={labResults.gptAlt} onChange={(e) => handleLabInputChange("gptAlt", e.target.value)} />
+                          </div>
                         </div>
-                        {/* Latest Health Metrics Section */}
-                        <div className="latest-health-metrics-section">
-                            <h3>Latest Health Metrics</h3>
-                            <p><strong>Blood Glucose Level:</strong> {patientLabResults.bloodGlucoseLevel}</p>
-                            <p><strong>Blood Pressure:</strong> {patientLabResults.bloodPressure}</p>
-                            <p><strong>Risk Classification:</strong> {selectedPatientForDetail.risk_classification || 'N/A'}</p>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Cholesterol (mmol/L)</label>
+                            <input type="number" step="0.01" value={labResults.cholesterol} onChange={(e) => handleLabInputChange("cholesterol", e.target.value)} />
+                          </div>
+                          <div className="form-group">
+                            <label>Triglycerides (mmol/L)</label>
+                            <input type="number" step="0.01" value={labResults.triglycerides} onChange={(e) => handleLabInputChange("triglycerides", e.target.value)} />
+                          </div>
+                          <div className="form-group">
+                            <label>HDL Cholesterol (mmol/L)</label>
+                            <input type="number" step="0.01" value={labResults.hdlCholesterol} onChange={(e) => handleLabInputChange("hdlCholesterol", e.target.value)} />
+                          </div>
+                          <div className="form-group">
+                            <label>LDL Cholesterol (mmol/L)</label>
+                            <input type="number" step="0.01" value={labResults.ldlCholesterol} onChange={(e) => handleLabInputChange("ldlCholesterol", e.target.value)} />
+                          </div>
                         </div>
-                        {/* History Charts Section */}
-                        <div className="history-charts-section">
-                            <h3>History Charts</h3>
-                            <p>[Placeholder for Blood Sugar Timeline Chart]</p>
-                            <p>[Placeholder for Blood Pressure Timeline Chart]</p>
+                        <div className="form-actions">
+                          <button className="previous-button" onClick={() => setLabEntryStep(1)}>Previous Step</button>
+                          <button className="next-button" onClick={() => setLabEntryStep(3)}>Next Step</button>
+
                         </div>
-                    </div>
-                    <div className="patient-details-right-column">
-                        {/* Doctor Assigned Section */}
-                        <div className="doctor-assigned-section">
-                            <p><strong>Assigned Doctor:</strong> {selectedPatientForDetail.doctors ? `${selectedPatientForDetail.doctors.first_name} ${selectedPatientForDetail.doctors.last_name}` : 'N/A'}</p>
-                        </div>
-                        {/* Current Medications Section */}
-                        <div className="current-medications-section">
-                            <p><strong>Current Medications:</strong></p>
-                            {(() => {
-                                let parsedMedications = [];
-                                try {
-                                  if (selectedPatientForDetail.medication) {
-                                    parsedMedications = JSON.parse(selectedPatientForDetail.medication);
-                                    if (!Array.isArray(parsedMedications)) {
-                                      console.warn("Medication data is not an array:", parsedMedications);
-                                      parsedMedications = []; // Treat as empty if not an array
-                                    }
-                                  }
-                                } catch (e) {
-                                  console.error("Error parsing medication for patient", selectedPatientForDetail.patient_id, e);
-                                  parsedMedications = [{ drugName: String(selectedPatientForDetail.medication) || 'N/A', dosage: '', frequency: '', prescribedBy: '' }];
-                                }
-                                if (parsedMedications.length > 0 && parsedMedications[0].drugName !== 'N/A') {
-                                  return (
-                                    <ul className="medication-list">
-                                      {parsedMedications.map((med, idx) => (
-                                        <li key={idx}>
-                                          {med.drugName || 'N/A'} - {med.dosage || 'N/A'} ({med.frequency || 'N/A'}) by {med.prescribedBy || 'N/A'}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  );
-                                } else {
-                                  return <p className="medication-list-empty">N/A</p>;
-                                }
-                            })()}
-                        </div>
-                        {/* Appointment Schedule Section */}
-                        <div className="appointment-schedule-section">
-                            <h3>Appointment Schedule</h3>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Time</th>
-                                        <th>Notes</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {patientAppointments.length > 0 ? (
-                                        patientAppointments.map((appointment, idx) => (
-                                            <tr key={idx}>
-                                                {/* Display date from ISO string<ctrl42>-MM-DD */}
-                                                <td>{appointment.appointment_datetime.split('T')[0]}</td>
-                                                {/* Display time from ISO string HH:MM, converted to 12-hour */}
-                                                <td>{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</td>
-                                                <td>{appointment.notes || 'N/A'}</td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="3">No appointments scheduled for this patient.</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                {/* Wound Photo Timeline Section - Added as a footer-like section */}
-                <div className="wound-photo-timeline-section">
-                    <h3>Wound Photo Timeline</h3>
-                    <div className="wound-photo-entry">
-                        <p><strong>Date:</strong> [Date Submitted]</p>
-                        <p><strong>Time:</strong> [Time Submitted]</p>
-                        {/* Placeholder for the wound photo */}
-                        <div className="wound-photo-placeholder">
-                            [Wound Photo Here]
-                        </div>
-                    </div>
-                    {/* More wound photo entries would go here */}
-                </div>
-            </div>
-          )}
-
-          {activePage === "appointments" && (
-            <div className="appointments-section">
-              <h2>{editingAppointmentId ? "Edit Appointment" : "Schedule New Appointment"}</h2> {/* Dynamic title */}
-              <div className="form-group">
-                <label>Select Doctor:</label>
-                <select value={appointmentForm.doctorId} onChange={(e) => handleAppointmentChange("doctorId", e.target.value)}>
-                  <option value="">Select Doctor</option>
-                  {linkedDoctors.map(doc => (
-                    <option key={doc.doctor_id} value={doc.doctor_id}>{doc.doctor_name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Select Patient:</label>
-                <select value={appointmentForm.patientId} onChange={(e) => handleAppointmentChange("patientId", e.target.value)}>
-                  <option value="">Select Patient</option>
-                  {patients.map(pat => (
-                    <option key={pat.patient_id} value={pat.patient_id}>{pat.first_name} {pat.last_name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Date:</label>
-                <input type="date" value={appointmentForm.date} onChange={(e) => handleAppointmentChange("date", e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label>Time:</label>
-                {/* Input type="time" uses 24-hour format by default, no change here */}
-                <input type="time" value={appointmentForm.time} onChange={(e) => handleAppointmentChange("time", e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label>Notes (optional):</label>
-                <textarea placeholder="Notes (optional)" value={appointmentForm.notes} onChange={(e) => handleAppointmentChange("notes", e.target.value)} />
-              </div>
-              <button onClick={createAppointment}>{editingAppointmentId ? "Update Appointment" : "Schedule Appointment"}</button> {/* Dynamic button text */}
-              {editingAppointmentId && (
-                <button
-                  className="cancel-button"
-                  onClick={() => {
-                    setEditingAppointmentId(null);
-                    setAppointmentForm({ doctorId: "", patientId: "", date: "", time: "", notes: "" });
-                    setActivePage("appointments"); // Stay on appointments page but clear form
-                  }}
-                  style={{ marginLeft: '10px' }}
-                >
-                  Cancel Edit
-                </button>
-              )}
-              {message && <p className="form-message">{message}</p>}
-
-            </div>
-          )}
-
-          {activePage === "lab-result-entry" && (
-            <>
-              <div className="lab-result-entry-section">
-                <h2>Enter Patient Lab Results</h2>
-                <p style={{ marginBottom: "25px", color: "#666", fontSize: "15px" }}>
-                  Input the patient's baseline laboratory values to support risk classification and care planning. Once submitted, values will be locked for data integrity.
-                </p>
-
-                <div className="lab-stepper">
-                  <div className={`step ${labEntryStep >= 1 ? "completed" : ""} ${labEntryStep === 1 ? "active" : ""}`}>
-                    <div className="step-number">1</div>
-                    <div className="step-label">Search Patient</div>
-                  </div>
-                  <div className="divider"></div>
-                  <div className={`step ${labEntryStep >= 2 ? "completed" : ""} ${labEntryStep === 2 ? "active" : ""}`}>
-                    <div className="step-number">2</div>
-                    <div className="step-label">Lab Input Form</div>
-                  </div>
-                  <div className="divider"></div>
-                  <div className={`step ${labEntryStep >= 3 ? "completed" : ""} ${labEntryStep === 3 ? "active" : ""}`}>
-                    <div className="step-number">3</div>
-                    <div className="step-label">Lock-in Data</div>
-                  </div>
-                </div>
-
-
-                {labEntryStep === 1 && (<div className="lab-patient-search">
-                  <div className="search-header">
-                    <h4>Patient List</h4>
-                    <div style={{ display: "flex", gap: "10px" }}>
-                      <input type="text" placeholder="Search by name or Patient ID" />
-                      <button><i className="fas fa-filter" style={{ marginRight: "5px" }}></i> Filter</button>
-                    </div>
-                  </div>
-
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Patient Name</th>
-                        <th>Age/Sex</th>
-                        <th>Classification</th>
-                        <th>Lab Status</th>
-                        <th>Profile Status</th>
-                        <th>Last Visit</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                    {patients.length > 0 ? (
-                      patients.map((p, i) => {
-                        const fullName = `${p.first_name || "N/A"} ${p.last_name || ""}`;
-                        const age = p.date_of_birth
-                          ? Math.floor((new Date() - new Date(p.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))
-                          : "N/A";
-                        const sex = p.gender || "N/A";
-                        const classification = p.risk_classification || "Not Available";
-
-                        const labStatus = p.lab_status || "N/A"; // Display N/A as we're not using 'Awaiting' for now
-                        const profileStatus = p.profile_status || "Pending";
-                        const lastVisit = p.last_doctor_visit || "N/A";
-                        // labStatus is not being updated, so always show "N/A" or whatever is in DB if column exists
-                        const isAwaiting = false; // Temporarily set to false, as we are not relying on lab_status for this logic
-                        const actionLabel = "✏️ Enter Labs"; // Always allow entry
-
-                        return (
-                          <tr key={p.patient_id || i}>
-                            <td>{fullName}</td>
-                            <td>{age}/{sex}</td>
-                            <td className={`risk-classification-${(classification === "Not Available" ? "not-available" : classification).toLowerCase()}`}>
-                                {classification}
-                            </td>
-                            {/* Adjusted display for lab_status since we're not managing it here yet */}
-                            <td>{labStatus === "N/A" ? "N/A" : `Currently: ${labStatus}`}</td>
-                            <td>🟡 {profileStatus}</td>
-                            <td>{lastVisit}</td>
-                            <td>
-                              <button
-                                className="action-button"
-                                onClick={() => handleSelectPatientForLab(p)}
-                              >
-                                {actionLabel}
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    ) : (
-                      <tr>
-                        <td colSpan="7">No patients available.</td>
-                      </tr>
+                      </div>
                     )}
-                    </tbody>
-                  </table>
-                </div>)}
-
-                {labEntryStep === 2 && (
-                  <div className="lab-input-form">
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Patient Name</label>
-                        <input type="text" value={labResults.selectedPatientForLab ? `${labResults.selectedPatientForLab.first_name} ${labResults.selectedPatientForLab.last_name}` : ""} readOnly />
-                      </div>
-                      <div className="form-group">
-                        <label>Date Submitted</label>
-                        <input type="date" value={labResults.dateSubmitted} onChange={(e) => handleLabInputChange("dateSubmitted", e.target.value)} />
-                      </div>
-                      <div className="form-group">
-                        <label>HbA1c (%)</label>
-                        <input type="number" step="0.01" value={labResults.hba1c} onChange={(e) => handleLabInputChange("hba1c", e.target.value)} />
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Creatinine (umol/L)</label>
-                        <input type="number" step="0.01" value={labResults.creatinine} onChange={(e) => handleLabInputChange("creatinine", e.target.value)} />
-                      </div>
-                      <div className="form-group">
-                        <label>GOT (AST) - U/L</label>
-                        <input type="number" step="0.01" value={labResults.gotAst} onChange={(e) => handleLabInputChange("gotAst", e.target.value)} />
-                      </div>
-                      <div className="form-group">
-                        <label>GPT (ALT) - U/L</label>
-                        <input type="number" step="0.01" value={labResults.gptAlt} onChange={(e) => handleLabInputChange("gptAlt", e.target.value)} />
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Cholesterol (mmol/L)</label>
-                        <input type="number" step="0.01" value={labResults.cholesterol} onChange={(e) => handleLabInputChange("cholesterol", e.target.value)} />
-                      </div>
-                      <div className="form-group">
-                        <label>Triglycerides (mmol/L)</label>
-                        <input type="number" step="0.01" value={labResults.triglycerides} onChange={(e) => handleLabInputChange("triglycerides", e.target.value)} />
-                      </div>
-                      <div className="form-group">
-                        <label>HDL Cholesterol (mmol/L)</label>
-                        <input type="number" step="0.01" value={labResults.hdlCholesterol} onChange={(e) => handleLabInputChange("hdlCholesterol", e.target.value)} />
-                      </div>
-                      <div className="form-group">
-                        <label>LDL Cholesterol (mmol/L)</label>
-                        <input type="number" step="0.01" value={labResults.ldlCholesterol} onChange={(e) => handleLabInputChange("ldlCholesterol", e.target.value)} />
-                      </div>
-                    </div>
-                    <div className="form-actions">
-                      <button className="previous-button" onClick={() => setLabEntryStep(1)}>Previous Step</button>
-                      <button className="next-button" onClick={() => setLabEntryStep(3)}>Next Step</button>
-
-                    </div>
                   </div>
-                )}
-              </div>
 
-              {labEntryStep === 3 && (
-                <div className="lab-lock-confirm">
-                  <div className="lock-container">
-                    <div className="lock-image">
-                      <img
-                        src="picture/padlock.png"
-                        alt="Locked Padlock"
-                        className="lock-image-icon"
-                      />
+                  {labEntryStep === 3 && (
+                    <div className="lab-lock-confirm">
+                      <div className="lock-container">
+                        <div className="lock-image">
+                          <img
+                            src="picture/padlock.png"
+                            alt="Locked Padlock"
+                            className="lock-image-icon"
+                          />
+                        </div>
+                        <div className="lock-text">
+                          <h2 className="lock-title">Confirm Lab Result Submission</h2>
+                          <p className="lock-description">
+                            Please take a moment to <strong>review all entered laboratory values</strong>.<br />
+                            If you need to make any corrections, you may go back to the previous step.<br /><br />
+                            <span className="lock-warning">
+                              Once you finalize this entry, the <strong>lab results will be permanently locked</strong> and can no longer be edited.
+                            </span>
+                            This ensures clinical accuracy and audit compliance.
+                          </p>
+                          <div className="lock-buttons">
+                            <button
+                              className="cancel-button"
+                              style={{ padding: '12px 30px' }}
+                              onClick={() => setLabEntryStep(2)}
+                            >
+                              Go Back to Edit
+                            </button>
+                            <button
+                              className="create-new-patient-button"
+                              style={{ padding: '12px 30px' }}
+                              onClick={handleFinalizeLabSubmission}
+                            >
+                              Confirm & Finalize
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="lock-text">
-                      <h2 className="lock-title">Confirm Lab Result Submission</h2>
-                      <p className="lock-description">
-                        Please take a moment to <strong>review all entered laboratory values</strong>.<br />
-                        If you need to make any corrections, you may go back to the previous step.<br /><br />
-                        <span className="lock-warning">
-                          Once you finalize this entry, the <strong>lab results will be permanently locked</strong> and can no longer be edited.
-                        </span>
-                        This ensures clinical accuracy and audit compliance.
+                  )}
+                {showSuccessModal && (
+                  <div className="lab-success-modal-overlay">
+                    <div className="lab-success-modal">
+                      <button className="modal-close"
+                        onClick={() => setShowSuccessModal(false)}>
+                        ✖
+                      </button>
+                        <img src="picture/lab-success.png" alt="Doctor Success" className="modal-doctor-image"/>
+                      <h2 className="modal-title"> Lab Results Successfully<br />Submitted & Locked</h2>
+                        <p className="modal-subtext">
+                          The laboratory data has been securely stored and is now locked for editing to ensure accuracy and audit compliance.<br /><br />
+                          You may now proceed to finalize the patient profile with the attending doctor.
+                        </p>
+                        <button className="modal-green-button"
+                          onClick={() => {
+                          setShowSuccessModal(false);
+                          setLabEntryStep(1); // Go back to the patient search step
+                         }}>
+                          Go to Patient Profile
+                          </button>
+                        </div>
+                      </div>
+                        )}
+                </>
+              )}
+
+              {/* Patient Profile Confirmation Modal (appears BEFORE saving) */}
+              {showPatientConfirmationModal && (
+                <div className="lab-success-modal-overlay"> {/* Reusing common modal styling */}
+                  <div className="lab-success-modal">
+                      <img src="picture/confirm.png" alt="Confirmation Icon" className="modal-doctor-image"/> {/* Placeholder for a confirmation icon */}
+                    <h2 className="modal-title"> Finalize Patient Profile?</h2>
+                      <p className="modal-subtext">
+                        Are you sure you want to finalize this patient's profile?
+                        Please ensure all details are accurate before proceeding.
+                        <br /><br />
+                        This action will {editingPatientId ? "update the existing" : "create a new"} patient record.
                       </p>
-                      <div className="lock-buttons">
-                        <button
-                          className="cancel-button"
-                          style={{ padding: '12px 30px' }}
-                          onClick={() => setLabEntryStep(2)}
-                        >
+                      <div className="modal-buttons">
+                        <button className="cancel-button"
+                          onClick={() => setShowPatientConfirmationModal(false)}>
                           Go Back to Edit
                         </button>
-                        <button
-                          className="create-new-patient-button"
-                          style={{ padding: '12px 30px' }}
-                          onClick={handleFinalizeLabSubmission}
-                        >
-                          Confirm & Finalize
+                        <button className="modal-green-button"
+                          onClick={confirmAndSavePatient}>
+                          Yes, Continue
                         </button>
                       </div>
                     </div>
                   </div>
+              )}
+
+              {activePage === "reports" && (
+                <div className="reports-section">
+                  <h2>Reports</h2>
+                  <p>This section is a placeholder for generating various patient reports.</p>
                 </div>
               )}
-            {showSuccessModal && (
-              <div className="lab-success-modal-overlay">
-                <div className="lab-success-modal">
-                  <button className="modal-close"
-                    onClick={() => setShowSuccessModal(false)}>
-                    ✖
-                  </button>
-                    <img src="picture/lab-success.png" alt="Doctor Success" className="modal-doctor-image"/>
-                  <h2 className="modal-title"> Lab Results Successfully<br />Submitted & Locked</h2>
-                    <p className="modal-subtext">
-                      The laboratory data has been securely stored and is now locked for editing to ensure accuracy and audit compliance.<br /><br />
-                      You may now proceed to finalize the patient profile with the attending doctor.
-                    </p>
-                    <button className="modal-green-button"
-                      onClick={() => {
-                      setShowSuccessModal(false);
-                      setLabEntryStep(1); // Go back to the patient search step
-                     }}>
-                      Go to Patient Profile
-                      </button>
-                    </div>
-                  </div>
-                    )}
-            </>
-          )}
-
-          {/* Patient Profile Confirmation Modal (appears BEFORE saving) */}
-          {showPatientConfirmationModal && (
-            <div className="lab-success-modal-overlay"> {/* Reusing common modal styling */}
-              <div className="lab-success-modal">
-                  <img src="picture/confirm.png" alt="Confirmation Icon" className="modal-doctor-image"/> {/* Placeholder for a confirmation icon */}
-                <h2 className="modal-title"> Finalize Patient Profile?</h2>
-                  <p className="modal-subtext">
-                    Are you sure you want to finalize this patient's profile?
-                    Please ensure all details are accurate before proceeding.
-                    <br /><br />
-                    This action will {editingPatientId ? "update the existing" : "create a new"} patient record.
-                  </p>
-                  <div className="modal-buttons">
-                    <button className="cancel-button"
-                      onClick={() => setShowPatientConfirmationModal(false)}>
-                      Go Back to Edit
-                    </button>
-                    <button className="modal-green-button"
-                      onClick={confirmAndSavePatient}>
-                      Yes, Continue
-                    </button>
-                  </div>
-                </div>
-              </div>
-          )}
-
-          {activePage === "reports" && (
-            <div className="reports-section">
-              <h2>Reports</h2>
-              <p>This section is a placeholder for generating various patient reports.</p>
             </div>
-          )}
+          </div>
         </div>
-      </div>
-    </div>
-  );
-};
+      );
+    };
 
-export default SecretaryDashboard;
+    export default SecretaryDashboard;
