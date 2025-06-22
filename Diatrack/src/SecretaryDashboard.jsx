@@ -10,6 +10,15 @@ import { Doughnut, Bar } from 'react-chartjs-2'; // Doughnut will be removed for
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
+// Helper function to convert 24-hour time to 12-hour format with AM/PM
+const formatTimeTo12Hour = (time24h) => {
+  if (!time24h) return 'N/A';
+  const [hours, minutes] = time24h.split(':').map(Number);
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12; // Converts 0 (midnight) to 12 AM, 13 to 1 PM etc.
+  const displayMinutes = String(minutes).padStart(2, '0');
+  return `${displayHours}:${displayMinutes} ${ampm}`;
+};
 
 const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp, lowRisk, moderateRisk, highRisk }) => {
 
@@ -187,6 +196,8 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     time: "",
     notes: ""
   });
+  // NEW state to track if an appointment is being edited
+  const [editingAppointmentId, setEditingAppointmentId] = useState(null);
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showPatientConfirmationModal, setShowPatientConfirmationModal] = useState(false);
@@ -229,7 +240,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     if (user && user.secretary_id) {
       const initializeDashboard = async () => {
         await fetchLinkedDoctors();
-        await fetchAppointmentsToday();
+        await fetchAllAppointments(); // Changed to fetchAllAppointments
         // fetchPatients will be called by the linkedDoctors useEffect
       };
       initializeDashboard();
@@ -277,9 +288,13 @@ const SecretaryDashboard = ({ user, onLogout }) => {
           });
         } else if (data && data.length > 0) {
           const latestLab = data[0];
-          setLastLabDate(new Date(latestLab.date_submitted).toLocaleDateString('en-US', {
-              year: 'numeric', month: 'long', day: 'numeric'
-          })); // Format date
+          // Format date explicitly for display<ctrl42>-MM-DD
+          const dateObj = new Date(latestLab.date_submitted);
+          const year = dateObj.getUTCFullYear();
+          const month = String(dateObj.getUTCMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+          const day = String(dateObj.getUTCDate()).padStart(2, '0');
+          setLastLabDate(`${year}-${month}-${day}`);
+
           setPatientLabResults({
             hba1c: latestLab.Hba1c || 'N/A', // Use 'Hba1c' as per DB column
             creatinine: latestLab.creatinine || 'N/A',
@@ -427,36 +442,46 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     else console.error(error);
   };
 
-  const fetchAppointmentsToday = async () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-
+  // Renamed to fetchAllAppointments and removed date filtering
+  const fetchAllAppointments = async () => {
     const { data, error } = await supabase
       .from("appointments")
       .select(`
         appointment_id,
         appointment_datetime,
         notes,
+        patient_id,
+        doctor_id,
         patients (first_name, last_name),
         doctors (first_name, last_name)
       `)
       .eq("secretary_id", user.secretary_id)
-      .gte("appointment_datetime", today.toISOString())
-      .lt("appointment_datetime", tomorrow.toISOString())
-      .order("appointment_datetime", { ascending: true });
+      .order("appointment_datetime", { ascending: true }); // Order by datetime
 
     if (error) {
       console.error("Error fetching appointments:", error);
       setMessage(`Error fetching appointments: ${error.message}`);
     } else {
-      setAppointmentsToday(data.map(app => ({
-        ...app,
-        patient_name: app.patients ? `${app.patients.first_name} ${app.patients.last_name}` : 'Unknown Patient',
-        doctor_name: app.doctors ? `${app.doctors.first_name} ${app.doctors.last_name}` : 'Unknown Doctor',
-        time: new Date(app.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      })));
+      setAppointmentsToday(data.map(app => {
+        // No Date object creation here, directly use string parts
+        const formattedDatePart = app.appointment_datetime.split('T')[0];
+        const formattedTimePart = app.appointment_datetime.substring(11, 16); // Extracts HH:MM (24-hour)
+
+        return {
+          ...app,
+          patient_name: app.patients ? `${app.patients.first_name} ${app.patients.last_name}` : 'Unknown Patient',
+          doctor_name: app.doctors ? `${app.doctors.first_name} ${app.doctors.last_name}` : 'Unknown Doctor',
+          // Apply 12-hour formatting for display
+          dateTimeDisplay: `${formattedDatePart} ${formatTimeTo12Hour(formattedTimePart)}`,
+        };
+      }));
+      // --- Start Debugging Console Logs ---
+      console.log("Fetched raw appointments data:", data); // Log the raw data from Supabase
+      data.forEach(app => {
+        const formattedTimeForLog = formatTimeTo12Hour(app.appointment_datetime.substring(11, 16));
+        console.log(`Appointment ID: ${app.appointment_id}, Raw datetime: "${app.appointment_datetime}", Display Value: "${app.appointment_datetime.split('T')[0]} ${formattedTimeForLog}"`);
+      });
+      // --- End Debugging Console Logs ---
     }
   };
 
@@ -649,29 +674,90 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       return;
     }
 
-    const appointmentDateTime = new Date(`${appointmentForm.date}T${appointmentForm.time}`);
+    // IMPORTANT FIX: Append 'Z' to the time string to ensure it's treated as UTC.
+    // This makes sure the entered HH:MM is preserved in the ISO string
+    // and displayed correctly without timezone shifts.
+    const appointmentDateTime = new Date(`${appointmentForm.date}T${appointmentForm.time}:00.000Z`);
 
-    const { data, error } = await supabase
-      .from("appointments")
-      .insert([
-        {
+    let error;
+    if (editingAppointmentId) {
+      // Update existing appointment
+      const { error: updateError } = await supabase
+        .from("appointments")
+        .update({
           doctor_id: appointmentForm.doctorId,
           patient_id: appointmentForm.patientId,
-          secretary_id: user.secretary_id,
           appointment_datetime: appointmentDateTime.toISOString(),
           notes: appointmentForm.notes,
-        },
-      ]);
+        })
+        .eq("appointment_id", editingAppointmentId);
+      error = updateError;
+    } else {
+      // Create new appointment
+      const { data, error: insertError } = await supabase
+        .from("appointments")
+        .insert([
+          {
+            doctor_id: appointmentForm.doctorId,
+            patient_id: appointmentForm.patientId,
+            secretary_id: user.secretary_id,
+            appointment_datetime: appointmentDateTime.toISOString(),
+            notes: appointmentForm.notes,
+          },
+        ]);
+      error = insertError;
+    }
 
     if (error) {
-      console.error("Error creating appointment:", error);
-      setMessage(`Error scheduling appointment: ${error.message}`);
+      console.error("Error saving appointment:", error);
+      setMessage(`Error saving appointment: ${error.message}`);
     } else {
-      setMessage("Appointment scheduled successfully!");
+      setMessage(`Appointment ${editingAppointmentId ? 'updated' : 'scheduled'} successfully!`);
+      // Reset form and editing state
       setAppointmentForm({ doctorId: "", patientId: "", date: "", time: "", notes: "" });
-      fetchAppointmentsToday();
+      setEditingAppointmentId(null);
+      fetchAllAppointments(); // Refresh appointment list
     }
   };
+
+  // Handler for "Cancel" and "Done" buttons (delete appointment)
+  const handleDeleteAppointment = async (appointmentId, actionType) => {
+    const confirmMessage = `Are you sure you want to ${actionType} this appointment? This action cannot be undone.`;
+    if (window.confirm(confirmMessage)) {
+      const { error } = await supabase
+        .from("appointments")
+        .delete()
+        .eq("appointment_id", appointmentId);
+
+      if (error) {
+        console.error(`Error ${actionType}ing appointment:`, error);
+        setMessage(`Error ${actionType}ing appointment: ${error.message}`);
+      } else {
+        setMessage(`Appointment ${actionType} successfully!`);
+        fetchAllAppointments(); // Refresh the list of appointments
+      }
+    }
+  };
+
+  // Handler for "Edit" button
+  const handleEditAppointment = (appointment) => {
+    // Format date to<ctrl42>-MM-DD for input type="date"
+    const formattedDate = appointment.appointment_datetime.split('T')[0];
+    // Extract time to HH:MM directly from the ISO string.
+    // NOTE: input type="time" expects 24-hour format, so no 12-hour conversion here.
+    const formattedTime = appointment.appointment_datetime.substring(11, 16);
+
+    setAppointmentForm({
+      doctorId: appointment.doctor_id,
+      patientId: appointment.patient_id,
+      date: formattedDate,
+      time: formattedTime,
+      notes: appointment.notes,
+    });
+    setEditingAppointmentId(appointment.appointment_id);
+    setActivePage("appointments"); // Navigate to the appointment scheduling page
+  };
+
 
   const filteredPatients = patients.filter((pat) =>
     `${pat.first_name} ${pat.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
@@ -704,7 +790,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
       bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A'
     });
-    setPatientAppointments([]); // Clear appointments when closing
+    setPatientAppointments([]);
   };
 
 
@@ -882,11 +968,11 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
               <div className="dashboard-right-column">
                 <div className="appointments-today">
-                  <h3>Appointments Today</h3>
+                  <h3>All Appointments</h3> {/* Changed heading */}
                   <table>
                     <thead>
                       <tr>
-                        <th>Time</th>
+                        <th>Date & Time</th> {/* Changed to Date & Time */}
                         <th>Patient Name</th>
                         <th>Actions</th>
                       </tr>
@@ -895,16 +981,34 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                       {appointmentsToday.length > 0 ? (
                         appointmentsToday.map((appointment) => (
                           <tr key={appointment.appointment_id}>
-                            <td>{appointment.time}</td>
+                            <td>{appointment.dateTimeDisplay}</td> {/* Use the new dateTimeDisplay */}
                             <td>{appointment.patient_name}</td>
                             <td className="appointment-actions">
-                              No actions available without status
+                              {/* Added Edit, Cancel, Done buttons with handlers */}
+                              <button
+                                className="edit-button"
+                                onClick={() => handleEditAppointment(appointment)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="cancel-button"
+                                onClick={() => handleDeleteAppointment(appointment.appointment_id, 'cancel')}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                className="done-button"
+                                onClick={() => handleDeleteAppointment(appointment.appointment_id, 'done')}
+                              >
+                                Done
+                              </button>
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="3">No appointments today.</td>
+                          <td colSpan="3">No appointments found.</td> {/* Changed message */}
                         </tr>
                       )}
                     </tbody>
@@ -1226,7 +1330,8 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                             <p><strong>Patient ID:</strong> {selectedPatientForDetail.patient_id || 'N/A'}</p>
                             <p><strong>Name:</strong> {selectedPatientForDetail.first_name} {selectedPatientForDetail.middle_name ? selectedPatientForDetail.middle_name + ' ' : ''}{selectedPatientForDetail.last_name}</p>
                             <p><strong>Gender:</strong> {selectedPatientForDetail.gender || 'N/A'}</p>
-                            <p><strong>Date of Birth:</strong> {selectedPatientForDetail.date_of_birth ? new Date(selectedPatientForDetail.date_of_birth).toLocaleDateString() : 'N/A'}</p>
+                            {/* Display date of birth directly as stored (YYYY-MM-DD) */}
+                            <p><strong>Date of Birth:</strong> {selectedPatientForDetail.date_of_birth || 'N/A'}</p>
                             <p><strong>Contact Number:</strong> {selectedPatientForDetail.contact_info || 'N/A'}</p>
                             <p><strong>BMI:</strong> {'[BMI Placeholder - Requires Height & Weight data]'}</p> {/* Placeholder for BMI */}
                             <p><strong>Diabetes Type:</strong> {selectedPatientForDetail.diabetes_type || 'N/A'}</p>
@@ -1249,7 +1354,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                         </div>
                         {/* Latest Health Metrics Section */}
                         <div className="latest-health-metrics-section">
-                            <h3>Latest Health Metrics (From Labs)</h3>
+                            <h3>Latest Health Metrics</h3>
                             <p><strong>Blood Glucose Level:</strong> {patientLabResults.bloodGlucoseLevel}</p>
                             <p><strong>Blood Pressure:</strong> {patientLabResults.bloodPressure}</p>
                             <p><strong>Risk Classification:</strong> {selectedPatientForDetail.risk_classification || 'N/A'}</p>
@@ -1313,8 +1418,10 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                                     {patientAppointments.length > 0 ? (
                                         patientAppointments.map((appointment, idx) => (
                                             <tr key={idx}>
-                                                <td>{new Date(appointment.appointment_datetime).toLocaleDateString()}</td>
-                                                <td>{new Date(appointment.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                                                {/* Display date from ISO string<ctrl42>-MM-DD */}
+                                                <td>{appointment.appointment_datetime.split('T')[0]}</td>
+                                                {/* Display time from ISO string HH:MM, converted to 12-hour */}
+                                                <td>{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</td>
                                                 <td>{appointment.notes || 'N/A'}</td>
                                             </tr>
                                         ))
@@ -1346,7 +1453,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
           {activePage === "appointments" && (
             <div className="appointments-section">
-              <h2>Schedule New Appointment</h2>
+              <h2>{editingAppointmentId ? "Edit Appointment" : "Schedule New Appointment"}</h2> {/* Dynamic title */}
               <div className="form-group">
                 <label>Select Doctor:</label>
                 <select value={appointmentForm.doctorId} onChange={(e) => handleAppointmentChange("doctorId", e.target.value)}>
@@ -1373,13 +1480,27 @@ const SecretaryDashboard = ({ user, onLogout }) => {
               </div>
               <div className="form-group">
                 <label>Time:</label>
+                {/* Input type="time" uses 24-hour format by default, no change here */}
                 <input type="time" value={appointmentForm.time} onChange={(e) => handleAppointmentChange("time", e.target.value)} />
               </div>
               <div className="form-group">
                 <label>Notes (optional):</label>
                 <textarea placeholder="Notes (optional)" value={appointmentForm.notes} onChange={(e) => handleAppointmentChange("notes", e.target.value)} />
               </div>
-              <button onClick={createAppointment}>Schedule Appointment</button>
+              <button onClick={createAppointment}>{editingAppointmentId ? "Update Appointment" : "Schedule Appointment"}</button> {/* Dynamic button text */}
+              {editingAppointmentId && (
+                <button
+                  className="cancel-button"
+                  onClick={() => {
+                    setEditingAppointmentId(null);
+                    setAppointmentForm({ doctorId: "", patientId: "", date: "", time: "", notes: "" });
+                    setActivePage("appointments"); // Stay on appointments page but clear form
+                  }}
+                  style={{ marginLeft: '10px' }}
+                >
+                  Cancel Edit
+                </button>
+              )}
               {message && <p className="form-message">{message}</p>}
 
             </div>
