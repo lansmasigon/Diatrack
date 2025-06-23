@@ -1368,13 +1368,11 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                         <div className="patient-details-left-column">
                             {/* Basic Patient Information Section */}
                             <div className="patient-basic-info-section">
-                                <p><strong>Patient ID:</strong> {selectedPatientForDetail.patient_id || 'N/A'}</p>
                                 <p><strong>Name:</strong> {selectedPatientForDetail.first_name} {selectedPatientForDetail.middle_name ? selectedPatientForDetail.middle_name + ' ' : ''}{selectedPatientForDetail.last_name}</p>
                                 <p><strong>Gender:</strong> {selectedPatientForDetail.gender || 'N/A'}</p>
                                 {/* Display date of birth directly as stored (YYYY-MM-DD) */}
                                 <p><strong>Date of Birth:</strong> {selectedPatientForDetail.date_of_birth || 'N/A'}</p>
                                 <p><strong>Contact Number:</strong> {selectedPatientForDetail.contact_info || 'N/A'}</p>
-                                <p><strong>BMI:</strong> {'[BMI Placeholder - Requires Height & Weight data]'}</p> {/* Placeholder for BMI */}
                                 <p><strong>Diabetes Type:</strong> {selectedPatientForDetail.diabetes_type || 'N/A'}</p>
                                 <p><strong>Smoking History:</strong> {selectedPatientForDetail.smoking_status || 'N/A'}</p>
                                 <p><strong>Hypertensive:</strong> {selectedPatientForDetail.complication_history?.includes("Hypertensive") ? "Yes" : "No"}</p>
