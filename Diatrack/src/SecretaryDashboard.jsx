@@ -178,6 +178,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
   // const [showPatientDetailModal, setShowPatientDetailModal] = useState(false); // REMOVED: No longer a modal
   const [selectedPatientForDetail, setSelectedPatientForDetail] = useState(null); // This is good, renamed for clarity
+  const [selectedPatientForLabView, setSelectedPatientForLabView] = useState(null); // New state for lab view
 
   // State for chart data (dynamically fetched)
   const [totalPatientsCount, setTotalPatientsCount] = useState(0);
@@ -225,6 +226,12 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   });
   // NEW STATE FOR WOUND PHOTO URL
   const [woundPhotoUrl, setWoundPhotoUrl] = useState('');
+
+  // NEW STATE FOR ALL PATIENT HEALTH METRICS HISTORY (FOR CHARTS)
+  const [allPatientHealthMetrics, setAllPatientHealthMetrics] = useState([]);
+
+  // NEW STATE FOR PATIENT-SPECIFIC LAB RESULTS (ALL HISTORY)
+  const [allPatientLabResultsHistory, setAllPatientLabResultsHistory] = useState([]);
 
 
   // NEW STATE FOR PATIENT-SPECIFIC LAB RESULTS AND APPOINTMENTS
@@ -354,11 +361,11 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   }, [selectedPatientForDetail]); // Only re-run when selectedPatientForDetail changes
 
 
-  // Updated useEffect to fetch other patient details
+  // Updated useEffect to fetch other patient details and ALL health metrics
   useEffect(() => {
     const fetchPatientDetailsData = async () => {
       if (selectedPatientForDetail && selectedPatientForDetail.patient_id) {
-        // --- Fetch Latest Lab Results ---
+        // --- Fetch Latest Lab Results for text display ---
         const { data: labData, error: labError } = await supabase
           .from('patient_labs')
           .select('date_submitted, Hba1c, creatinine, got_ast, gpt_alt, cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol')
@@ -398,18 +405,36 @@ const SecretaryDashboard = ({ user, onLogout }) => {
           });
         }
 
-        // --- Fetch Latest Health Metrics (Blood Glucose, Blood Pressure) ---
-        const { data: healthData, error: healthError } = await supabase
-          .from('health_metrics')
-          .select('blood_glucose, bp_systolic, bp_diastolic') // Removed wound_photo_url here
+        // --- Fetch ALL Lab Results History ---
+        const { data: allLabsData, error: allLabsError } = await supabase
+          .from('patient_labs')
+          .select('*')
           .eq('patient_id', selectedPatientForDetail.patient_id)
+          .order('date_submitted', { ascending: true }); // Order by date for timeline
+
+        if (allLabsError) {
+          console.error("Error fetching all historical lab results:", allLabsError.message);
+          setAllPatientLabResultsHistory([]);
+        } else if (allLabsData) {
+          setAllPatientLabResultsHistory(allLabsData);
+        } else {
+          setAllPatientLabResultsHistory([]);
+        }
+
+
+        // --- Fetch Latest Health Metrics (Blood Glucose, Blood Pressure) for text display ---
+        const { data: currentHealthData, error: currentHealthError } = await supabase
+          .from('health_metrics')
+          .select('blood_glucose, bp_systolic, bp_diastolic')
+          .eq('patient_id', selectedPatientForDetail.patient_id)
+          .order('submission_date', { ascending: false })
           .limit(1);
 
-        if (healthError) {
-          console.error("Error fetching latest health metrics:", healthError.message);
+        if (currentHealthError) {
+          console.error("Error fetching latest health metrics for text display:", currentHealthError.message);
           setPatientHealthMetrics({ bloodGlucoseLevel: 'Error', bloodPressure: 'Error' });
-        } else if (healthData && healthData.length > 0) {
-          const latestHealth = healthData[0];
+        } else if (currentHealthData && currentHealthData.length > 0) {
+          const latestHealth = currentHealthData[0];
           setPatientHealthMetrics({
             bloodGlucoseLevel: latestHealth.blood_glucose || 'N/A',
             bloodPressure: (latestHealth.bp_systolic !== null && latestHealth.bp_diastolic !== null) ? `${latestHealth.bp_systolic}/${latestHealth.bp_diastolic}` : 'N/A'
@@ -417,6 +442,23 @@ const SecretaryDashboard = ({ user, onLogout }) => {
         } else {
           setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' });
         }
+
+        // --- Fetch ALL Health Metrics for Charts ---
+        const { data: historyHealthData, error: historyHealthError } = await supabase
+          .from('health_metrics')
+          .select('blood_glucose, bp_systolic, bp_diastolic, submission_date')
+          .eq('patient_id', selectedPatientForDetail.patient_id)
+          .order('submission_date', { ascending: true });
+
+        if (historyHealthError) {
+            console.error("Error fetching historical health metrics for charts:", historyHealthError.message);
+            setAllPatientHealthMetrics([]);
+        } else if (historyHealthData) {
+            setAllPatientHealthMetrics(historyHealthData);
+        } else {
+            setAllPatientHealthMetrics([]);
+        }
+
 
         // --- Fetch Appointments for the Patient ---
         const { data: apptData, error: apptError } = await supabase
@@ -441,7 +483,10 @@ const SecretaryDashboard = ({ user, onLogout }) => {
           hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
           cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
         });
+        setAllPatientLabResultsHistory([]); // Reset all lab results history
         setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' });
+        setAllPatientHealthMetrics([]); // Reset historical data
+        setWoundPhotoUrl(''); // Reset wound photo URL
         setPatientAppointments([]);
       }
     };
@@ -876,7 +921,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
   const handleSelectPatientForLab = (patient) => {
     setLabResults(prev => ({ ...prev, selectedPatientForLab: patient }));
-    setLabEntryStep(2);
+    setLabEntryStep(2); // Go to the input form
     // Optionally pre-fill date if desired, or leave it for manual entry
     setLabResults(prev => ({ ...prev, dateSubmitted: new Date().toISOString().slice(0, 10) }));
   };
@@ -885,6 +930,14 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const handleViewPatientDetails = (patient) => {
     setSelectedPatientForDetail(patient);
     setActivePage("patient-detail-view"); // Change to new page state
+  };
+
+  // New function to handle viewing lab details
+  const handleViewPatientLabDetails = (patient) => {
+    // This will trigger the useEffect to fetch lab history
+    setSelectedPatientForDetail(patient); // Reuse selectedPatientForDetail to fetch data
+    setSelectedPatientForLabView(patient); // Set for the new lab view page's title etc.
+    setActivePage("lab-details-view"); // Set active page to the new lab details view
   };
 
   // Function to close the patient detail view and return to patient list
@@ -896,9 +949,20 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
       cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
     });
+    setAllPatientLabResultsHistory([]); // Reset all lab results history
     setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' }); // Reset health metrics
+    setAllPatientHealthMetrics([]); // Reset historical data
     setWoundPhotoUrl(''); // Reset wound photo URL
     setPatientAppointments([]);
+  };
+
+  // Function to close the lab details view and return to lab entry step 1
+  const handleCloseLabDetailsView = () => {
+    setActivePage("lab-result-entry"); // Go back to lab result entry
+    setLabEntryStep(1); // Ensure it's on patient search step
+    setSelectedPatientForLabView(null); // Clear the selected patient for lab view
+    // No need to reset patientLabResults or allPatientLabResultsHistory here,
+    // as they will be re-fetched if a patient is selected again.
   };
 
 
@@ -1394,7 +1458,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                       <th>Patient Name</th>
                       <th>Age/Sex</th>
                       <th>Assigned Doctor</th>
-                      <th>Phase</th>
+                      <th>Status</th> {/* New Status column */}
                       <th>Classification</th>
                       <th>Lab Status</th>
                       <th>Profile Status</th>
@@ -1485,8 +1549,140 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                             {/* History Charts Section */}
                             <div className="history-charts-section">
                                 <h3>History Charts</h3>
-                                <p>[Placeholder for Blood Sugar Timeline Chart]</p>
-                                <p>[Placeholder for Blood Pressure Timeline Chart]</p>
+                                {/* Blood Glucose Chart */}
+                                <div className="chart-container">
+                                    <h4>Blood Glucose Level History</h4>
+                                    <Bar
+                                        data={{
+                                            labels: allPatientHealthMetrics.map(entry => new Date(entry.submission_date).toLocaleDateString()),
+                                            datasets: [{
+                                                label: 'Blood Glucose',
+                                                data: allPatientHealthMetrics.map(entry => parseFloat(entry.blood_glucose) || 0),
+                                                backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                                                borderColor: 'rgba(75, 192, 192, 1)',
+                                                borderWidth: 1,
+                                            }],
+                                        }}
+                                        options={{
+                                            responsive: true,
+                                            maintainAspectRatio: false,
+                                            plugins: {
+                                                legend: {
+                                                    display: false, // Hide legend for cleaner look
+                                                },
+                                                tooltip: {
+                                                    callbacks: {
+                                                        label: function(context) {
+                                                            return `Glucose: ${context.raw} mg/dL`;
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            scales: {
+                                                y: {
+                                                    beginAtZero: true,
+                                                    title: {
+                                                        display: true,
+                                                        text: 'mg/dL'
+                                                    },
+                                                    min: 0,
+                                                    max: 200, // Adjusted max value
+                                                    ticks: {
+                                                        stepSize: 40,
+                                                        callback: function(value) {
+                                                            // Only display labels for 40, 80, 120, 160, 200
+                                                            if (value % 40 === 0 && value >= 40 && value <= 200) {
+                                                                return value;
+                                                            }
+                                                            return null; // Hide other ticks
+                                                        }
+                                                    }
+                                                },
+                                                x: {
+                                                    grid: {
+                                                        display: false
+                                                    },
+                                                    title: {
+                                                        display: true,
+                                                        text: 'Date'
+                                                    }
+                                                }
+                                            }
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Blood Pressure Chart */}
+                                <div className="chart-container">
+                                    <h4>Blood Pressure History</h4>
+                                    <Bar
+                                        data={{
+                                            labels: allPatientHealthMetrics.map(entry => new Date(entry.submission_date).toLocaleDateString()),
+                                            datasets: [
+                                                {
+                                                    label: 'Systolic',
+                                                    data: allPatientHealthMetrics.map(entry => parseFloat(entry.bp_systolic) || 0),
+                                                    backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                                                    borderColor: 'rgba(255, 99, 132, 1)',
+                                                    borderWidth: 1,
+                                                },
+                                                {
+                                                    label: 'Diastolic',
+                                                    data: allPatientHealthMetrics.map(entry => parseFloat(entry.bp_diastolic) || 0),
+                                                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                                                    borderColor: 'rgba(54, 162, 235, 1)',
+                                                    borderWidth: 1,
+                                                },
+                                            ],
+                                        }}
+                                        options={{
+                                            responsive: true,
+                                            maintainAspectRatio: false,
+                                            plugins: {
+                                                legend: {
+                                                    display: false, // Hide legend to remove "systolic" and "diastolic" from bottom
+                                                },
+                                                tooltip: {
+                                                    callbacks: {
+                                                        label: function(context) {
+                                                            return `${context.dataset.label}: ${context.raw} mmHg`;
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            scales: {
+                                                y: {
+                                                    beginAtZero: true,
+                                                    title: {
+                                                        display: true,
+                                                        text: 'mmHg'
+                                                    },
+                                                    min: 0,
+                                                    max: 200, // Adjusted max value
+                                                    ticks: {
+                                                        stepSize: 40,
+                                                        callback: function(value) {
+                                                            // Only display labels for 40, 80, 120, 160, 200
+                                                            if (value % 40 === 0 && value >= 40 && value <= 200) {
+                                                                return value;
+                                                            }
+                                                            return null; // Hide other ticks
+                                                        }
+                                                    }
+                                                },
+                                                x: {
+                                                    grid: {
+                                                        display: false
+                                                    },
+                                                    title: {
+                                                        display: true,
+                                                        text: 'Date'
+                                                    }
+                                                }
+                                            }
+                                        }}
+                                    />
+                                </div>
                             </div>
                         </div>
                         <div className="patient-details-right-column">
@@ -1718,9 +1914,14 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                                   <td>{pat.profile_status || 'N/A'}</td>
                                   <td>{pat.last_doctor_visit || 'N/A'}</td>
                                   <td>
-                                    <button className="select-patient-button" onClick={() => handleSelectPatientForLab(pat)}>
-                                      Select
-                                    </button>
+                                    <div className="lab-actions-buttons"> {/* New container for buttons */}
+                                      <button className="enter-labs-button" onClick={() => handleSelectPatientForLab(pat)}>
+                                        Enter Labs
+                                      </button>
+                                      <button className="view-labs-button" onClick={() => handleViewPatientLabDetails(pat)}>
+                                        View
+                                      </button>
+                                    </div>
                                   </td>
                                 </tr>
                               ))
@@ -1883,6 +2084,57 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                   )}
                 </>
               )}
+
+              {/* New Lab Details View Section */}
+              {activePage === "lab-details-view" && selectedPatientForLabView && (
+                <div className="lab-details-view-section patient-detail-view-section"> {/* Reuse patient-detail-view-section for consistent styling */}
+                  <div className="detail-view-header">
+                    <h2>Lab Results History for {selectedPatientForLabView.first_name} {selectedPatientForLabView.last_name}</h2>
+                    <button className="back-to-list-button" onClick={handleCloseLabDetailsView}>
+                      <i className="fas fa-arrow-left"></i> Back to Lab Entry
+                    </button>
+                  </div>
+                  <div className="lab-history-table-container">
+                    <table className="patient-table"> {/* Reuse patient-table for styling */}
+                      <thead>
+                        <tr>
+                          <th>Date Submitted</th>
+                          <th>HbA1c (%)</th>
+                          <th>Creatinine (mg/dL)</th>
+                          <th>GOT (AST) (U/L)</th>
+                          <th>GPT (ALT) (U/L)</th>
+                          <th>Cholesterol (mg/dL)</th>
+                          <th>Triglycerides (mg/dL)</th>
+                          <th>HDL (mg/dL)</th>
+                          <th>LDL (mg/dL)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allPatientLabResultsHistory.length > 0 ? (
+                          allPatientLabResultsHistory.map((labEntry, index) => (
+                            <tr key={index}>
+                              <td>{labEntry.date_submitted || 'N/A'}</td>
+                              <td>{labEntry.Hba1c || 'N/A'}</td>
+                              <td>{labEntry.creatinine || 'N/A'}</td>
+                              <td>{labEntry.got_ast || 'N/A'}</td>
+                              <td>{labEntry.gpt_alt || 'N/A'}</td>
+                              <td>{labEntry.cholesterol || 'N/A'}</td>
+                              <td>{labEntry.triglycerides || 'N/A'}</td>
+                              <td>{labEntry.hdl_cholesterol || 'N/A'}</td>
+                              <td>{labEntry.ldl_cholesterol || 'N/A'}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="9">No lab results history available for this patient.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
 
               {showPatientConfirmationModal && (
                   <div className="modal-backdrop">
