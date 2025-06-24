@@ -274,7 +274,87 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     }
   }, [linkedDoctors, user]); // Dependencies ensure it runs when doctors are fetched
 
-  // NEW useEffect to fetch last lab submission date for the selected patient
+  // NEW function to fetch wound photos separately
+  const fetchWoundPhoto = async (patientId) => {
+    setWoundPhotoUrl(''); // Clear previous wound photo
+    if (!patientId) {
+      console.log("WOUND PHOTO FETCH: No patient ID provided.");
+      return;
+    }
+    console.log(`WOUND PHOTO FETCH: Attempting to fetch for patient ID: ${patientId}`);
+
+    try {
+      const { data: healthData, error: healthError } = await supabase
+        .from('health_metrics')
+        .select('wound_photo_url')
+        .eq('patient_id', patientId)
+        .limit(1);
+
+      console.log("WOUND PHOTO FETCH: Raw health data from 'health_metrics':", healthData);
+      console.log("WOUND PHOTO FETCH: Health data error:", healthError);
+
+      if (healthError) {
+        console.error("WOUND PHOTO FETCH: Error fetching wound photo URL from DB:", healthError.message);
+        setWoundPhotoUrl('');
+        return;
+      }
+
+      if (healthData && healthData.length > 0) {
+        const woundPhotoPathOrUrl = healthData[0]?.wound_photo_url; // Use optional chaining for safety
+
+        // Log the exact value and type BEFORE any conditional checks
+        console.log(`WOUND PHOTO FETCH: EXACT wound_photo_url from DB (Type: ${typeof woundPhotoPathOrUrl}, Value: "${woundPhotoPathOrUrl}")`);
+
+        if (typeof woundPhotoPathOrUrl === 'string' && (woundPhotoPathOrUrl.startsWith('http://') || woundPhotoPathOrUrl.startsWith('https://'))) {
+          // If it's already a full URL, use it directly (after trimming whitespace)
+          setWoundPhotoUrl(woundPhotoPathOrUrl.trim());
+          console.log("WOUND PHOTO FETCH: Stored value is already a full URL, using directly (trimmed):", woundPhotoPathOrUrl.trim());
+        } else if (typeof woundPhotoPathOrUrl === 'string' && woundPhotoPathOrUrl.trim().length > 0) {
+          // Otherwise, treat it as a path and get the public URL if it's a non-empty string after trimming
+          const trimmedPath = woundPhotoPathOrUrl.trim();
+          const { data: publicUrlData, error: publicUrlError } = supabase
+            .storage
+            .from('wound-photos') // Ensure this is your correct bucket name
+            .getPublicUrl(trimmedPath);
+
+          console.log("WOUND PHOTO FETCH: Public URL Data (from getPublicUrl):", publicUrlData);
+          console.log("WOUND PHOTO FETCH: Public URL Error (from getPublicUrl):", publicUrlError);
+
+          if (publicUrlError) {
+            console.error("WOUND PHOTO FETCH: Error getting public URL for wound photo:", publicUrlError.message);
+            setWoundPhotoUrl('');
+          } else if (publicUrlData && publicUrlData.publicUrl) {
+            setWoundPhotoUrl(publicUrlData.publicUrl);
+            console.log("WOUND PHOTO FETCH: Successfully set Wound Photo Public URL (from getPublicUrl):", publicUrlData.publicUrl);
+          } else {
+            setWoundPhotoUrl(''); // Clear if URL generation fails (e.g., publicUrlData is null/undefined)
+            console.log("WOUND PHOTO FETCH: Failed to generate public URL for wound photo. publicUrlData:", publicUrlData);
+          }
+        } else {
+          setWoundPhotoUrl(''); // Clear if no wound_photo_url or it's not a valid string after trimming, or if it's null/undefined
+          console.log("WOUND PHOTO FETCH: wound_photo_url is not a valid string, is empty after trimming, or is null/undefined.");
+        }
+      } else {
+        setWoundPhotoUrl(''); // Clear if no healthData or healthData is empty
+        console.log("WOUND PHOTO FETCH: No healthData found for this patient or healthData is empty.");
+      }
+    } catch (error) {
+      console.error("WOUND PHOTO FETCH: Unexpected error during wound photo fetch:", error);
+      setWoundPhotoUrl('');
+    }
+  };
+
+  // NEW useEffect for fetching wound photos
+  useEffect(() => {
+    if (selectedPatientForDetail && selectedPatientForDetail.patient_id) {
+      fetchWoundPhoto(selectedPatientForDetail.patient_id);
+    } else {
+      setWoundPhotoUrl(''); // Reset when no patient is selected
+    }
+  }, [selectedPatientForDetail]); // Only re-run when selectedPatientForDetail changes
+
+
+  // Updated useEffect to fetch other patient details
   useEffect(() => {
     const fetchPatientDetailsData = async () => {
       if (selectedPatientForDetail && selectedPatientForDetail.patient_id) {
@@ -318,57 +398,25 @@ const SecretaryDashboard = ({ user, onLogout }) => {
           });
         }
 
-        // --- Fetch Latest Health Metrics (Blood Glucose, Blood Pressure, Wound Photo URL) ---
-        console.log("Fetching health metrics for patient ID:", selectedPatientForDetail.patient_id); // Added log
+        // --- Fetch Latest Health Metrics (Blood Glucose, Blood Pressure) ---
         const { data: healthData, error: healthError } = await supabase
           .from('health_metrics')
-          .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url') // Added wound_photo_url
+          .select('blood_glucose, bp_systolic, bp_diastolic') // Removed wound_photo_url here
           .eq('patient_id', selectedPatientForDetail.patient_id)
-          // Removed .order('created_at', { ascending: false }) as per user request
           .limit(1);
 
-        console.log("Raw healthData from Supabase:", healthData); // Added log
-        console.log("Health Metrics Error:", healthError ? healthError.message : "No error object or message"); // Log error message
-        console.log("Is healthData an array and not empty?", Array.isArray(healthData) && healthData.length > 0);
-
         if (healthError) {
-          console.error("Error fetching latest health metrics:", healthError.message); // Log specific error message
+          console.error("Error fetching latest health metrics:", healthError.message);
           setPatientHealthMetrics({ bloodGlucoseLevel: 'Error', bloodPressure: 'Error' });
-          setWoundPhotoUrl(''); // Reset wound photo URL on error
         } else if (healthData && healthData.length > 0) {
           const latestHealth = healthData[0];
-          console.log("Latest Health Metric Entry:", latestHealth); // Log the latest entry
-
           setPatientHealthMetrics({
             bloodGlucoseLevel: latestHealth.blood_glucose || 'N/A',
             bloodPressure: (latestHealth.bp_systolic !== null && latestHealth.bp_diastolic !== null) ? `${latestHealth.bp_systolic}/${latestHealth.bp_diastolic}` : 'N/A'
           });
-          if (latestHealth.wound_photo_url) {
-            const { data: publicUrlData } = supabase
-              .storage
-              .from('wound-photos') // Specify the bucket name as per your request
-              .getPublicUrl(latestHealth.wound_photo_url); // Use the path from the database
-
-            if (publicUrlData && publicUrlData.publicUrl) {
-              setWoundPhotoUrl(publicUrlData.publicUrl);
-              console.log("Wound Photo Public URL:", publicUrlData.publicUrl);
-            } else {
-              setWoundPhotoUrl(''); // Clear if URL generation fails
-              console.log("Failed to generate public URL for wound photo.");
-            }
-          } else {
-            setWoundPhotoUrl(''); // Clear if no wound_photo_url in DB
-            console.log("Wound Photo URL extracted from latestHealth: (empty string/null/undefined)"); // Adjusted log for clarity
-          }
-
         } else {
-          console.log("No health metrics found for this patient.");
           setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' });
-          setWoundPhotoUrl(''); // Reset wound photo URL if no data
-          console.log("Wound Photo URL extracted from latestHealth: (empty string/null/undefined)"); // Adjusted log for clarity
         }
-
-
 
         // --- Fetch Appointments for the Patient ---
         const { data: apptData, error: apptError } = await supabase
@@ -394,22 +442,6 @@ const SecretaryDashboard = ({ user, onLogout }) => {
           cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
         });
         setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' });
-        if (latestHealth.wound_photo_url) {
-          const { data: publicUrlData } = supabase
-            .storage
-            .from('wound-photo') // Specify the bucket name as per your request
-            .getPublicUrl(latestHealth.wound_photo_url); // Use the path from the database
-        
-          if (publicUrlData && publicUrlData.publicUrl) {
-            setWoundPhotoUrl(publicUrlData.publicUrl);
-            console.log("Wound Photo Public URL:", publicUrlData.publicUrl);
-          } else {
-            setWoundPhotoUrl(''); // Clear if URL generation fails
-            console.log("Failed to generate public URL for wound photo.");
-          }
-        } else {
-          setWoundPhotoUrl(''); // Clear if no wound_photo_url in DB
-        }
         setPatientAppointments([]);
       }
     };
@@ -493,7 +525,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
           }
 
           // Pending Lab Results (keeping this logic for now, even if lab_status column is not yet in DB)
-          // It will just count patients where this property might be 'Awaiting' or undefined.
+          // It will just count patients where this property might be 'Awaiting'.
           if (patient.lab_status === 'Awaiting') {
               pendingLabs++;
           }
@@ -634,16 +666,20 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     };
 
     const handleSavePatientWithConfirmation = () => {
+      console.log("PATIENT CONFIRMATION: handleSavePatientWithConfirmation called. Current step:", currentPatientStep); // New log
       if (currentPatientStep < steps.length - 1) {
         setMessage("Please complete all steps before saving the patient.");
+        console.log("PATIENT CONFIRMATION: Validation failed. Not showing modal."); // New log
         return;
       }
       if (!selectedDoctorId) {
         setMessage("Please select a doctor to assign the patient to.");
+        console.log("PATIENT CONFIRMATION: No doctor selected. Not showing modal."); // New log
         return;
       }
       setMessage(""); // Clear any previous messages
       setShowPatientConfirmationModal(true); // Show the confirmation modal
+      console.log("PATIENT CONFIRMATION: showPatientConfirmationModal state set to true."); // New log
     };
 
     const confirmAndSavePatient = async () => {
@@ -916,10 +952,13 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     if (labInsertError) {
       console.error("Error inserting lab results:", labInsertError);
       setMessage(`Error submitting lab results: ${labInsertError.message}`);
+      // Log the state of the modal after an error
+      console.log("Modal state after error (on error path):", showSuccessModal);
     } else {
       console.log("Lab results successfully submitted.");
       setMessage("Lab results successfully submitted!");
-      setShowSuccessModal(true);
+      setShowSuccessModal(true); // THIS IS WHERE IT SHOULD SHOW
+      console.log("Modal state set to true (on success path):", showSuccessModal); // Add this log to confirm state change
       // Clear the lab input form after successful submission
       setLabResults({
         selectedPatientForLab: null,
@@ -1355,6 +1394,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                       <th>Patient Name</th>
                       <th>Age/Sex</th>
                       <th>Assigned Doctor</th>
+                      <th>Phase</th>
                       <th>Classification</th>
                       <th>Lab Status</th>
                       <th>Profile Status</th>
@@ -1369,6 +1409,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                             <td>{pat.first_name} {pat.last_name}</td>
                             <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
                             <td>{pat.doctors ? `${pat.doctors.first_name} ${pat.doctors.last_name}` : 'Unknown'}</td>
+                            <td>{pat.phase || 'N/A'}</td> {/* Display patient phase */}
                             <td className={`risk-classification-${(pat.risk_classification || 'N/A').toLowerCase()}`}>
                                 {pat.risk_classification || 'N/A'}
                             </td>
@@ -1385,7 +1426,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="8">No patients found.</td>
+                          <td colSpan="9">No patients found.</td> {/* Updated colspan to 9 */}
                         </tr>
                       )}
                     </tbody>
@@ -1638,234 +1679,246 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                     </div>
 
 
-                    {labEntryStep === 1 && (<div className="lab-patient-search">
-                      <div className="search-header">
-                        <h4>Patient List</h4>
-                        <div style={{ display: "flex", gap: "10px" }}>
-                          <input type="text" placeholder="Search by name or Patient ID" />
-                          <button><i className="fas fa-filter" style={{ marginRight: "5px" }}></i> Filter</button>
+                    {/* Step 1: Patient Search */}
+                    {labEntryStep === 1 && (
+                      <div className="lab-step-content">
+                        <h3>Search for a Patient</h3>
+                        <div className="search-bar">
+                          <input
+                            type="text"
+                            placeholder="Search patients by name..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="patient-search-input"
+                          />
+                          <i className="fas fa-search search-icon"></i>
                         </div>
-                      </div>
-
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Patient Name</th>
-                            <th>Age/Sex</th>
-                            <th>Classification</th>
-                            <th>Lab Status</th>
-                            <th>Profile Status</th>
-                            <th>Last Visit</th>
-                            <th>Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                        {patients.length > 0 ? (
-                          patients.map((p, i) => {
-                            const fullName = `${p.first_name || "N/A"} ${p.last_name || ""}`;
-                            const age = p.date_of_birth
-                              ? Math.floor((new Date() - new Date(p.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))
-                              : "N/A";
-                            const sex = p.gender || "N/A";
-                            const classification = p.risk_classification || "Not Available";
-
-                            const labStatus = p.lab_status || "N/A"; // Display N/A as we're not using 'Awaiting' for now
-                            const profileStatus = p.profile_status || "Pending";
-                            const lastVisit = p.last_doctor_visit || "N/A";
-                            // labStatus is not being updated, so always show "N/A" or whatever is in DB if column exists
-                            const isAwaiting = false; // Temporarily set to false, as we are not relying on lab_status for this logic
-                            const actionLabel = "✏️ Enter Labs"; // Always allow entry
-
-                            return (
-                              <tr key={p.patient_id || i}>
-                                <td>{fullName}</td>
-                                <td>{age}/{sex}</td>
-                                <td className={`risk-classification-${(classification === "Not Available" ? "not-available" : classification).toLowerCase()}`}>
-                                    {classification}
-                                </td>
-                                {/* Adjusted display for lab_status since we're not managing it here yet */}
-                                <td>{labStatus === "N/A" ? "N/A" : `Currently: ${labStatus}`}</td>
-                                <td>🟡 {profileStatus}</td>
-                                <td>{lastVisit}</td>
-                                <td>
-                                  <button
-                                    className="action-button"
-                                    onClick={() => handleSelectPatientForLab(p)}
-                                  >
-                                    {actionLabel}
-                                  </button>
-                                </td>
+                        <table className="patient-table">
+                          <thead>
+                            <tr>
+                              <th>Patient Name</th>
+                              <th>Age/Sex</th>
+                              <th>Classification</th>
+                              <th>Lab Status</th>
+                              <th>Profile Status</th>
+                              <th>Last Visit</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredPatients.length > 0 ? (
+                              filteredPatients.map((pat) => (
+                                <tr key={pat.patient_id}>
+                                  <td>{pat.first_name} {pat.last_name}</td>
+                                  <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                                  <td className={`risk-classification-${(pat.risk_classification || 'N/A').toLowerCase()}`}>
+                                      {pat.risk_classification || 'N/A'}
+                                  </td>
+                                  <td>{pat.lab_status || 'N/A'}</td>
+                                  <td>{pat.profile_status || 'N/A'}</td>
+                                  <td>{pat.last_doctor_visit || 'N/A'}</td>
+                                  <td>
+                                    <button className="select-patient-button" onClick={() => handleSelectPatientForLab(pat)}>
+                                      Select
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan="7">No patients found.</td> {/* Updated colspan */}
                               </tr>
-                            );
-                          })
-                        ) : (
-                          <tr>
-                            <td colSpan="7">No patients available.</td>
-                          </tr>
-                        )}
-                        </tbody>
-                      </table>
-                    </div>)}
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
 
+                    {/* Step 2: Lab Input Form */}
                     {labEntryStep === 2 && (
-                      <div className="lab-input-form">
+                      <div className="lab-step-content">
+                        <h3>Enter Lab Results for {labResults.selectedPatientForLab?.first_name} {labResults.selectedPatientForLab?.last_name}</h3>
                         <div className="form-row">
                           <div className="form-group">
-                            <label>Patient Name</label>
-                            <input type="text" value={labResults.selectedPatientForLab ? `${labResults.selectedPatientForLab.first_name} ${labResults.selectedPatientForLab.last_name}` : ""} readOnly />
+                            <label>Date Submitted:</label>
+                            <input
+                              type="date"
+                              value={labResults.dateSubmitted}
+                              onChange={(e) => handleLabInputChange("dateSubmitted", e.target.value)}
+                            />
                           </div>
                           <div className="form-group">
-                            <label>Date Submitted</label>
-                            <input type="date" value={labResults.dateSubmitted} onChange={(e) => handleLabInputChange("dateSubmitted", e.target.value)} />
+                            <label>HbA1c (%):</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              placeholder="e.g., 7.0"
+                              value={labResults.hba1c}
+                              onChange={(e) => handleLabInputChange("hba1c", e.target.value)}
+                            />
                           </div>
                           <div className="form-group">
-                            <label>HbA1c (%)</label>
-                            <input type="number" step="0.01" value={labResults.hba1c} onChange={(e) => handleLabInputChange("hba1c", e.target.value)} />
+                            <label>Creatinine (mg/dL):</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              placeholder="e.g., 0.8"
+                              value={labResults.creatinine}
+                              onChange={(e) => handleLabInputChange("creatinine", e.target.value)}
+                            />
                           </div>
                         </div>
                         <div className="form-row">
                           <div className="form-group">
-                            <label>Creatinine (umol/L)</label>
-                            <input type="number" step="0.01" value={labResults.creatinine} onChange={(e) => handleLabInputChange("creatinine", e.target.value)} />
+                            <label>GOT (AST) (U/L):</label>
+                            <input
+                              type="number"
+                              placeholder="e.g., 25"
+                              value={labResults.gotAst}
+                              onChange={(e) => handleLabInputChange("gotAst", e.target.value)}
+                            />
                           </div>
                           <div className="form-group">
-                            <label>GOT (AST) - U/L</label>
-                            <input type="number" step="0.01" value={labResults.gotAst} onChange={(e) => handleLabInputChange("gotAst", e.target.value)} />
+                            <label>GPT (ALT) (U/L):</label>
+                            <input
+                              type="number"
+                              placeholder="e.g., 30"
+                              value={labResults.gptAlt}
+                              onChange={(e) => handleLabInputChange("gptAlt", e.target.value)}
+                            />
                           </div>
                           <div className="form-group">
-                            <label>GPT (ALT) - U/L</label>
-                            <input type="number" step="0.01" value={labResults.gptAlt} onChange={(e) => handleLabInputChange("gptAlt", e.target.value)} />
+                            <label>Cholesterol (mg/dL):</label>
+                            <input
+                              type="number"
+                              placeholder="e.g., 200"
+                              value={labResults.cholesterol}
+                              onChange={(e) => handleLabInputChange("cholesterol", e.target.value)}
+                            />
                           </div>
                         </div>
                         <div className="form-row">
                           <div className="form-group">
-                            <label>Cholesterol (mmol/L)</label>
-                            <input type="number" step="0.01" value={labResults.cholesterol} onChange={(e) => handleLabInputChange("cholesterol", e.target.value)} />
+                            <label>Triglycerides (mg/dL):</label>
+                            <input
+                              type="number"
+                              placeholder="e.g., 150"
+                              value={labResults.triglycerides}
+                              onChange={(e) => handleLabInputChange("triglycerides", e.target.value)}
+                            />
                           </div>
                           <div className="form-group">
-                            <label>Triglycerides (mmol/L)</label>
-                            <input type="number" step="0.01" value={labResults.triglycerides} onChange={(e) => handleLabInputChange("triglycerides", e.target.value)} />
+                            <label>HDL Cholesterol (mg/dL):</label>
+                            <input
+                              type="number"
+                              placeholder="e.g., 50"
+                              value={labResults.hdlCholesterol}
+                              onChange={(e) => handleLabInputChange("hdlCholesterol", e.target.value)}
+                            />
                           </div>
                           <div className="form-group">
-                            <label>HDL Cholesterol (mmol/L)</label>
-                            <input type="number" step="0.01" value={labResults.hdlCholesterol} onChange={(e) => handleLabInputChange("hdlCholesterol", e.target.value)} />
-                          </div>
-                          <div className="form-group">
-                            <label>LDL Cholesterol (mmol/L)</label>
-                            <input type="number" step="0.01" value={labResults.ldlCholesterol} onChange={(e) => handleLabInputChange("ldlCholesterol", e.target.value)} />
+                            <label>LDL Cholesterol (mg/dL):</label>
+                            <input
+                              type="number"
+                              placeholder="e.g., 100"
+                              value={labResults.ldlCholesterol}
+                              onChange={(e) => handleLabInputChange("ldlCholesterol", e.target.value)}
+                            />
                           </div>
                         </div>
-                        <div className="form-actions">
-                          <button className="previous-button" onClick={() => setLabEntryStep(1)}>Previous Step</button>
-                          <button className="next-button" onClick={() => setLabEntryStep(3)}>Next Step</button>
-
+                        <div className="lab-navigation-buttons">
+                          <button className="previous-step-button" onClick={() => setLabEntryStep(1)}>Back to Patient Search</button>
+                          <button className="next-step-button" onClick={() => setLabEntryStep(3)}>Review & Finalize</button>
                         </div>
                       </div>
                     )}
+
+                    {/* Step 3: Review & Finalize */}
+                    {labEntryStep === 3 && (
+                      <div className="lab-step-content review-step">
+                        <h3>Review Lab Results for {labResults.selectedPatientForLab?.first_name} {labResults.selectedPatientForLab?.last_name}</h3>
+                        <div className="review-details">
+                          <p><strong>Date Submitted:</strong> {labResults.dateSubmitted}</p>
+                          <p><strong>HbA1c:</strong> {labResults.hba1c} %</p>
+                          <p><strong>Creatinine:</strong> {labResults.creatinine} mg/dL</p>
+                          <p><strong>GOT (AST):</strong> {labResults.gotAst} U/L</p>
+                          <p><strong>GPT (ALT):</strong> {labResults.gptAlt} U/L</p>
+                          <p><strong>Cholesterol:</strong> {labResults.cholesterol} mg/dL</p>
+                          <p><strong>Triglycerides:</strong> {labResults.triglycerides} mg/dL</p>
+                          <p><strong>HDL Cholesterol:</strong> {labResults.hdlCholesterol} mg/dL</p>
+                          <p><strong>LDL Cholesterol:</strong> {labResults.ldlCholesterol} mg/dL</p>
+                        </div>
+                        <p className="final-warning">
+                          <i className="fas fa-exclamation-triangle"></i> Once finalized, these lab results cannot be edited. Please ensure all data is accurate.
+                        </p>
+                        <div className="lab-navigation-buttons">
+                          <button className="previous-step-button" onClick={() => setLabEntryStep(2)}>Go Back to Edit</button>
+                          <button className="next-step-button" onClick={handleFinalizeLabSubmission}>Finalize Submission</button>
+                        </div>
+                      </div>
+                    )}
+
+                    {message && <p className="form-message">{message}</p>}
+
                   </div>
 
-                  {labEntryStep === 3 && (
-                    <div className="lab-lock-confirm">
-                      <div className="lock-container">
-                        <div className="lock-image">
-                          <img
-                            src="picture/padlock.png"
-                            alt="Locked Padlock"
-                            className="lock-image-icon"
-                          />
-                        </div>
-                        <div className="lock-text">
-                          <h2 className="lock-title">Confirm Lab Result Submission</h2>
-                          <p className="lock-description">
-                            Please take a moment to <strong>review all entered laboratory values</strong>.<br />
-                            If you need to make any corrections, you may go back to the previous step.<br /><br />
-                            <span className="lock-warning">
-                              Once you finalize this entry, the <strong>lab results will be permanently locked</strong> and can no longer be edited.
-                            </span>
-                            This ensures clinical accuracy and audit compliance.
-                          </p>
-                          <div className="lock-buttons">
-                            <button
-                              className="cancel-button"
-                              style={{ padding: '12px 30px' }}
-                              onClick={() => setLabEntryStep(2)}
-                            >
-                              Go Back to Edit
-                            </button>
-                            <button
-                              className="create-new-patient-button"
-                              style={{ padding: '12px 30px' }}
-                              onClick={handleFinalizeLabSubmission}
-                            >
-                              Confirm & Finalize
-                            </button>
-                          </div>
-                        </div>
+                  {/* Success Modal */}
+                  {showSuccessModal && (
+                    <div className="modal-backdrop">
+                      <div className="modal-content success-modal">
+                        <i className="fas fa-check-circle success-icon"></i>
+                        <h2 className="modal-title">Lab Results Submitted!</h2>
+                        <p className="modal-subtext">
+                          The lab results for {labResults.selectedPatientForLab?.first_name} {labResults.selectedPatientForLab?.last_name} have been successfully recorded.
+                        </p>
+                        <button className="modal-green-button" onClick={() => {
+                          setShowSuccessModal(false);
+                          setLabEntryStep(1); // Reset to step 1 (patient search)
+                          setActivePage("dashboard"); // Optionally navigate to dashboard or patient list
+                        }}>
+                          Done
+                        </button>
                       </div>
                     </div>
                   )}
-                {showSuccessModal && (
-                  <div className="lab-success-modal-overlay">
-                    <div className="lab-success-modal">
-                      <button className="modal-close"
-                        onClick={() => setShowSuccessModal(false)}>
-                        ✖
-                      </button>
-                        <img src="picture/lab-success.png" alt="Doctor Success" className="modal-doctor-image"/>
-                      <h2 className="modal-title"> Lab Results Successfully<br />Submitted & Locked</h2>
-                        <p className="modal-subtext">
-                          The laboratory data has been securely stored and is now locked for editing to ensure accuracy and audit compliance.<br /><br />
-                          You may now proceed to finalize the patient profile with the attending doctor.
-                        </p>
-                        <button className="modal-green-button"
-                          onClick={() => {
-                          setShowSuccessModal(false);
-                          setLabEntryStep(1); // Go back to the patient search step
-                         }}>
-                          Go to Patient Profile
-                          </button>
-                        </div>
-                      </div>
-                        )}
                 </>
               )}
 
-              {/* Patient Profile Confirmation Modal (appears BEFORE saving) */}
               {showPatientConfirmationModal && (
-                <div className="lab-success-modal-overlay"> {/* Reusing common modal styling */}
-                  <div className="lab-success-modal">
-                      <img src="picture/confirm.png" alt="Confirmation Icon" className="modal-doctor-image"/> {/* Placeholder for a confirmation icon */}
-                    <h2 className="modal-title"> Finalize Patient Profile?</h2>
-                      <p className="modal-subtext">
-                        Are you sure you want to finalize this patient's profile?
-                        Please ensure all details are accurate before proceeding.
-                        <br /><br />
-                        This action will {editingPatientId ? "update the existing" : "create a new"} patient record.
-                      </p>
-                      <div className="modal-buttons">
-                        <button className="cancel-button"
-                          onClick={() => setShowPatientConfirmationModal(false)}>
-                          Go Back to Edit
-                        </button>
-                        <button className="modal-green-button"
-                          onClick={confirmAndSavePatient}>
-                          Yes, Continue
-                        </button>
+                  <div className="modal-backdrop">
+                    <div className="modal-content confirmation-modal">
+                      <img src="https://placehold.co/60x60/FFD700/000000?text=! " alt="Confirmation Image"/> {/* Placeholder for a confirmation icon */}
+                      <h2 className="modal-title"> Finalize Patient Profile?</h2>
+                        <p className="modal-subtext">
+                          Are you sure you want to finalize this patient's profile?
+                          Please ensure all details are accurate before proceeding.
+                          <br /><br />
+                          This action will {editingPatientId ? "update the existing" : "create a new"} patient record.
+                        </p>
+                        <div className="modal-buttons">
+                          <button className="cancel-button"
+                            onClick={() => setShowPatientConfirmationModal(false)}>
+                            Go Back to Edit
+                          </button>
+                          <button className="modal-green-button"
+                            onClick={confirmAndSavePatient}>
+                            Yes, Continue
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-              )}
+                )}
 
-              {activePage === "reports" && (
-                <div className="reports-section">
-                  <h2>Reports</h2>
-                  <p>This section is a placeholder for generating various patient reports.</p>
-                </div>
-              )}
+                {activePage === "reports" && (
+                  <div className="reports-section">
+                    <h2>Reports</h2>
+                    <p>This section is a placeholder for generating various patient reports.</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      );
-    };
+        );
+      };
 
-    export default SecretaryDashboard;
+      export default SecretaryDashboard;
