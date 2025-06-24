@@ -17,7 +17,7 @@ const formatTimeTo12Hour = (time24h) => {
   const ampm = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours % 12 || 12; // Converts 0 (midnight) to 12 AM, 13 to 1 PM etc.
   const displayMinutes = String(minutes).padStart(2, '0');
-  return `${displayHours}:${displayMinutes} ${ampm}`;
+  return `${displayHours}:${displayMinutes} ${ampm}`; // Corrected typo here (ampm instead of amppm)
 };
 
 const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp, lowRisk, moderateRisk, highRisk }) => {
@@ -224,8 +224,8 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     bloodGlucoseLevel: 'N/A',
     bloodPressure: 'N/A'
   });
-  // NEW STATE FOR WOUND PHOTO URL
-  const [woundPhotoUrl, setWoundPhotoUrl] = useState('');
+  // NEW STATE FOR WOUND PHOTO URL and its date
+  const [woundPhotoData, setWoundPhotoData] = useState({ url: '', date: '' });
 
   // NEW STATE FOR ALL PATIENT HEALTH METRICS HISTORY (FOR CHARTS)
   const [allPatientHealthMetrics, setAllPatientHealthMetrics] = useState([]);
@@ -283,7 +283,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
   // NEW function to fetch wound photos separately
   const fetchWoundPhoto = async (patientId) => {
-    setWoundPhotoUrl(''); // Clear previous wound photo
+    setWoundPhotoData({ url: '', date: '' }); // Clear previous wound photo
     if (!patientId) {
       console.log("WOUND PHOTO FETCH: No patient ID provided.");
       return;
@@ -293,8 +293,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     try {
       const { data: healthData, error: healthError } = await supabase
         .from('health_metrics')
-        .select('wound_photo_url')
+        .select('wound_photo_url, updated_at') // Select updated_at for the date
         .eq('patient_id', patientId)
+        .order('updated_at', { ascending: false }) // Get the latest one if multiple exist
         .limit(1);
 
       console.log("WOUND PHOTO FETCH: Raw health data from 'health_metrics':", healthData);
@@ -302,20 +303,22 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
       if (healthError) {
         console.error("WOUND PHOTO FETCH: Error fetching wound photo URL from DB:", healthError.message);
-        setWoundPhotoUrl('');
+        setWoundPhotoData({ url: '', date: '' });
         return;
       }
 
       if (healthData && healthData.length > 0) {
         const woundPhotoPathOrUrl = healthData[0]?.wound_photo_url; // Use optional chaining for safety
+        const updatedDate = healthData[0]?.updated_at;
 
         // Log the exact value and type BEFORE any conditional checks
         console.log(`WOUND PHOTO FETCH: EXACT wound_photo_url from DB (Type: ${typeof woundPhotoPathOrUrl}, Value: "${woundPhotoPathOrUrl}")`);
 
+        let photoUrl = '';
         if (typeof woundPhotoPathOrUrl === 'string' && (woundPhotoPathOrUrl.startsWith('http://') || woundPhotoPathOrUrl.startsWith('https://'))) {
           // If it's already a full URL, use it directly (after trimming whitespace)
-          setWoundPhotoUrl(woundPhotoPathOrUrl.trim());
-          console.log("WOUND PHOTO FETCH: Stored value is already a full URL, using directly (trimmed):", woundPhotoPathOrUrl.trim());
+          photoUrl = woundPhotoPathOrUrl.trim();
+          console.log("WOUND PHOTO FETCH: Stored value is already a full URL, using directly (trimmed):", photoUrl);
         } else if (typeof woundPhotoPathOrUrl === 'string' && woundPhotoPathOrUrl.trim().length > 0) {
           // Otherwise, treat it as a path and get the public URL if it's a non-empty string after trimming
           const trimmedPath = woundPhotoPathOrUrl.trim();
@@ -329,25 +332,29 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
           if (publicUrlError) {
             console.error("WOUND PHOTO FETCH: Error getting public URL for wound photo:", publicUrlError.message);
-            setWoundPhotoUrl('');
           } else if (publicUrlData && publicUrlData.publicUrl) {
-            setWoundPhotoUrl(publicUrlData.publicUrl);
-            console.log("WOUND PHOTO FETCH: Successfully set Wound Photo Public URL (from getPublicUrl):", publicUrlData.publicUrl);
+            photoUrl = publicUrlData.publicUrl;
+            console.log("WOUND PHOTO FETCH: Successfully set Wound Photo Public URL (from getPublicUrl):", photoUrl);
           } else {
-            setWoundPhotoUrl(''); // Clear if URL generation fails (e.g., publicUrlData is null/undefined)
             console.log("WOUND PHOTO FETCH: Failed to generate public URL for wound photo. publicUrlData:", publicUrlData);
           }
         } else {
-          setWoundPhotoUrl(''); // Clear if no wound_photo_url or it's not a valid string after trimming, or if it's null/undefined
           console.log("WOUND PHOTO FETCH: wound_photo_url is not a valid string, is empty after trimming, or is null/undefined.");
         }
+
+        // Set the wound photo data
+        setWoundPhotoData({
+          url: photoUrl,
+          date: updatedDate ? new Date(updatedDate).toLocaleDateString() : 'N/A'
+        });
+
       } else {
-        setWoundPhotoUrl(''); // Clear if no healthData or healthData is empty
+        setWoundPhotoData({ url: '', date: '' }); // Clear if no healthData or healthData is empty
         console.log("WOUND PHOTO FETCH: No healthData found for this patient or healthData is empty.");
       }
     } catch (error) {
       console.error("WOUND PHOTO FETCH: Unexpected error during wound photo fetch:", error);
-      setWoundPhotoUrl('');
+      setWoundPhotoData({ url: '', date: '' });
     }
   };
 
@@ -356,7 +363,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     if (selectedPatientForDetail && selectedPatientForDetail.patient_id) {
       fetchWoundPhoto(selectedPatientForDetail.patient_id);
     } else {
-      setWoundPhotoUrl(''); // Reset when no patient is selected
+      setWoundPhotoData({ url: '', date: '' }); // Reset when no patient is selected
     }
   }, [selectedPatientForDetail]); // Only re-run when selectedPatientForDetail changes
 
@@ -443,7 +450,8 @@ const SecretaryDashboard = ({ user, onLogout }) => {
           setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' });
         }
 
-        // --- Fetch ALL Health Metrics for Charts ---
+        // --- Fetch ALL Health Metrics for Charts and Table ---
+        // Also fetch the patient's current risk classification for the table
         const { data: historyHealthData, error: historyHealthError } = await supabase
           .from('health_metrics')
           .select('blood_glucose, bp_systolic, bp_diastolic, submission_date')
@@ -454,7 +462,12 @@ const SecretaryDashboard = ({ user, onLogout }) => {
             console.error("Error fetching historical health metrics for charts:", historyHealthError.message);
             setAllPatientHealthMetrics([]);
         } else if (historyHealthData) {
-            setAllPatientHealthMetrics(historyHealthData);
+            // For the history table, we'll use the *current* risk classification
+            const healthMetricsWithRisk = historyHealthData.map(entry => ({
+                ...entry,
+                risk_classification: selectedPatientForDetail.risk_classification // Attach current risk classification
+            }));
+            setAllPatientHealthMetrics(healthMetricsWithRisk);
         } else {
             setAllPatientHealthMetrics([]);
         }
@@ -486,7 +499,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
         setAllPatientLabResultsHistory([]); // Reset all lab results history
         setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' });
         setAllPatientHealthMetrics([]); // Reset historical data
-        setWoundPhotoUrl(''); // Reset wound photo URL
+        setWoundPhotoData({ url: '', date: '' }); // Reset wound photo URL
         setPatientAppointments([]);
       }
     };
@@ -952,7 +965,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     setAllPatientLabResultsHistory([]); // Reset all lab results history
     setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' }); // Reset health metrics
     setAllPatientHealthMetrics([]); // Reset historical data
-    setWoundPhotoUrl(''); // Reset wound photo URL
+    setWoundPhotoData({ url: '', date: '' }); // Reset wound photo URL
     setPatientAppointments([]);
   };
 
@@ -987,7 +1000,6 @@ const SecretaryDashboard = ({ user, onLogout }) => {
         labResults.hdlCholesterol === "" ||
         labResults.ldlCholesterol === "") {
         setMessage("Please fill in all lab result fields.");
-        console.error("Missing lab result fields.");
         return;
     }
 
@@ -1773,6 +1785,44 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                                     </tbody>
                                 </table>
                             </div>
+
+                            {/* Health Metrics History Table */}
+                            <div className="health-metrics-history-section">
+                                <h3>Health Metrics History</h3>
+                                <table className="health-metrics-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date & Time</th>
+                                            <th>Blood Glucose</th>
+                                            <th>Blood Pressure</th>
+                                            <th>Risk Classification</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {allPatientHealthMetrics.length > 0 ? (
+                                            allPatientHealthMetrics.map((metric, index) => (
+                                                <tr key={index}>
+                                                    <td>{new Date(metric.submission_date).toLocaleString()}</td>
+                                                    <td>{metric.blood_glucose || 'N/A'}</td>
+                                                    <td>
+                                                        {metric.bp_systolic !== null && metric.bp_diastolic !== null
+                                                            ? `${metric.bp_systolic}/${metric.bp_diastolic}`
+                                                            : 'N/A'}
+                                                    </td>
+                                                    {/* Display the current risk classification for each entry */}
+                                                    <td className={`risk-classification-${(metric.risk_classification || 'N/A').toLowerCase()}`}>
+                                                        {metric.risk_classification || 'N/A'}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="4">No health metrics history available for this patient.</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                     {/* Wound Photo Timeline Section - Added as a footer-like section */}
@@ -1782,12 +1832,16 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                             {/* Removed Date and Time placeholders */}
                             {/* Display the wound photo if URL exists */}
                             <div className="wound-photo-placeholder">
-                              {woundPhotoUrl ? (
-                                <img src={woundPhotoUrl} alt="Wound" className="wound-photo" />
+                              {woundPhotoData.url ? (
+                                <img src={woundPhotoData.url} alt="Wound" className="wound-photo" />
                               ) : (
                                 <p>No wound photo available.</p>
                               )}
                             </div>
+                            {/* Moved the date outside the wound-photo-placeholder but inside wound-photo-entry */}
+                            {woundPhotoData.date && woundPhotoData.date !== 'N/A' && (
+                              <p className="wound-photo-date">Uploaded: {woundPhotoData.date}</p>
+                            )}
                         </div>
                         {/* More wound photo entries would go here */}
                     </div>

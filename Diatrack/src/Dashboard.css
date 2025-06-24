@@ -1,115 +1,92 @@
 /* Fallback if loaded via CSS */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --primary-blue: #00aaff;
+  --secondary-orange: #ff9800;
+}
+
 body{
   font-family: "Inter", sans-serif;
+  margin: 0; /* Ensure no default body margin */
 }
 /* Dashboard.css */
 .dashboard-container {
-  display: grid;
-  grid-template-columns: 200px 1fr;  /* Sidebar + main area */
-  grid-template-rows: 60px 1fr;      /* Header + content */
-  min-height: 100vh;                 /* Always full viewport */
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
   font-family: 'Inter', sans-serif;
   background-color: #f0f2f5;
   color: #333;
-  
+  display: flex; /* Use flexbox for overall layout */
+  flex-direction: column; /* Stack header and main content vertically */
 }
 
-/* Sidebar fixes */
-.fixed-sidebar {
-  width: 200px;
-  background-color: White;
-  color: Black;
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  z-index: 100;
-  margin: 0; /* remove any margin */
-  padding: 0; /* remove any padding */
-  box-sizing: border-box;
-}
+/* Removed Sidebar fixes */
+/* .fixed-sidebar, .fixed-sidebar ul, .fixed-sidebar ul li, .fixed-sidebar button.signout styles are removed */
 
-.fixed-sidebar ul {
-  list-style: none;
-  padding: 0;
-  flex-grow: 1;
-}
-
-.fixed-sidebar ul li {
-  padding: 10px 15px;
-  cursor: pointer;
-  font-size: 1em;
-  transition: background-color 0.3s ease, border-left-color 0.3s ease;
-  display: flex;
-  align-items: center;
-  border: none;
-}
-
-.fixed-sidebar ul li:hover {
-  background-color: #ff9800;
-  border-radius: 20px;
-}
-
-/* Active sidebar item */
-.fixed-sidebar ul li.active {
-  background-color: #ff9800;
-  font-weight: bold;
-}
-
-.fixed-sidebar button.signout {
-  background-color: #2980b9;
-  color: #fff;
-  border: none;
-  padding: 10px 20px;
-  margin: 20px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 1em;
-  align-self: center;
-  transition: background-color 0.3s ease;
-  grid-column: 1;
-  grid-row: 2;
-}
-
-.fixed-sidebar button.signout:hover {
-  background-color: #1a5276;
-}
 
 /* Header */
 .header {
-  position: fixed;
-  top: 0;
-  left: 200px; /* start right after sidebar */
-  height: 60px;
-  width: calc(100% - 200px); /* fill the rest of the width */
   background-color: White;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
+  justify-content: space-between; /* Distribute items with space between them */
+  padding: 10px 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   z-index: 200;
-  margin: 0; /* remove any margin */
+  margin: 0;
   box-sizing: border-box;
+  flex-wrap: wrap; /* Allow items to wrap on smaller screens */
 }
 
+.app-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.8em;
+  font-weight: 700;
+  margin: 0; /* Remove default margin */
+}
+
+.app-logo {
+  height: 40px; /* Adjust as needed */
+  width: auto;
+}
+
+.navbar-menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  gap: 20px;
+}
+
+.navbar-menu li {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 1em;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  border-radius: 5px;
+}
+
+.navbar-menu li:hover {
+  background-color: var(--secondary-orange);
+  color: white;
+}
+
+.navbar-menu li.active {
+  background-color: var(--primary-blue);
+  color: white;
+  font-weight: bold;
+}
 
 .header .search-bar {
   display: flex;
   align-items: center;
-  position: static;
-  left: auto;
-  transform: none;
   width: 250px;
-  margin-right: auto;
-  border: 1px solid;
-  border-radius: 10px ;
+  border: 1px solid #ccc;
+  border-radius: 10px;
   height: 40px;
+  flex-shrink: 0; /* Prevent search bar from shrinking */
 }
 
 .header .search-bar input[type="text"] {
@@ -117,17 +94,83 @@ body{
   border: none;
   font-size: 0.9em;
   width: 100%;
-  padding-left: 30px;
+  padding-left: 15px; /* Adjust padding as icon is not there */
+  border-radius: 10px;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar {
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.user-role {
+  font-size: 0.85em;
+  color: #666;
+}
+
+.header-icons {
+  display: flex;
+  gap: 15px;
+  font-size: 1.2em;
+}
+
+.header-icons i {
+  cursor: pointer;
+  color: #555;
+  transition: color 0.3s ease;
+}
+
+.header-icons i:hover {
+  color: var(--primary-blue);
+}
+
+.signout-button {
+  background: none;
+  border: none;
+  color: #e74c3c;
+  cursor: pointer;
+  font-size: 1.2em;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.3s ease;
+}
+
+.signout-button:hover {
+  color: #c0392b;
 }
 
 /* Main Content */
 .main-content {
-  margin-left: 5px;
-  flex-grow: 1;
-  grid-column: 2;
-  grid-row: 2;
-  overflow-y: auto;
+  flex-grow: 1; /* Allow main content to take remaining vertical space */
+  overflow-y: auto; /* Allow vertical scrolling within the main content area */
   background-color: #f0f2f5;
+  padding: 20px; /* Add padding inside the content area */
+  box-sizing: border-box; /* Ensure padding is included in width/height calculations */
 }
 
 .main-content h1 {
@@ -148,72 +191,94 @@ body{
 /* Table Styling */
 .table-responsive {
   overflow-x: auto;
+  margin-bottom: 20px; /* Added margin for separation */
 }
 
 .patient-list,
 .patient-metrics,
-.patient-details {
+.patient-details,
+.appointment-list { /* Added appointment-list */
   width: 100%;
-  border-spacing: 0;
+  border-collapse: collapse; /* Use border-collapse for clean table borders */
   margin-bottom: 20px;
+  background-color: #fff; /* Added background for tables */
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .patient-list th,
 .patient-metrics th,
-.patient-details th {
-  padding: 5px 5px;
-  text-align: center;
+.patient-details th,
+.appointment-list th { /* Added appointment-list */
+  padding: 12px 15px;
+  text-align: left; /* Align headers to left */
   font-weight: bold;
-  font-size: small;
-  color: Black;
-  border: none;
+  font-size: 0.9em;
+  color: #555;
+  border-bottom: 1px solid #eee; /* Add bottom border to headers */
+  background-color: #f9f9f9;
 }
 
 .patient-list td,
 .patient-metrics td,
-.patient-details td {
-  border: none;
-  color: #0d6efd;
-  text-align: center;
-  font-size: small;
+.patient-details td,
+.appointment-list td { /* Added appointment-list */
+  border-bottom: 1px solid #eee; /* Add bottom border to cells */
+  color: #333;
+  text-align: left; /* Align cells to left */
+  font-size: 0.9em;
+  padding: 10px 15px;
 }
 
 .patient-list td {
   overflow: hidden;
+  text-overflow: ellipsis; /* Handle overflow text */
+  white-space: nowrap;
+  max-width: 150px; /* Limit width for patient name */
 }
 
 /* Risk Status and Phase Pills */
-.risk-status,
+.risk-classification, /* Changed from risk-status to risk-classification */
 .phase {
-  border-radius: 10px;
+  border-radius: 15px; /* Increased border-radius for more pill-like shape */
+  padding: 5px 12px; /* Adjusted padding */
+  font-size: 0.85em;
+  font-weight: 500;
+  text-align: center;
+  display: inline-block; /* Allow padding and border-radius to apply correctly */
 }
 
-.risk-status.Low {
-  background-color: #28a745;
+/* Specific colors for risk classification */
+.risk-classification.Low {
+  background-color: #d4edda;
+  color: #155724;
 }
 
-.risk-status.Moderate {
-  background-color: #ffc107;
-  color: #333;
+.risk-classification.Moderate {
+  background-color: #fff3cd;
+  color: #85640c;
 }
 
-.risk-status.High {
-  background-color: #dc3545;
+.risk-classification.High {
+  background-color: #f8d7da;
+  color: #721c24;
 }
 
-.risk-status.worsening-wound-care {
-  background-color: #007bff;
+/* Specific colors for phase */
+.phase.Pre-Operative {
+  background-color: #ffeeba; /* Lighter orange */
+  color: #664d03;
 }
 
-.patient-list .flags-alerts-cell .risk-status {
-  padding: 4px 10px;
-  font-size: 0.8em;
+.phase.Post-Operative {
+  background-color: #cfe2ff; /* Lighter blue */
+  color: #055160;
 }
 
 /* Action Buttons */
 .action-button {
-  border: none; /* ensure no border */
-  background: transparent; /* ensure transparent background */
+  border: none;
+  background: transparent;
   cursor: pointer;
   font-size: 0.9em;
   padding: 5px 8px;
@@ -222,20 +287,20 @@ body{
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  border-radius: 5px; /* Added border-radius for subtle styling */
 }
 
 .action-button.view-button,
 .action-button.delete-button {
     background: transparent !important;
     border: none;
-    color: inherit; /* keep inherited text color */
+    color: inherit;
     padding: 8px 15px;
     border-radius: 5px;
     cursor: pointer;
     font-size: 1em;
     transition: color 0.3s ease, text-decoration 0.3s ease;
 }
-
 
 .action-button.view-button {
   color: #3498db;
@@ -260,7 +325,8 @@ body{
     grid-template-columns: 2.5fr 1fr; /* Main content takes more space, sidebar takes less */
     gap: 20px;
     padding: 20px;
-    background-color: #f0f2f5; /* Match dashboard background */
+    background-color: #f0f2f5;
+    min-height: calc(100vh - 80px); /* Adjust based on header height */
 }
 
 .patient-profile-main-content {
@@ -268,22 +334,20 @@ body{
     border-radius: 8px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     padding: 20px;
-    overflow-y: auto; /* Allow scrolling if content is long */
+    overflow-y: auto;
 }
 
 .patient-profile-right-sidebar {
     display: flex;
     flex-direction: column;
-    gap: 20px; /* Space between the cards */
-    /* No background or shadow here, individual cards will have them */
+    gap: 20px;
 }
-
 
 .patient-profile h2 {
   font-size: 1.3em;
   color: #333;
   margin-bottom: 20px;
-  text-align: center; /* Center the title */
+  text-align: center;
 }
 
 .patient-profile h3 {
@@ -295,11 +359,121 @@ body{
   padding-bottom: 5px;
 }
 
+/* Latest Metrics Summary */
+.latest-metrics-summary {
+  margin-bottom: 30px;
+}
+
+.latest-metrics-summary h3 {
+  border-bottom: none;
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.metric-cards-container {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.metric-card {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 15px 20px;
+  flex: 1;
+  min-width: 180px; /* Ensure cards don't get too small */
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.metric-card h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #555;
+  font-size: 1em;
+}
+
+.metric-value {
+  font-size: 1.8em;
+  font-weight: bold;
+  color: var(--primary-blue);
+  margin-bottom: 5px;
+}
+
+.metric-unit {
+  font-size: 0.8em;
+  color: #777;
+}
+
+.latest-medication-display {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+}
+
+.latest-medication-display h4 {
+  margin-top: 0;
+  color: #555;
+  font-size: 1em;
+  margin-bottom: 10px;
+}
+
+.latest-medication-display p {
+  margin: 0;
+  font-size: 1em;
+  color: #333;
+}
+
+.latest-medication-display input[type="text"] {
+  width: calc(100% - 20px);
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1em;
+}
+
+.patient-images-section {
+  margin-top: 30px;
+}
+
+.photo-gallery {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.photo-card {
+  flex: 1;
+  min-width: 250px;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 15px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.photo-card h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #555;
+}
+
 .patient-metrics img {
-  max-width: 80px;
+  max-width: 100%;
   height: auto;
   border-radius: 4px;
-  object-fit: cover;
+  object-fit: contain; /* Changed to contain to avoid cropping */
+  max-height: 200px; /* Limit image height */
+}
+
+/* Patient Details Table */
+.patient-details {
+  margin-top: 30px;
 }
 
 .patient-details td.risk-classification,
@@ -319,682 +493,194 @@ body{
   font-size: 0.95em;
 }
 
-.patient-details button {
-  background-color: #28a745;
+.patient-profile-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end; /* Align buttons to the right */
+}
+
+.patient-profile-actions button,
+.edit-medication-button,
+.back-button {
+  background-color: var(--primary-blue);
   color: white;
-  padding: 8px 15px;
+  padding: 10px 20px;
   border-radius: 5px;
   border: none;
   cursor: pointer;
-  margin-right: 10px;
   transition: background-color 0.3s ease;
+  font-size: 1em;
 }
 
-.patient-details button:hover {
-  background-color: #218838;
+.patient-profile-actions button:hover,
+.edit-medication-button:hover {
+  background-color: #007bb5;
 }
 
-.patient-details button:last-child {
+.patient-profile-actions button:last-child {
   background-color: #6c757d;
 }
 
-.patient-details button:last-child:hover {
+.patient-profile-actions button:last-child:hover {
   background-color: #5a6268;
 }
 
-/* Additional styling to match the reference image */
-.patient-profile .table-responsive {
-  margin-bottom: 20px;
-}
-
-.patient-profile .patient-metrics {
-  border: 1px solid #ddd;
-  border-radius: 5px;
-}
-
-.patient-profile .patient-metrics th,
-.patient-profile .patient-metrics td {
-  border: 1px solid #ddd;
-}
-
-.patient-profile .patient-details {
-  border: 1px solid #ddd;
-  border-radius: 5px;
-}
-
-.patient-profile .patient-details th,
-.patient-profile .patient-details td {
-  border: 1px solid #ddd;
-}
-
-.patient-profile .patient-details th {
-  background-color: #f5f5f5;
-}
-
-.patient-profile .patient-details td {
-  background-color: #fff;
-}
-
-.patient-profile .patient-details tr:nth-child(even) td {
-  background-color: #f9f9f9;
-}
-
-.patient-profile .patient-details button {
-  margin-top: 10px;
-}
-
-/* Style for risk classification pills */
-.risk-classification.Low {
-  background-color: #d4edda;
-  color: #155724;
-}
-
-.risk-classification.Medium {
-  background-color: #fff3cd;
-  color: #85640c;
-}
-
-.risk-classification.High {
-  background-color: #f8d7da;
-  color: #721c24;
-}
-
-/* Style for phase pills */
-.phase.Pre-Operative {
-  background-color: #ffc107;
-  color: #004085;
-}
-
-.phase.Post-Operative {
-  background-color: #cce5ff;
-  color: #004085;
-}
-
-/* Back to Dashboard button */
-.patient-profile-main-content button[onClick*="setActiveSection(\"doctor-dashboard\")"] {
-  background-color: none;
+.back-button {
+  background-color: #6c757d;
   color: #fff;
   border: none;
-  padding: 10px 15px;
-  cursor: pointer;
+  padding: 10px 20px;
   margin-top: 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1em;
   transition: background-color 0.3s ease;
-  display: block; /* Make it a block element to center with margin auto */
-  margin-left: auto;
-  margin-right: auto;
 }
 
-/* Styles for Latest Health Metrics Summary */
-.latest-metrics-summary {
-    background-color: #ffffff;
-    border-radius: 8px;
-    padding: 5px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    margin-bottom: 10px; /* Add margin to separate from the next section */
+.back-button:hover {
+  background-color: #5a6268;
 }
 
-.latest-metrics-summary h3 {
-    font-size: 0.9em;
-    color: #333;
-    margin-top: 0;
-    border-bottom: none; /* Remove the bottom border from this h3 */
-    padding-bottom: 0;
-    text-align: left;
-}
-
-.metric-cards-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-around; /* Distribute space evenly */
-    gap: 15px;
-    margin-bottom: 10px;
-}
-
-.metric-card {
-    background-color: #f7f7f7;
-    border-radius: 8px;
-    padding: 10px; /* Reduced padding */
-    flex: 1;
-    min-width: 150px; /* Adjusted min-width to make cards smaller */
-    max-width: 180px; /* Optional: add a max-width to keep them from getting too big on wider screens */
-    text-align: center;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    border: 1px solid #eee;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-
-.metric-card h4 {
-    font-size: 0.8em; /* Slightly smaller font size for titles */
-    color: #555;
-    margin-bottom: 5px; /* Adjusted margin */
-}
-
-.metric-card .metric-value {
-    font-size: 1.8em; /* Slightly smaller font size for values */
-    font-weight: bold;
-    color: #007bff; /* Primary color for values */
-    margin: 3px 0; /* Adjusted margin */
-}
-
-.metric-card .metric-unit {
-    font-size: 0.75em; /* Slightly smaller font size for units */
-    color: #777;
-}
-
-.metric-card.blood-glucose .metric-value {
-    color: #28a745; /* Green for blood glucose */
-}
-
-.metric-card.blood-pressure .metric-value {
-    color: #ff9800; /* Orange for blood pressure */
-}
-
-.metric-card.pulse-rate .metric-value {
-    color: #dc3545; /* Red for pulse rate */
-}
-
-/* Changed .latest-notes to .latest-medication-display in main content */
-.latest-medication-display {
-    background-color: #f9f9f9;
-    border-left: 5px solid #007bff;
-    padding: 5px;
-    border-radius: 5px;
-}
-
-.latest-medication-display h4 {
-    font-size: 0.9em;
-    color: #333;
-    margin-bottom: 5px;
-}
-
-.latest-medication-display p {
-    font-size: 0.8em;
-    color: #666;
-    line-height: 1.4;
-    align-items: left;
-}
-
-
-/* Patient Images Section */
-.patient-images-section {
-    background-color: #ffffff;
-    border-radius: 8px;
-    padding: 5px;
-    margin-top: 20px; /* Adjusted margin-top to separate from notes */
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-}
-
-.patient-images-section h3 {
-    font-size: 1.2em;
-    color: #333;
-    margin-bottom: 15px;
-    border-bottom: none;
-    padding-bottom: 0;
-    text-align: left;
-}
-
-.photo-gallery {
-    display: flex;
-    gap: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.photo-card {
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 10px;
-    text-align: center;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    background-color: #fcfcfc;
-}
-
-.photo-card h4 {
-    font-size: 0.9em;
-    color: #555;
-    margin-bottom: 10px;
-}
-
-.photo-card img {
-    max-width: 150px; /* Adjust image size as needed */
-    height: auto;
-    border-radius: 4px;
-    object-fit: cover;
-    display: block; /* Ensures image is centered */
-    margin: 0 auto; /* Centers the image */
-}
-
-/* Adjustments for the main table headers in patient-metrics */
-.patient-metrics th:nth-child(3), /* Blood Glucose */
-.patient-metrics th:nth-child(4), /* BP Systolic */
-.patient-metrics th:nth-child(5), /* BP Diastolic */
-.patient-metrics th:nth-child(6) /* Pulse Rate */ {
-  width: 100px; /* Give more width to metric columns */
-}
-
-.patient-metrics th:nth-child(7) { /* Notes */
-  width: 200px; /* Give more width to notes */
-}
-
-/* Specific styling for the patient-metrics table to match the reference */
-.patient-metrics thead th {
-    background-color: #e0e0e0; /* Light gray background for headers */
-    color: #333; /* Darker text for headers */
-    font-weight: bold;
-    border-bottom: 2px solid #ccc; /* Stronger bottom border for headers */
-}
-
-.patient-metrics tbody tr:nth-child(odd) {
-    background-color: #ffffff; /* White background for odd rows */
-}
-
-.patient-metrics tbody tr:nth-child(even) {
-    background-color: #f9f9f9; /* Light gray background for even rows */
-}
-
-.patient-metrics tbody td {
-    color: #555; /* Default text color for table data */
-    border-bottom: 1px solid #eee; /* Light border between rows */
-}
-
-.patient-metrics tbody td a {
-    color: #007bff; /* Link color for photos */
-    text-decoration: none;
-}
-
-.patient-metrics tbody td a:hover {
-    text-decoration: underline;
-}
-
-/* Adjustments for the patient-details table styling */
-.patient-details thead th {
-    background-color: #e0e0e0;
-    color: #333;
-    font-weight: bold;
-    border-bottom: 2px solid #ccc;
-}
-
-.patient-details tbody td {
-    background-color: #ffffff;
-    color: #555;
-    border-bottom: 1px solid #eee;
-}
-
-/* Ensure consistent spacing around elements */
-.patient-profile-main-content > button {
-    margin-top: 20px;
-    display: block;
-    width: fit-content;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-/* New styles for the right sidebar content */
+/* Right Sidebar Cards */
 .card {
-    background-color: #2c3e50; /* Dark background similar to image */
-    color: #fff;
-    border-radius: 12px; /* More rounded corners */
-    padding: 20px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    overflow: hidden; /* Important for containing inner elements */
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  padding: 20px;
 }
 
 .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
 }
 
 .card-header h3 {
-    font-size: 1.1em;
-    margin: 0;
-    color: #fff; /* Ensure text is white */
-    border-bottom: none; /* Remove previous border */
-    padding-bottom: 0;
+  margin: 0;
+  font-size: 1.2em;
+  color: #333;
 }
 
 .timeframe-select {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 8px;
-    padding: 5px 10px;
-    font-size: 0.85em;
-    cursor: pointer;
-    -webkit-appearance: none; /* Remove default arrow */
-    -moz-appearance: none;
-    appearance: none;
-    background-image: url('data:image/svg+xml;utf8,<svg fill="%23ffffff" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>'); /* Custom arrow */
-    background-repeat: no-repeat;
-    background-position: right 8px top 50%;
-    background-size: 18px auto;
-}
-
-.timeframe-select option {
-    background-color: #2c3e50; /* Darker background for options */
-    color: #fff;
-}
-
-.wound-healing-progress-card .card-content {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  font-size: 0.9em;
 }
 
 .progress-meter {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    justify-content: center; /* Center content horizontally */
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
 }
 
 .meter-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.meter-item .meter-label {
-    font-size: 0.8em;
-    color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 5px;
+.meter-label {
+  font-weight: 500;
+  color: #666;
 }
 
-.meter-item .meter-value-container {
-    background-color: #3498db; /* Blue background for the value area */
-    border-radius: 8px;
-    padding: 5px 10px;
-    display: inline-flex;
-    align-items: baseline;
-    gap: 3px;
+.meter-value-container {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
 }
 
-.meter-item .meter-value {
-    font-size: 1.5em;
-    font-weight: bold;
-    color: #fff;
+.meter-value {
+  font-size: 1.5em;
+  font-weight: bold;
+  color: var(--primary-blue);
 }
 
-.meter-item .meter-unit {
-    font-size: 0.7em;
-    color: rgba(255, 255, 255, 0.8);
+.meter-value-large {
+  font-size: 2em;
+  font-weight: bold;
+  color: var(--secondary-orange);
 }
 
-.meter-item .meter-value-large {
-    font-size: 2.2em; /* Larger font for the main value */
-    font-weight: bold;
-    color: #2ecc71; /* Green color for "24.9" */
+.healthy-indicator {
+  font-size: 0.9em;
+  color: #28a745;
+  font-weight: 600;
 }
 
-.meter-item .healthy-indicator {
-    font-size: 0.8em;
-    background-color: #27ae60; /* Darker green for "You're Healthy" */
-    padding: 3px 8px;
-    border-radius: 5px;
-    margin-top: 5px;
-    color: #fff;
-}
-
-.progress-chart-placeholder {
-    width: 100%;
-    margin-top: 15px;
-    position: relative;
-    padding-bottom: 20px; /* Space for labels */
-}
-
-.chart-bar-bg {
-    background-color: rgba(255, 255, 255, 0.1);
-    height: 8px;
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.chart-bar-fill {
-    background-color: #3498db; /* Blue fill for the bar */
-    height: 100%;
-    border-radius: 4px;
-    width: 50%; /* Example width, adjust as needed */
-}
-
-.chart-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.7em;
-    color: rgba(255, 255, 255, 0.6);
-    margin-top: 5px;
-}
-
-.small-metrics {
-    display: flex;
-    justify-content: space-around;
-    margin-top: 15px;
-}
-
-.small-metric-item {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 0.9em;
-    color: #fff;
-}
-
-.small-metric-item img {
-    width: 24px; /* Size for small icons */
-    height: 24px;
-    filter: invert(1); /* If icons are dark, make them white */
-}
-
-/* Style for the horizontal rule to act as a separator within a combined card */
 .card-section-divider {
-    border: 0;
-    height: 1px;
-    background-color: rgba(255, 255, 255, 0.2); /* A subtle white/light gray line */
-    margin: 20px 0; /* Add some vertical space around the divider */
-    width: 80%; /* Make it slightly narrower than the card for visual appeal */
-    margin-left: auto;
-    margin-right: auto;
+  border: 0;
+  height: 1px;
+  background: #eee;
+  margin: 20px 0;
 }
 
-/* Diabetes Info Card */
-/* No .diabetes-info-card specific styling here as it's now part of the combined card */
-.diabetes-info-card .card-content { /* This might still apply to the content div inside the combined card */
-    text-align: center;
-}
-
-.diabetes-info-card .last-checked {
-    font-size: 0.85em;
-    color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 10px;
-}
-
-.diabetes-info-card .diabetes-note {
-    font-size: 0.9em;
-    color: #fff;
-    line-height: 1.5;
-    margin-bottom: 20px;
-}
-
-.diabetes-visuals {
-    display: flex;
-    justify-content: space-around;
-    align-items: flex-end; /* Align images at the bottom */
-    gap: 15px;
-}
-
-.foot-wound-image img {
-    max-width: 80px; /* Adjust size */
-    height: auto;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.patient-body-illustration img {
-    max-width: 120px; /* Adjust size */
-    height: auto;
-    /* No border or background, as it's an illustration */
-}
-
-/* Latest Notes Card (moved to sidebar) */
 .latest-notes-card {
-    /* Inherits .card styles for background, border-radius, shadow */
-    margin-top: 15px; /* Adjust if needed, gap will handle spacing */
-    background-color: rgba(0, 0, 0, 0.1); /* Slightly different background for notes within the card */
-    padding: 10px;
-    border-radius: 8px;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 15px;
 }
 
 .latest-notes-card .card-header {
-  border-bottom: none; /* Remove border from nested header */
-  margin-bottom: 5px;
-  padding-bottom: 0;
+  margin-bottom: 10px;
 }
 
-.latest-notes-card .card-header h3 {
-    font-size: 1em; /* Smaller header for nested notes */
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.latest-notes-card .card-content p {
-    font-size: 0.9em;
-    color: rgba(255, 255, 255, 0.8);
-    line-height: 1.4;
-}
-
-/* Edit Medication Button Specific Styling */
-.edit-medication-button {
-    background-color: #007bff; /* A distinct color for the edit button */
-    color: #fff;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 5px;
-    cursor: pointer;
-    margin-top: 15px;
-    margin-bottom: 10px; /* Space below the button */
-    transition: background-color 0.3s ease;
-    display: block; /* Make it a block element to center with margin auto */
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.edit-medication-button:hover {
-    background-color: #0056b3;
-}
-
-.patient-profile-actions {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 15px;
-    margin-bottom: 10px;
-}
-.patient-profile-actions button {
-    /* Reusing existing button styles, but can customize if needed */
-    background-color: #28a745;
-    color: white;
-    padding: 8px 15px;
-    border-radius: 5px;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-.patient-profile-actions button:hover {
-    background-color: #218838;
-}
-.patient-profile-actions button:last-child {
-    background-color: #6c757d;
-}
-.patient-profile-actions button:last-child:hover {
-    background-color: #5a6268;
-}
-
-.appointment-list {
-  width: 100%;
-  border-spacing: 0;
-  margin-bottom: 20px;
-  border-collapse: collapse;
-}
-
-.appointment-list th {
-  padding: 8px 10px;
-  text-align: center;
-  font-weight: bold;
-  font-size: small;
-  color: black;
-}
-
-.appointment-list td {
-  padding: 8px 10px;
-  text-align: center;
-  font-size: small;
-  color: #007bff;
-}
-
-
-.appointment-list td span {
-  display: inline-block;
-  padding: 4px 8px;
-  font-size: 0.8em;
-}
-
-.appointment-list td .appointment-note {
-  background-color: #f0f0f0;
-  color: #333;
-  padding: 4px 6px;
-  border-radius: 6px;
-  font-size: 0.75em;
-}
-
-/* Optional: align the action buttons to match */
-.appointment-list .action-button {
-  background: transparent;
-  border: none;
-  cursor: pointer;
+.latest-notes-card p {
+  margin: 0;
   font-size: 0.9em;
-  padding: 5px 8px;
-  color: #3498db;
-}
-
-.appointment-list .action-button:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  color: #444;
+  line-height: 1.5;
 }
 
 
-/* Media query for responsiveness */
-@media (max-width: 767px) {
-  .dashboard-container {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto 1fr;
-  }
-
+/* Media Queries for Responsiveness */
+@media (max-width: 1024px) {
   .header {
-    grid-column: 1;
-    grid-row: 1;
     flex-direction: column;
-    height: auto;
-    padding: 10px 20px;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 15px;
   }
 
-  .header .search-bar {
+  .navbar-menu {
+    flex-wrap: wrap;
+    justify-content: center;
     width: 100%;
-    margin: 10px 0;
-    order: 1;
+    margin-top: 10px;
   }
 
-  .header h1 {
-    order: 0;
+  .search-bar {
+    width: 100%;
+    margin-top: 10px;
   }
 
-  .fixed-sidebar {
+  .navbar-right {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    grid-template-columns: 1fr; /* Stack sidebar and content */
+    grid-template-rows: auto auto 1fr; /* Header, then sidebar, then main content */
+    height: auto; /* Allow content to dictate height */
+    overflow: visible; /* Allow scrolling for the whole page if needed */
+  }
+
+  /* Fixed sidebar styles removed as it's now part of the header or entirely removed */
+  /* .fixed-sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
     grid-column: 1;
     grid-row: 2;
-    width: 100%;
-    height: auto;
-    position: static;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     flex-direction: row;
     overflow-x: auto;
@@ -1028,38 +714,29 @@ body{
 
   .fixed-sidebar button.signout {
     display: none;
+  } */
+
+  .header {
+    position: static; /* Make header flow naturally */
+    grid-column: 1;
+    grid-row: 1; /* Place it at the top */
+    width: 100%; /* Take full width */
+    left: 0; /* Reset left position */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   }
 
   .main-content {
     grid-column: 1;
-    grid-row: 3;
-    margin-left: 0;
-    margin-top: 0;
+    grid-row: 3; /* Place it below the sidebar */
+    margin-left: 0; /* Reset margin */
+    margin-top: 0; /* Reset margin */
+    width: 100%; /* Take full width */
+    height: auto; /* Allow height to adjust to content */
+    overflow-y: visible; /* Allow page-level scrolling */
+    padding: 15px; /* Adjust padding for mobile */
   }
 
-  .patient-list th,
-  .patient-list td {
-    padding: 8px 10px;
-    font-size: 0.9em;
+  .patient-profile-layout {
+    grid-template-columns: 1fr; /* Stack columns on mobile */
   }
-
-    .patient-profile-layout {
-        grid-template-columns: 1fr; /* Stack columns on small screens */
-        gap: 15px;
-        padding: 10px;
-    }
-
-    .patient-profile-right-sidebar {
-        margin-top: 15px;
-    }
-
-    .progress-meter {
-        flex-direction: column; /* Stack meter items vertically */
-        gap: 10px;
-    }
-
-    .diabetes-visuals {
-        flex-direction: column; /* Stack visuals vertically */
-        align-items: center;
-    }
 }

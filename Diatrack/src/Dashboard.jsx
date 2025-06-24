@@ -3,9 +3,11 @@
 import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
 import "./Dashboard.css";
+// Assuming you have a logo image, import it here
+import logo from '../picture/logo.png'; // Make sure this path is correct
 
 const Dashboard = ({ user, onLogout }) => {
-  const [activeSection, setActiveSection] = useState("doctor-dashboard");
+  const [activePage, setActivePage] = useState("dashboard"); // Changed from activeSection to activePage
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -17,14 +19,17 @@ const Dashboard = ({ user, onLogout }) => {
   const [editedPatientData, setEditedPatientData] = useState({});
 
   useEffect(() => {
-    if (activeSection === "doctor-dashboard") {
+    if (activePage === "dashboard" || activePage === "patient-list") { // Adjusted condition for fetching patients
       fetchPatients();
-      fetchAppointments();
-    } else if (activeSection === "patient-profile" && selectedPatient) {
+    }
+    if (activePage === "dashboard" || activePage === "appointments") { // Adjusted condition for fetching appointments
+        fetchAppointments();
+    }
+    if (activePage === "patient-profile" && selectedPatient) {
       fetchPatientDetails(selectedPatient.patient_id);
       setEditedPatientData({ ...selectedPatient });
     }
-  }, [activeSection, user.doctor_id, selectedPatient]);
+  }, [activePage, user.doctor_id, selectedPatient]);
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -91,7 +96,7 @@ const Dashboard = ({ user, onLogout }) => {
 
   const handleViewClick = (patient) => {
     setSelectedPatient(patient);
-    setActiveSection("patient-profile");
+    setActivePage("patient-profile"); // Changed to activePage
   };
 
   const handleDeleteClick = async (patient) => {
@@ -149,9 +154,8 @@ const Dashboard = ({ user, onLogout }) => {
     `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const renderDoctorDashboard = () => (
-    <>
-      <div className="table-responsive">
+  const renderPatientList = () => (
+    <div className="table-responsive">
         <h2>My Patients</h2>
         <table className="patient-list">
           <thead>
@@ -189,8 +193,10 @@ const Dashboard = ({ user, onLogout }) => {
           </tbody>
         </table>
       </div>
+  );
 
-      <div className="appointments-section">
+  const renderAppointments = () => (
+    <div className="appointments-section">
         <h2>Upcoming Appointments</h2>
         <table className="appointment-list">
           <thead>
@@ -217,6 +223,12 @@ const Dashboard = ({ user, onLogout }) => {
           </tbody>
         </table>
       </div>
+  );
+
+  const renderDashboardContent = () => (
+    <>
+      {renderPatientList()}
+      {renderAppointments()}
     </>
   );
 
@@ -297,7 +309,7 @@ const Dashboard = ({ user, onLogout }) => {
             <button className="edit-medication-button" onClick={() => setEditingPatientDetails(true)}>Edit Medication</button>
           )}
 
-          <button onClick={() => setActiveSection("doctor-dashboard")}>Back to Dashboard</button>
+          <button onClick={() => setActivePage("dashboard")}>Back to Dashboard</button>
         </div>
 
         <div className="patient-profile-right-sidebar">
@@ -352,20 +364,17 @@ const Dashboard = ({ user, onLogout }) => {
 
   return (
     <div className="dashboard-container">
-      <div className="fixed-sidebar">
-        <h1 className="app-title">
-          <span style={{ color: '#00aaff' }}>DIA</span>
-          <span style={{ color: '#ff9800' }}>TRACK</span>
-        </h1>
-        <ul>
-          <li onClick={() => setActiveSection("doctor-dashboard")}>Doctor's Dashboard</li>
-          <li onClick={() => setActiveSection("patient-profile")}>Patient Profile</li>
-          <li onClick={() => setActiveSection("reports")}>Reports</li>
-          <li onClick={() => setActiveSection("integrations")}>Integrations</li>
-        </ul>
-        <button className="signout" onClick={handleLogout}>Sign Out</button>
-      </div>
       <div className="header">
+        <h1 className="app-title">
+          <img src={logo} alt="DiaTrack Logo" className="app-logo" />
+          <span style={{ color: 'var(--primary-blue)' }}>Dia</span>
+          <span style={{ color: 'var(--secondary-orange)' }}>Track</span>
+        </h1>
+        <ul className="navbar-menu">
+          <li className={activePage === "dashboard" ? "active" : ""} onClick={() => setActivePage("dashboard")}>Dashboard</li>
+          <li className={activePage === "patient-list" ? "active" : ""} onClick={() => setActivePage("patient-list")}>Patient List</li>
+          <li className={activePage === "reports" ? "active" : ""} onClick={() => setActivePage("reports")}>Reports</li>
+        </ul>
         <div className="search-bar">
           <input
             type="text"
@@ -374,11 +383,29 @@ const Dashboard = ({ user, onLogout }) => {
             onChange={handleSearchChange}
           />
         </div>
+        <div className="navbar-right">
+          <div className="user-profile">
+            <img src="https://placehold.co/40x40/aabbcc/ffffff?text=User" alt="User Avatar" className="user-avatar" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/aabbcc/ffffff?text=User"; }}/>
+            <div className="user-info">
+              <span className="user-name">{user ? `${user.first_name} ${user.last_name}` : 'Maria Batumbakal'}</span>
+              <span className="user-role">Secretary</span> {/* Role should ideally come from user object */}
+            </div>
+          </div>
+          <div className="header-icons">
+            {/* Font Awesome icons */}
+            <i className="fas fa-bell"></i>
+            <i className="fas fa-envelope"></i>
+            <button className="signout-button" onClick={() => {
+              if (window.confirm("Are you sure you want to sign out?")) onLogout();
+            }}><i className="fas fa-sign-out-alt"></i></button>
+          </div>
+        </div>
       </div>
       <div className="main-content">
         <h1>Welcome, Dr. {user.first_name}</h1>
-        {activeSection === "doctor-dashboard" && renderDoctorDashboard()}
-        {activeSection === "patient-profile" && selectedPatient && renderPatientProfile()}
+        {activePage === "dashboard" && renderDashboardContent()}
+        {activePage === "patient-profile" && selectedPatient && renderPatientProfile()}
+        {activePage === "reports" && <div><h2>Reports Section</h2><p>Content for Reports...</p></div>}
       </div>
     </div>
   );
