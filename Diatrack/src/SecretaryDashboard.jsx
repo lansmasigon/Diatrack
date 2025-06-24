@@ -343,15 +343,31 @@ const SecretaryDashboard = ({ user, onLogout }) => {
             bloodGlucoseLevel: latestHealth.blood_glucose || 'N/A',
             bloodPressure: (latestHealth.bp_systolic !== null && latestHealth.bp_diastolic !== null) ? `${latestHealth.bp_systolic}/${latestHealth.bp_diastolic}` : 'N/A'
           });
-          setWoundPhotoUrl(latestHealth.wound_photo_url || ''); // Set wound photo URL
-          // Added console.log for debugging wound photo URL
-          console.log("Wound Photo URL extracted from latestHealth:", latestHealth.wound_photo_url); // Added log
+          if (latestHealth.wound_photo_url) {
+            const { data: publicUrlData } = supabase
+              .storage
+              .from('wound-photos') // Specify the bucket name as per your request
+              .getPublicUrl(latestHealth.wound_photo_url); // Use the path from the database
+
+            if (publicUrlData && publicUrlData.publicUrl) {
+              setWoundPhotoUrl(publicUrlData.publicUrl);
+              console.log("Wound Photo Public URL:", publicUrlData.publicUrl);
+            } else {
+              setWoundPhotoUrl(''); // Clear if URL generation fails
+              console.log("Failed to generate public URL for wound photo.");
+            }
+          } else {
+            setWoundPhotoUrl(''); // Clear if no wound_photo_url in DB
+            console.log("Wound Photo URL extracted from latestHealth: (empty string/null/undefined)"); // Adjusted log for clarity
+          }
+
         } else {
           console.log("No health metrics found for this patient.");
           setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' });
           setWoundPhotoUrl(''); // Reset wound photo URL if no data
           console.log("Wound Photo URL extracted from latestHealth: (empty string/null/undefined)"); // Adjusted log for clarity
         }
+
 
 
         // --- Fetch Appointments for the Patient ---
@@ -378,7 +394,22 @@ const SecretaryDashboard = ({ user, onLogout }) => {
           cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
         });
         setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' });
-        setWoundPhotoUrl(''); // Reset wound photo URL
+        if (latestHealth.wound_photo_url) {
+          const { data: publicUrlData } = supabase
+            .storage
+            .from('wound-photo') // Specify the bucket name as per your request
+            .getPublicUrl(latestHealth.wound_photo_url); // Use the path from the database
+        
+          if (publicUrlData && publicUrlData.publicUrl) {
+            setWoundPhotoUrl(publicUrlData.publicUrl);
+            console.log("Wound Photo Public URL:", publicUrlData.publicUrl);
+          } else {
+            setWoundPhotoUrl(''); // Clear if URL generation fails
+            console.log("Failed to generate public URL for wound photo.");
+          }
+        } else {
+          setWoundPhotoUrl(''); // Clear if no wound_photo_url in DB
+        }
         setPatientAppointments([]);
       }
     };
@@ -1308,6 +1339,16 @@ const SecretaryDashboard = ({ user, onLogout }) => {
               {activePage === "patient-list" && (
                 <div className="patient-list-section">
                   <h2>My Patients</h2>
+                  <div className="search-bar">
+                    <input
+                      type="text"
+                      placeholder="Search patients by name..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="patient-search-input"
+                    />
+                    <i className="fas fa-search search-icon"></i>
+                  </div>
                   <table className="patient-table">
                     <thead>
                       <tr>
@@ -1504,11 +1545,11 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                             {/* Removed Date and Time placeholders */}
                             {/* Display the wound photo if URL exists */}
                             <div className="wound-photo-placeholder">
-                                {woundPhotoUrl ? (
-                                    <img src={woundPhotoUrl} alt="Wound Photo" style={{ maxWidth: '100%', height: 'auto', borderRadius: '8px' }} />
-                                ) : (
-                                    <span>No wound photo available.</span>
-                                )}
+                              {woundPhotoUrl ? (
+                                <img src={woundPhotoUrl} alt="Wound" className="wound-photo" />
+                              ) : (
+                                <p>No wound photo available.</p>
+                              )}
                             </div>
                         </div>
                         {/* More wound photo entries would go here */}
