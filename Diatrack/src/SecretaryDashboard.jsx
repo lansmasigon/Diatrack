@@ -250,6 +250,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     "Assignment",
   ];
 
+  // NEW STATE: Medications for selected patient
+  const [patientMedications, setPatientMedications] = useState([]);
+
   useEffect(() => {
     if (user && user.secretary_id) {
       const initializeDashboard = async () => {
@@ -480,6 +483,20 @@ const SecretaryDashboard = ({ user, onLogout }) => {
           setPatientAppointments([]);
         }
 
+        // --- Fetch Medications for the Patient ---
+        const { data: medsData, error: medsError } = await supabase
+          .from('medications')
+          .select('id, name, dosage, user_id, created_at, medication_frequencies (frequency:time_of_day, start_date)')
+          .eq('user_id', selectedPatientForDetail.patient_id)
+          .order('created_at', { ascending: true });
+        if (medsError) {
+          console.error('Error fetching patient medications:', medsError);
+          setPatientMedications([]);
+        } else if (medsData) {
+          setPatientMedications(medsData);
+        } else {
+          setPatientMedications([]);
+        }
       } else {
         // Reset all states if no patient selected
         setLastLabDate('N/A');
@@ -492,6 +509,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
         setAllPatientHealthMetrics([]); // Reset historical data
         setWoundPhotoData({ url: '', date: '' }); // Reset wound photo URL
         setPatientAppointments([]);
+        setPatientMedications([]); // Reset medications
       }
     };
 
@@ -1696,62 +1714,31 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                             {/* Current Medications Section */}
                             <div className="current-medications-section">
                                 <h3>Current Medications:</h3>
-                                <div className="medications-table-container"> {/* Use the same container class for styling */}
-                                  <table className="medications-table"> {/* Use the same table class for styling */}
+                                <div className="medications-table-container">
+                                  <table className="medications-table">
                                     <thead>
                                       <tr>
                                         <th>Drug Name</th>
                                         <th>Dosage</th>
                                         <th>Frequency</th>
                                         <th>Prescribed by</th>
-                      
                                       </tr>
                                     </thead>
                                     <tbody>
-                                      {(() => {
-                                          let parsedMedications = [];
-                                          try {
-                                            if (selectedPatientForDetail.medication) {
-                                              parsedMedications = JSON.parse(selectedPatientForDetail.medication);
-                                              if (!Array.isArray(parsedMedications)) {
-                                                console.warn("Medication data is not an array:", parsedMedications);
-                                                parsedMedications = []; // Treat as empty if not an array
-                                              }
-                                            }
-                                          } catch (e) {
-                                            console.error("Error parsing medication for patient", selectedPatientForDetail.patient_id, e);
-                                            // Fallback for invalid JSON: create a single entry with the raw string
-                                            parsedMedications = [{ drugName: String(selectedPatientForDetail.medication) || 'N/A', dosage: '', frequency: '', prescribedBy: '' }];
-                                          }
-
-                                          if (parsedMedications.length > 0 && parsedMedications[0].drugName !== 'N/A') {
-                                            return (
-                                              parsedMedications.map((med, idx) => (
-                                                <tr key={idx}>
-                                                  <td>{med.drugName || 'N/A'}</td>
-                                                  <td>{med.dosage || 'N/A'}</td>
-                                                  <td>{med.frequency || 'N/A'}</td>
-                                                  <td>{med.prescribedBy || 'N/A'}</td>
-                                                  <td className="med-actions">
-                                                    <button type="button" className="remove-med-button" onClick={() => handleRemoveMedication(index)}>
-                                                      <i className="fas fa-minus-circle"></i>
-                                                    </button>
-                                                    <button type="button" className="add-med-button" onClick={handleAddMedication}>
-                                                      <i className="fas fa-plus-circle"></i>
-                                                    </button>
-
-                                                </td>
-                                                </tr>
-                                              ))
-                                            );
-                                          } else {
-                                            return (
-                                              <tr>
-                                                <td colSpan="4">No medications listed.</td>
-                                              </tr>
-                                            );
-                                          }
-                                      })()}
+                                      {patientMedications.length > 0 ? (
+                                        patientMedications.map((med, idx) => (
+                                          <tr key={med.id || idx}>
+                                            <td>{med.name || 'N/A'}</td>
+                                            <td>{med.dosage || 'N/A'}</td>
+                                            <td>{med.medication_frequencies && med.medication_frequencies.length > 0 ? med.medication_frequencies.map(f => `${f.frequency} (${f.start_date})`).join(', ') : 'N/A'}</td>
+                                            <td>{med.prescribed_by || 'N/A'}</td>
+                                          </tr>
+                                        ))
+                                      ) : (
+                                        <tr>
+                                          <td colSpan="4">No medications listed.</td>
+                                        </tr>
+                                      )}
                                     </tbody>
                                   </table>
                                 </div>
