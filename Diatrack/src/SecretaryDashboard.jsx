@@ -483,10 +483,10 @@ const SecretaryDashboard = ({ user, onLogout }) => {
           setPatientAppointments([]);
         }
 
-        // --- Fetch Medications for the Patient ---
+        // --- Fetch Medications for the Patient, including doctor info ---
         const { data: medsData, error: medsError } = await supabase
           .from('medications')
-          .select('id, name, dosage, user_id, created_at, medication_frequencies (frequency:time_of_day, start_date)')
+          .select('id, name, dosage, user_id, created_at, prescribed_by, doctors:prescribed_by (first_name, last_name), medication_frequencies (frequency:time_of_day, start_date)')
           .eq('user_id', selectedPatientForDetail.patient_id)
           .order('created_at', { ascending: true });
         if (medsError) {
@@ -1331,7 +1331,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                                   <td><input type="text" className="med-input" value={med.drugName} onChange={(e) => handleMedicationChange(index, "drugName", e.target.value)} /></td>
                                   <td><input type="text" className="med-input" value={med.dosage} onChange={(e) => handleMedicationChange(index, "dosage", e.target.value)} /></td>
                                   <td><input type="text" className="med-input" value={med.frequency} onChange={(e) => handleMedicationChange(index, "frequency", e.target.value)} /></td>
-                                  <td><input type="text" className="med-input" value={med.prescribedBy} onChange={(e) => handleMedicationChange(index, "prescribedBy", e.target.value)} /></td>
+                                  <td><input type="text" className="med-input" value={med.prescribed_by} onChange={(e) => handleMedicationChange(index, "prescribed_by", e.target.value)} /></td>
                                   <td className="med-actions">
                                     {medications.length > 1 && (
                                       <button type="button" className="remove-med-button" onClick={() => handleRemoveMedication(index)}>
@@ -1730,8 +1730,8 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                                           <tr key={med.id || idx}>
                                             <td>{med.name || 'N/A'}</td>
                                             <td>{med.dosage || 'N/A'}</td>
-                                            <td>{med.medication_frequencies && med.medication_frequencies.length > 0 ? med.medication_frequencies.map(f => `${f.frequency} (${f.start_date})`).join(', ') : 'N/A'}</td>
-                                            <td>{med.prescribed_by || 'N/A'}</td>
+                                            <td>{med.medication_frequencies && med.medication_frequencies.length > 0 ? med.medication_frequencies.map(f => `${f.frequency}`).join(', ') : 'N/A'}</td>
+                                            <td>{(med.doctors && med.doctors.first_name) ? `${med.doctors.first_name} ${med.doctors.last_name}` : 'N/A'}</td>
                                           </tr>
                                         ))
                                       ) : (
@@ -1839,7 +1839,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     )}
 </div>
 
-{/* ... rest of the patient details ... */}
+{/* ... rest of the patient details ...*/}
             
                 </div>
               )}
