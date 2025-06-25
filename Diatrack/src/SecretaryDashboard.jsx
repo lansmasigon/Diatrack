@@ -225,7 +225,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     bloodPressure: 'N/A'
   });
   // NEW STATE FOR WOUND PHOTO URL and its date
-  const [woundPhotoData, setWoundPhotoData] = useState({ url: '', date: '' });
+  const [allWoundPhotos, setAllWoundPhotos] = useState([]);
 
   // NEW STATE FOR ALL PATIENT HEALTH METRICS HISTORY (FOR CHARTS)
   const [allPatientHealthMetrics, setAllPatientHealthMetrics] = useState([]);
@@ -240,7 +240,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
   });
   const [patientAppointments, setPatientAppointments] = useState([]);
-
+  
 
   const steps = [
     "Demographics",
@@ -282,90 +282,81 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   }, [linkedDoctors, user]); // Dependencies ensure it runs when doctors are fetched
 
   // NEW function to fetch wound photos separately
-  const fetchWoundPhoto = async (patientId) => {
-    setWoundPhotoData({ url: '', date: '' }); // Clear previous wound photo
+  const fetchAllWoundPhotos = async (patientId) => {
+    setAllWoundPhotos([]); // Clear previous wound photos
     if (!patientId) {
-      console.log("WOUND PHOTO FETCH: No patient ID provided.");
+      console.log("WOUND PHOTOS FETCH: No patient ID provided.");
       return;
     }
-    console.log(`WOUND PHOTO FETCH: Attempting to fetch for patient ID: ${patientId}`);
-
+    console.log(`WOUND PHOTOS FETCH: Attempting to fetch for patient ID: ${patientId}`);
+  
     try {
       const { data: healthData, error: healthError } = await supabase
         .from('health_metrics')
         .select('wound_photo_url, updated_at') // Select updated_at for the date
         .eq('patient_id', patientId)
-        .order('updated_at', { ascending: false }) // Get the latest one if multiple exist
-        .limit(1);
-
-      console.log("WOUND PHOTO FETCH: Raw health data from 'health_metrics':", healthData);
-      console.log("WOUND PHOTO FETCH: Health data error:", healthError);
-
+        .not('wound_photo_url', 'is', null) // Only get entries that actually have a URL
+        .order('updated_at', { ascending: false }); // Order by date, latest first
+  
+      console.log("WOUND PHOTOS FETCH: Raw health data from 'health_metrics':", healthData);
+      console.log("WOUND PHOTOS FETCH: Health data error:", healthError);
+  
       if (healthError) {
-        console.error("WOUND PHOTO FETCH: Error fetching wound photo URL from DB:", healthError.message);
-        setWoundPhotoData({ url: '', date: '' });
+        console.error("WOUND PHOTOS FETCH: Error fetching wound photo URLs from DB:", healthError.message);
+        setAllWoundPhotos([]);
         return;
       }
-
+  
       if (healthData && healthData.length > 0) {
-        const woundPhotoPathOrUrl = healthData[0]?.wound_photo_url; // Use optional chaining for safety
-        const updatedDate = healthData[0]?.updated_at;
-
-        // Log the exact value and type BEFORE any conditional checks
-        console.log(`WOUND PHOTO FETCH: EXACT wound_photo_url from DB (Type: ${typeof woundPhotoPathOrUrl}, Value: "${woundPhotoPathOrUrl}")`);
-
-        let photoUrl = '';
-        if (typeof woundPhotoPathOrUrl === 'string' && (woundPhotoPathOrUrl.startsWith('http://') || woundPhotoPathOrUrl.startsWith('https://'))) {
-          // If it's already a full URL, use it directly (after trimming whitespace)
-          photoUrl = woundPhotoPathOrUrl.trim();
-          console.log("WOUND PHOTO FETCH: Stored value is already a full URL, using directly (trimmed):", photoUrl);
-        } else if (typeof woundPhotoPathOrUrl === 'string' && woundPhotoPathOrUrl.trim().length > 0) {
-          // Otherwise, treat it as a path and get the public URL if it's a non-empty string after trimming
-          const trimmedPath = woundPhotoPathOrUrl.trim();
-          const { data: publicUrlData, error: publicUrlError } = supabase
-            .storage
-            .from('wound-photos') // Ensure this is your correct bucket name
-            .getPublicUrl(trimmedPath);
-
-          console.log("WOUND PHOTO FETCH: Public URL Data (from getPublicUrl):", publicUrlData);
-          console.log("WOUND PHOTO FETCH: Public URL Error (from getPublicUrl):", publicUrlError);
-
-          if (publicUrlError) {
-            console.error("WOUND PHOTO FETCH: Error getting public URL for wound photo:", publicUrlError.message);
-          } else if (publicUrlData && publicUrlData.publicUrl) {
-            photoUrl = publicUrlData.publicUrl;
-            console.log("WOUND PHOTO FETCH: Successfully set Wound Photo Public URL (from getPublicUrl):", photoUrl);
-          } else {
-            console.log("WOUND PHOTO FETCH: Failed to generate public URL for wound photo. publicUrlData:", publicUrlData);
+        const photosArray = [];
+        for (const entry of healthData) {
+          const woundPhotoPathOrUrl = entry?.wound_photo_url;
+          const updatedDate = entry?.updated_at;
+  
+          let photoUrl = '';
+          if (typeof woundPhotoPathOrUrl === 'string' && (woundPhotoPathOrUrl.startsWith('http://') || woundPhotoPathOrUrl.startsWith('https://'))) {
+            photoUrl = woundPhotoPathOrUrl.trim();
+          } else if (typeof woundPhotoPathOrUrl === 'string' && woundPhotoPathOrUrl.trim().length > 0) {
+            const trimmedPath = woundPhotoPathOrUrl.trim();
+            const { data: publicUrlData, error: publicUrlError } = supabase
+              .storage
+              .from('wound-photos')
+              .getPublicUrl(trimmedPath);
+  
+            if (publicUrlError) {
+              console.error("WOUND PHOTOS FETCH: Error getting public URL for wound photo:", publicUrlError.message);
+            } else if (publicUrlData && publicUrlData.publicUrl) {
+              photoUrl = publicUrlData.publicUrl;
+            }
           }
-        } else {
-          console.log("WOUND PHOTO FETCH: wound_photo_url is not a valid string, is empty after trimming, or is null/undefined.");
+  
+          if (photoUrl) {
+            photosArray.push({
+              url: photoUrl,
+              date: updatedDate ? new Date(updatedDate).toLocaleDateString() : 'N/A'
+            });
+          }
         }
-
-        // Set the wound photo data
-        setWoundPhotoData({
-          url: photoUrl,
-          date: updatedDate ? new Date(updatedDate).toLocaleDateString() : 'N/A'
-        });
-
+        setAllWoundPhotos(photosArray);
+        console.log("WOUND PHOTOS FETCH: Successfully set all wound photos:", photosArray);
       } else {
-        setWoundPhotoData({ url: '', date: '' }); // Clear if no healthData or healthData is empty
-        console.log("WOUND PHOTO FETCH: No healthData found for this patient or healthData is empty.");
+        setAllWoundPhotos([]);
+        console.log("WOUND PHOTOS FETCH: No healthData found for this patient or healthData is empty.");
       }
     } catch (error) {
-      console.error("WOUND PHOTO FETCH: Unexpected error during wound photo fetch:", error);
-      setWoundPhotoData({ url: '', date: '' });
+      console.error("WOUND PHOTOS FETCH: Unexpected error during wound photo fetch:", error);
+      setAllWoundPhotos([]);
     }
   };
 
   // NEW useEffect for fetching wound photos
   useEffect(() => {
     if (selectedPatientForDetail && selectedPatientForDetail.patient_id) {
-      fetchWoundPhoto(selectedPatientForDetail.patient_id);
+      fetchAllWoundPhotos(selectedPatientForDetail.patient_id);
     } else {
-      setWoundPhotoData({ url: '', date: '' }); // Reset when no patient is selected
+      setAllWoundPhotos([]); // Reset all wound photos when no patient is selected
     }
-  }, [selectedPatientForDetail]); // Only re-run when selectedPatientForDetail changes
+  }, [selectedPatientForDetail]);
 
 
   // Updated useEffect to fetch other patient details and ALL health metrics
@@ -1713,6 +1704,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                                         <th>Dosage</th>
                                         <th>Frequency</th>
                                         <th>Prescribed by</th>
+                      
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -1740,6 +1732,15 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                                                   <td>{med.dosage || 'N/A'}</td>
                                                   <td>{med.frequency || 'N/A'}</td>
                                                   <td>{med.prescribedBy || 'N/A'}</td>
+                                                  <td className="med-actions">
+                                                    <button type="button" className="remove-med-button" onClick={() => handleRemoveMedication(index)}>
+                                                      <i className="fas fa-minus-circle"></i>
+                                                    </button>
+                                                    <button type="button" className="add-med-button" onClick={handleAddMedication}>
+                                                      <i className="fas fa-plus-circle"></i>
+                                                    </button>
+
+                                                </td>
                                                 </tr>
                                               ))
                                             );
@@ -1826,25 +1827,33 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                         </div>
                     </div>
                     {/* Wound Photo Timeline Section - Added as a footer-like section */}
-                    <div className="wound-photo-timeline-section">
-                        <h3>Wound Photo Timeline</h3>
-                        <div className="wound-photo-entry">
-                            {/* Removed Date and Time placeholders */}
-                            {/* Display the wound photo if URL exists */}
-                            <div className="wound-photo-placeholder">
-                              {woundPhotoData.url ? (
-                                <img src={woundPhotoData.url} alt="Wound" className="wound-photo" />
-                              ) : (
-                                <p>No wound photo available.</p>
-                              )}
-                            </div>
-                            {/* Moved the date outside the wound-photo-placeholder but inside wound-photo-entry */}
-                            {woundPhotoData.date && woundPhotoData.date !== 'N/A' && (
-                              <p className="wound-photo-date">Uploaded: {woundPhotoData.date}</p>
-                            )}
-                        </div>
-                        {/* More wound photo entries would go here */}
+                    {/* Inside activePage === "patient-detail-view" && selectedPatientForDetail */}
+{/* ... other patient details ... */}
+
+<div className="wound-photo-timeline-section"> {/* Changed from wound-photos-section */}
+    <h3>Wound Photos History</h3>
+    {allWoundPhotos.length > 0 ? (
+        <>
+            {allWoundPhotos.map((photo, index) => (
+                <div key={index} className="wound-photo-entry"> {/* Changed from wound-photo-item */}
+                    <div className="wound-photo-placeholder"> {/* Added this wrapper */}
+                        <img
+                            src={photo.url}
+                            alt={`Wound Photo - ${photo.date}`}
+                            // 'className="wound-photo-thumbnail"' is no longer needed here, styling is on .wound-photo-placeholder img
+                        />
                     </div>
+                    <p className="wound-photo-date">Date: {photo.date}</p>
+                </div>
+            ))}
+        </>
+    ) : (
+        <p style={{ gridColumn: '1 / -1' }}>No wound photos available for this patient.</p>
+    )}
+</div>
+
+{/* ... rest of the patient details ... */}
+            
                 </div>
               )}
 

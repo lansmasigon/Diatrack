@@ -1,41 +1,56 @@
 /* Fallback if loaded via CSS */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css'); /* For Font Awesome icons */
 
+
+/* Variables */
 :root {
   --primary-blue: #00aaff;
   --secondary-orange: #ff9800;
+  --text-dark: #333;
+  --text-medium: #555;
+  --text-light: #666;
+  --background-light: #f0f2f5;
+  --background-white: #fff;
+  --border-light: #eee;
+  --border-medium: #ccc;
+  --shadow-light: rgba(0, 0, 0, 0.1);
+  --shadow-extra-light: rgba(0, 0, 0, 0.05);
 }
 
-body{
+/* Base Styles */
+body {
   font-family: "Inter", sans-serif;
-  margin: 0; /* Ensure no default body margin */
+  margin: 0;
+  box-sizing: border-box;
+  background-color: var(--background-light);
+  color: var(--text-dark);
 }
-/* Dashboard.css */
+
 .dashboard-container {
   min-height: 100vh;
-  font-family: 'Inter', sans-serif;
-  background-color: #f0f2f5;
-  color: #333;
-  display: flex; /* Use flexbox for overall layout */
-  flex-direction: column; /* Stack header and main content vertically */
+  display: flex;
+  flex-direction: column;
 }
-
-/* Removed Sidebar fixes */
-/* .fixed-sidebar, .fixed-sidebar ul, .fixed-sidebar ul li, .fixed-sidebar button.signout styles are removed */
-
 
 /* Header */
 .header {
-  background-color: White;
+  background-color: var(--background-white);
   display: flex;
   align-items: center;
-  justify-content: space-between; /* Distribute items with space between them */
+  justify-content: space-between;
   padding: 10px 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px var(--shadow-light);
   z-index: 200;
-  margin: 0;
-  box-sizing: border-box;
-  flex-wrap: wrap; /* Allow items to wrap on smaller screens */
+  flex-wrap: wrap; /* Allows items to wrap on smaller screens */
+  gap: 15px; /* Spacing between header sections */
+}
+
+.header-left, .header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
 .app-title {
@@ -44,20 +59,21 @@ body{
   gap: 10px;
   font-size: 1.8em;
   font-weight: 700;
-  margin: 0; /* Remove default margin */
+  margin: 0;
 }
 
 .app-logo {
-  height: 40px; /* Adjust as needed */
+  height: 40px;
   width: auto;
 }
 
-.navbar-menu {
+.navbar-menu ul {
   list-style: none;
   padding: 0;
   margin: 0;
   display: flex;
   gap: 20px;
+  flex-wrap: wrap;
 }
 
 .navbar-menu li {
@@ -70,41 +86,45 @@ body{
 
 .navbar-menu li:hover {
   background-color: var(--secondary-orange);
-  color: white;
+  color: var(--background-white);
 }
 
 .navbar-menu li.active {
   background-color: var(--primary-blue);
-  color: white;
+  color: var(--background-white);
   font-weight: bold;
 }
 
-.header .search-bar {
+.search-bar {
+  position: relative;
   display: flex;
   align-items: center;
   width: 250px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-medium);
   border-radius: 10px;
   height: 40px;
-  flex-shrink: 0; /* Prevent search bar from shrinking */
+  flex-shrink: 0;
 }
 
-.header .search-bar input[type="text"] {
+.search-bar input[type="text"] {
   padding: 8px 15px;
   border: none;
   font-size: 0.9em;
-  width: 100%;
-  padding-left: 15px; /* Adjust padding as icon is not there */
+  width: calc(100% - 40px); /* Adjust for icon */
+  padding-left: 15px;
   border-radius: 10px;
+  background: transparent;
 }
 
-.navbar-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
+.search-bar .search-icon {
+  position: absolute;
+  right: 15px;
+  color: var(--text-light);
+  cursor: pointer;
 }
 
-.user-profile {
+
+.user-profile-section {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -124,12 +144,12 @@ body{
 
 .user-name {
   font-weight: 600;
-  color: #333;
+  color: var(--text-dark);
 }
 
 .user-role {
   font-size: 0.85em;
-  color: #666;
+  color: var(--text-light);
 }
 
 .header-icons {
@@ -140,7 +160,7 @@ body{
 
 .header-icons i {
   cursor: pointer;
-  color: #555;
+  color: var(--text-medium);
   transition: color 0.3s ease;
 }
 
@@ -151,7 +171,7 @@ body{
 .signout-button {
   background: none;
   border: none;
-  color: #e74c3c;
+  color: #e74c3c; /* Specific color for sign out */
   cursor: pointer;
   font-size: 1.2em;
   display: flex;
@@ -161,22 +181,22 @@ body{
 }
 
 .signout-button:hover {
-  color: #c0392b;
+  color: #c0392b; /* Darker red on hover */
 }
 
 /* Main Content */
 .main-content {
-  flex-grow: 1; /* Allow main content to take remaining vertical space */
-  overflow-y: auto; /* Allow vertical scrolling within the main content area */
-  background-color: #f0f2f5;
-  padding: 20px; /* Add padding inside the content area */
-  box-sizing: border-box; /* Ensure padding is included in width/height calculations */
+  flex-grow: 1;
+  overflow-y: auto;
+  background-color: var(--background-light);
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 .main-content h1 {
   font-size: 2em;
   margin-bottom: 10px;
-  color: #333;
+  color: var(--text-dark);
   font-weight: 600;
 }
 
@@ -184,68 +204,68 @@ body{
   font-size: 1.5em;
   margin-top: 10px;
   margin-bottom: 15px;
-  color: #555;
+  color: var(--text-medium);
   font-weight: normal;
 }
 
 /* Table Styling */
 .table-responsive {
   overflow-x: auto;
-  margin-bottom: 20px; /* Added margin for separation */
+  margin-bottom: 20px;
 }
 
 .patient-list,
-.patient-metrics,
-.patient-details,
-.appointment-list { /* Added appointment-list */
+.patient-metrics, /* Unused, but kept for consistency */
+.patient-details, /* Unused, but kept for consistency */
+.appointment-list {
   width: 100%;
-  border-collapse: collapse; /* Use border-collapse for clean table borders */
+  border-collapse: collapse;
   margin-bottom: 20px;
-  background-color: #fff; /* Added background for tables */
+  background-color: var(--background-white);
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px var(--shadow-light);
 }
 
 .patient-list th,
-.patient-metrics th,
-.patient-details th,
-.appointment-list th { /* Added appointment-list */
+.patient-metrics th, /* Unused, but kept for consistency */
+.patient-details th, /* Unused, but kept for consistency */
+.appointment-list th {
   padding: 12px 15px;
-  text-align: left; /* Align headers to left */
+  text-align: left;
   font-weight: bold;
   font-size: 0.9em;
-  color: #555;
-  border-bottom: 1px solid #eee; /* Add bottom border to headers */
+  color: var(--text-medium);
+  border-bottom: 1px solid var(--border-light);
   background-color: #f9f9f9;
 }
 
 .patient-list td,
-.patient-metrics td,
-.patient-details td,
-.appointment-list td { /* Added appointment-list */
-  border-bottom: 1px solid #eee; /* Add bottom border to cells */
-  color: #333;
-  text-align: left; /* Align cells to left */
+.patient-metrics td, /* Unused, but kept for consistency */
+.patient-details td, /* Unused, but kept for consistency */
+.appointment-list td {
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-dark);
+  text-align: left;
   font-size: 0.9em;
   padding: 10px 15px;
 }
 
 .patient-list td {
   overflow: hidden;
-  text-overflow: ellipsis; /* Handle overflow text */
+  text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 150px; /* Limit width for patient name */
+  max-width: 150px;
 }
 
-/* Risk Status and Phase Pills */
-.risk-classification, /* Changed from risk-status to risk-classification */
+/* Risk Classification and Phase Pills */
+.risk-classification,
 .phase {
-  border-radius: 15px; /* Increased border-radius for more pill-like shape */
-  padding: 5px 12px; /* Adjusted padding */
+  border-radius: 15px;
+  padding: 5px 12px;
   font-size: 0.85em;
   font-weight: 500;
   text-align: center;
-  display: inline-block; /* Allow padding and border-radius to apply correctly */
+  display: inline-block;
 }
 
 /* Specific colors for risk classification */
@@ -266,12 +286,12 @@ body{
 
 /* Specific colors for phase */
 .phase.Pre-Operative {
-  background-color: #ffeeba; /* Lighter orange */
+  background-color: #ffeeba;
   color: #664d03;
 }
 
 .phase.Post-Operative {
-  background-color: #cfe2ff; /* Lighter blue */
+  background-color: #cfe2ff;
   color: #055160;
 }
 
@@ -287,7 +307,7 @@ body{
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border-radius: 5px; /* Added border-radius for subtle styling */
+  border-radius: 5px;
 }
 
 .action-button.view-button,
@@ -303,15 +323,15 @@ body{
 }
 
 .action-button.view-button {
-  color: #3498db;
+  color: #3498db; /* Blue for view */
 }
 
-.action-button.edit-button {
-  color: #f39c12;
+.action-button.edit-button { /* Unused, but kept for consistency */
+  color: #f39c12; /* Orange for edit */
 }
 
 .action-button.delete-button {
-  color: #e74c3c;
+  color: #e74c3c; /* Red for delete */
 }
 
 .action-button:hover {
@@ -319,20 +339,19 @@ body{
 }
 
 /* Patient Profile specific styles */
-/* Overall Patient Profile Layout */
 .patient-profile-layout {
     display: grid;
-    grid-template-columns: 2.5fr 1fr; /* Main content takes more space, sidebar takes less */
+    grid-template-columns: 2.5fr 1fr;
     gap: 20px;
     padding: 20px;
-    background-color: #f0f2f5;
+    background-color: var(--background-light);
     min-height: calc(100vh - 80px); /* Adjust based on header height */
 }
 
 .patient-profile-main-content {
-    background-color: #fff;
+    background-color: var(--background-white);
     border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0 10px var(--shadow-light);
     padding: 20px;
     overflow-y: auto;
 }
@@ -343,31 +362,26 @@ body{
     gap: 20px;
 }
 
-.patient-profile h2 {
-  font-size: 1.3em;
-  color: #333;
+.patient-profile-main-content h2 {
+  font-size: 1.8em;
+  color: var(--text-dark);
   margin-bottom: 20px;
   text-align: center;
 }
 
-.patient-profile h3 {
+.patient-profile-main-content h3 {
   font-size: 1.3em;
-  color: #444;
+  color: var(--text-medium);
   margin-top: 30px;
   margin-bottom: 15px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-light);
   padding-bottom: 5px;
+  text-align: left; /* Ensure h3 in main content is left aligned */
 }
 
 /* Latest Metrics Summary */
 .latest-metrics-summary {
   margin-bottom: 30px;
-}
-
-.latest-metrics-summary h3 {
-  border-bottom: none;
-  text-align: left;
-  margin-bottom: 20px;
 }
 
 .metric-cards-container {
@@ -383,15 +397,15 @@ body{
   border-radius: 8px;
   padding: 15px 20px;
   flex: 1;
-  min-width: 180px; /* Ensure cards don't get too small */
+  min-width: 180px;
   text-align: center;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px var(--shadow-extra-light);
 }
 
 .metric-card h4 {
   margin-top: 0;
   margin-bottom: 10px;
-  color: #555;
+  color: var(--text-medium);
   font-size: 1em;
 }
 
@@ -404,7 +418,7 @@ body{
 
 .metric-unit {
   font-size: 0.8em;
-  color: #777;
+  color: var(--text-light);
 }
 
 .latest-medication-display {
@@ -417,7 +431,7 @@ body{
 
 .latest-medication-display h4 {
   margin-top: 0;
-  color: #555;
+  color: var(--text-medium);
   font-size: 1em;
   margin-bottom: 10px;
 }
@@ -425,13 +439,13 @@ body{
 .latest-medication-display p {
   margin: 0;
   font-size: 1em;
-  color: #333;
+  color: var(--text-dark);
 }
 
 .latest-medication-display input[type="text"] {
   width: calc(100% - 20px);
   padding: 8px 10px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-medium);
   border-radius: 5px;
   font-size: 1em;
 }
@@ -454,57 +468,36 @@ body{
   border-radius: 8px;
   padding: 15px;
   text-align: center;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px var(--shadow-extra-light);
 }
 
 .photo-card h4 {
   margin-top: 0;
   margin-bottom: 15px;
-  color: #555;
+  color: var(--text-medium);
 }
 
-.patient-metrics img {
+.photo-card img {
   max-width: 100%;
   height: auto;
   border-radius: 4px;
-  object-fit: contain; /* Changed to contain to avoid cropping */
-  max-height: 200px; /* Limit image height */
+  object-fit: contain;
+  max-height: 200px;
 }
 
-/* Patient Details Table */
-.patient-details {
-  margin-top: 30px;
-}
-
-.patient-details td.risk-classification,
-.patient-details td.medication,
-.patient-details td.phase {
-  text-align: left;
-  padding: 10px;
-}
-
-.patient-details td.medication input,
-.patient-details td.phase select,
-.patient-details td.risk-classification select {
-  width: auto;
-  padding: 6px 10px;
-  border-radius: 10px;
-  border: 1px solid #ccc;
-  font-size: 0.95em;
-}
-
+/* Patient Profile Actions */
 .patient-profile-actions {
   margin-top: 20px;
   display: flex;
   gap: 10px;
-  justify-content: flex-end; /* Align buttons to the right */
+  justify-content: flex-end;
 }
 
 .patient-profile-actions button,
 .edit-medication-button,
 .back-button {
   background-color: var(--primary-blue);
-  color: white;
+  color: var(--background-white);
   padding: 10px 20px;
   border-radius: 5px;
   border: none;
@@ -514,39 +507,27 @@ body{
 }
 
 .patient-profile-actions button:hover,
-.edit-medication-button:hover {
-  background-color: #007bb5;
-}
-
-.patient-profile-actions button:last-child {
-  background-color: #6c757d;
-}
-
-.patient-profile-actions button:last-child:hover {
-  background-color: #5a6268;
-}
-
-.back-button {
-  background-color: #6c757d;
-  color: #fff;
-  border: none;
-  padding: 10px 20px;
-  margin-top: 20px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 1em;
-  transition: background-color 0.3s ease;
-}
-
+.edit-medication-button:hover,
 .back-button:hover {
-  background-color: #5a6268;
+  background-color: #007bb5; /* Darker blue on hover */
 }
+
+.patient-profile-actions button:last-child,
+.back-button { /* Apply the gray style to the back button too */
+  background-color: #6c757d; /* Gray for cancel/back */
+}
+
+.patient-profile-actions button:last-child:hover,
+.back-button:hover {
+  background-color: #5a6268; /* Darker gray on hover */
+}
+
 
 /* Right Sidebar Cards */
 .card {
-  background-color: #fff;
+  background-color: var(--background-white);
   border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0 10px var(--shadow-light);
   padding: 20px;
 }
 
@@ -560,13 +541,13 @@ body{
 .card-header h3 {
   margin: 0;
   font-size: 1.2em;
-  color: #333;
+  color: var(--text-dark);
 }
 
 .timeframe-select {
   padding: 5px 10px;
   border-radius: 5px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-medium);
   font-size: 0.9em;
 }
 
@@ -585,7 +566,7 @@ body{
 
 .meter-label {
   font-weight: 500;
-  color: #666;
+  color: var(--text-light);
 }
 
 .meter-value-container {
@@ -608,14 +589,14 @@ body{
 
 .healthy-indicator {
   font-size: 0.9em;
-  color: #28a745;
+  color: #28a745; /* Green for healthy */
   font-weight: 600;
 }
 
 .card-section-divider {
   border: 0;
   height: 1px;
-  background: #eee;
+  background: var(--border-light);
   margin: 20px 0;
 }
 
@@ -647,96 +628,101 @@ body{
     padding: 10px 15px;
   }
 
-  .navbar-menu {
-    flex-wrap: wrap;
-    justify-content: center;
+  .header-left, .header-right {
     width: 100%;
-    margin-top: 10px;
+    justify-content: space-between; /* Distribute items horizontally */
+    gap: 10px;
+  }
+
+  .navbar-menu ul {
+    width: 100%;
+    justify-content: center;
+    margin-top: 5px;
   }
 
   .search-bar {
+    order: 1; /* Place search bar above user profile/icons on smaller screens */
     width: 100%;
     margin-top: 10px;
   }
 
-  .navbar-right {
-    width: 100%;
-    justify-content: space-between;
-    margin-top: 10px;
+  .user-profile-section, .header-icons {
+    flex-grow: 1; /* Allow these sections to take available space */
+    justify-content: center;
   }
 }
 
 @media (max-width: 768px) {
   .dashboard-container {
-    grid-template-columns: 1fr; /* Stack sidebar and content */
-    grid-template-rows: auto auto 1fr; /* Header, then sidebar, then main content */
-    height: auto; /* Allow content to dictate height */
-    overflow: visible; /* Allow scrolling for the whole page if needed */
-  }
-
-  /* Fixed sidebar styles removed as it's now part of the header or entirely removed */
-  /* .fixed-sidebar {
-    position: static;
-    width: 100%;
     height: auto;
-    grid-column: 1;
-    grid-row: 2;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    flex-direction: row;
-    overflow-x: auto;
-    white-space: nowrap;
-    padding: 0;
-    justify-content: flex-start;
-  }
-
-  .fixed-sidebar ul {
-    display: flex;
-    flex-direction: row;
-    width: 100%;
-  }
-
-  .fixed-sidebar ul li {
-    flex-shrink: 0;
-    border-left: none;
-    border-bottom: 3px solid transparent;
-    padding: 10px 15px;
-  }
-
-  .fixed-sidebar ul li:hover {
-    border-left-color: transparent;
-    border-bottom-color: #ffcc00;
-  }
-
-  .fixed-sidebar ul li.active {
-    border-left-color: transparent;
-    border-bottom-color: #fff;
-  }
-
-  .fixed-sidebar button.signout {
-    display: none;
-  } */
-
-  .header {
-    position: static; /* Make header flow naturally */
-    grid-column: 1;
-    grid-row: 1; /* Place it at the top */
-    width: 100%; /* Take full width */
-    left: 0; /* Reset left position */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   }
 
   .main-content {
-    grid-column: 1;
-    grid-row: 3; /* Place it below the sidebar */
-    margin-left: 0; /* Reset margin */
-    margin-top: 0; /* Reset margin */
-    width: 100%; /* Take full width */
-    height: auto; /* Allow height to adjust to content */
-    overflow-y: visible; /* Allow page-level scrolling */
-    padding: 15px; /* Adjust padding for mobile */
+    margin-left: 0;
+    margin-top: 0;
+    width: 100%;
+    height: auto;
+    overflow-y: visible;
+    padding: 15px;
   }
 
   .patient-profile-layout {
-    grid-template-columns: 1fr; /* Stack columns on mobile */
+    grid-template-columns: 1fr;
+  }
+
+  .header-left, .header-right {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .navbar-menu ul {
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .search-bar {
+    width: 90%;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 10px;
+  }
+
+  .app-title {
+    font-size: 1.5em;
+  }
+
+  .app-logo {
+    height: 35px;
+  }
+
+  .navbar-menu li {
+    padding: 6px 10px;
+    font-size: 0.9em;
+  }
+
+  .search-bar {
+    width: 100%;
+  }
+
+  .user-name {
+    font-size: 0.9em;
+  }
+
+  .user-role {
+    font-size: 0.75em;
+  }
+
+  .header-icons {
+    gap: 10px;
+    font-size: 1em;
+  }
+
+  .signout-button {
+    font-size: 1em;
   }
 }

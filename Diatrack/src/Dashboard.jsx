@@ -7,7 +7,7 @@ import "./Dashboard.css";
 import logo from '../picture/logo.png'; // Make sure this path is correct
 
 const Dashboard = ({ user, onLogout }) => {
-  const [activePage, setActivePage] = useState("dashboard"); // Changed from activeSection to activePage
+  const [activePage, setActivePage] = useState("dashboard");
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -19,10 +19,10 @@ const Dashboard = ({ user, onLogout }) => {
   const [editedPatientData, setEditedPatientData] = useState({});
 
   useEffect(() => {
-    if (activePage === "dashboard" || activePage === "patient-list") { // Adjusted condition for fetching patients
+    if (activePage === "dashboard" || activePage === "patient-list") {
       fetchPatients();
     }
-    if (activePage === "dashboard" || activePage === "appointments") { // Adjusted condition for fetching appointments
+    if (activePage === "dashboard" || activePage === "appointments") {
         fetchAppointments();
     }
     if (activePage === "patient-profile" && selectedPatient) {
@@ -96,7 +96,7 @@ const Dashboard = ({ user, onLogout }) => {
 
   const handleViewClick = (patient) => {
     setSelectedPatient(patient);
-    setActivePage("patient-profile"); // Changed to activePage
+    setActivePage("patient-profile");
   };
 
   const handleDeleteClick = async (patient) => {
@@ -300,16 +300,17 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
           )}
 
-          {editingPatientDetails ? (
-            <div className="patient-profile-actions">
-              <button onClick={handleUpdatePatientDetails}>Save</button>
-              <button onClick={() => setEditingPatientDetails(false)}>Cancel</button>
-            </div>
-          ) : (
-            <button className="edit-medication-button" onClick={() => setEditingPatientDetails(true)}>Edit Medication</button>
-          )}
-
-          <button onClick={() => setActivePage("dashboard")}>Back to Dashboard</button>
+          <div className="patient-profile-actions">
+            {editingPatientDetails ? (
+              <>
+                <button onClick={handleUpdatePatientDetails}>Save</button>
+                <button onClick={() => setEditingPatientDetails(false)}>Cancel</button>
+              </>
+            ) : (
+              <button className="edit-medication-button" onClick={() => setEditingPatientDetails(true)}>Edit Medication</button>
+            )}
+            <button className="back-button" onClick={() => setActivePage("dashboard")}>Back to Dashboard</button>
+          </div>
         </div>
 
         <div className="patient-profile-right-sidebar">
@@ -364,49 +365,52 @@ const Dashboard = ({ user, onLogout }) => {
 
   return (
     <div className="dashboard-container">
-      <div className="header">
-        <h1 className="app-title">
-          <img src={logo} alt="DiaTrack Logo" className="app-logo" />
-          <span style={{ color: 'var(--primary-blue)' }}>Dia</span>
-          <span style={{ color: 'var(--secondary-orange)' }}>Track</span>
-        </h1>
-        <ul className="navbar-menu">
-          <li className={activePage === "dashboard" ? "active" : ""} onClick={() => setActivePage("dashboard")}>Dashboard</li>
-          <li className={activePage === "patient-list" ? "active" : ""} onClick={() => setActivePage("patient-list")}>Patient List</li>
-          <li className={activePage === "reports" ? "active" : ""} onClick={() => setActivePage("reports")}>Reports</li>
-        </ul>
-        <div className="search-bar">
-          <input
-            type="text"
-            placeholder="Search patients..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-          />
+      <header className="header">
+        <div className="header-left">
+          <h1 className="app-title">
+            <img src={logo} alt="DiaTrack Logo" className="app-logo" />
+            <span style={{ color: 'var(--primary-blue)' }}>Dia</span>
+            <span style={{ color: 'var(--secondary-orange)' }}>Track</span>
+          </h1>
+          <nav className="navbar-menu">
+            <ul>
+              <li className={activePage === "dashboard" ? "active" : ""} onClick={() => setActivePage("dashboard")}>Dashboard</li>
+              <li className={activePage === "patient-list" ? "active" : ""} onClick={() => setActivePage("patient-list")}>Patient List</li>
+              <li className={activePage === "reports" ? "active" : ""} onClick={() => setActivePage("reports")}>Reports</li>
+            </ul>
+          </nav>
         </div>
-        <div className="navbar-right">
-          <div className="user-profile">
+        <div className="header-right">
+          <div className="search-bar">
+            <input
+              type="text"
+              placeholder="Search patients..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+            />
+            <i className="fas fa-search search-icon"></i>
+          </div>
+          <div className="user-profile-section">
             <img src="https://placehold.co/40x40/aabbcc/ffffff?text=User" alt="User Avatar" className="user-avatar" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/aabbcc/ffffff?text=User"; }}/>
             <div className="user-info">
               <span className="user-name">{user ? `${user.first_name} ${user.last_name}` : 'Maria Batumbakal'}</span>
-              <span className="user-role">Secretary</span> {/* Role should ideally come from user object */}
+              <span className="user-role">Secretary</span>
             </div>
           </div>
           <div className="header-icons">
-            {/* Font Awesome icons */}
-            <i className="fas fa-bell"></i>
-            <i className="fas fa-envelope"></i>
-            <button className="signout-button" onClick={() => {
-              if (window.confirm("Are you sure you want to sign out?")) onLogout();
-            }}><i className="fas fa-sign-out-alt"></i></button>
+            <i className="fas fa-bell notification-icon"></i>
+            <i className="fas fa-envelope message-icon"></i>
+            <button className="signout-button" onClick={handleLogout}><i className="fas fa-sign-out-alt"></i></button>
           </div>
         </div>
-      </div>
-      <div className="main-content">
+      </header>
+      <main className="main-content">
         <h1>Welcome, Dr. {user.first_name}</h1>
         {activePage === "dashboard" && renderDashboardContent()}
         {activePage === "patient-profile" && selectedPatient && renderPatientProfile()}
+        {activePage === "patient-list" && renderPatientList()}
         {activePage === "reports" && <div><h2>Reports Section</h2><p>Content for Reports...</p></div>}
-      </div>
+      </main>
     </div>
   );
 };
