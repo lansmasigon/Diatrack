@@ -186,6 +186,7 @@ body {
   color: var(--background-white);
 }
 
+
 /* Content Area - Full Width */
 .content-area-full-width {
   flex-grow: 1;
@@ -345,7 +346,7 @@ body {
 }
 
 .phase.Pre-Operative {
-  background-color: #e2e6ea;
+  background-color: #ffc107;
   color: #343a40;
 }
 

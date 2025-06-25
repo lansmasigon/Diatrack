@@ -734,7 +734,7 @@ const Dashboard = ({ user, onLogout }) => {
       </header>
 
       <main className="content-area-full-width">
-        <h1>Welcome, Dr. {user.first_name}</h1>
+        <h1>Welcome, Dr. {user.first_name} 👋</h1>
         {activePage === "dashboard" && renderDashboardContent()}
         {activePage === "patient-profile" && selectedPatient && renderPatientProfile()}
         {activePage === "patient-list" && renderPatientList()}
