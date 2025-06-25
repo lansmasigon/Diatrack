@@ -1080,7 +1080,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
         </ul>
         <div className="navbar-right">
           <div className="user-profile">
-            <img src="https://placehold.co/40x40/aabbcc/ffffff?text=User" alt="User Avatar" className="user-avatar" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/aabbcc/ffffff?text=User"; }}/>
+            <img src="../picture/secretary.png" alt="User Avatar" className="user-avatar" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/aabbcc/ffffff?text=User"; }}/>
             <div className="user-info">
               <span className="user-name">{user ? `${user.first_name} ${user.last_name}` : 'Maria Batumbakal'}</span>
               <span className="user-role">Secretary</span>
