@@ -209,13 +209,10 @@ body {
   border-radius: 12px;
   box-shadow: 0 4px 15px var(--shadow-light);
   padding: 25px;
-  margin-bottom: 25px;
+  margin-bottom: 10px;
   transition: transform 0.2s ease-in-out;
 }
 
-.card:hover {
-  transform: translateY(-3px);
-}
 
 .card h2, .card h3 {
   color: var(--text-dark);
@@ -397,8 +394,8 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 25px;
-    padding-bottom: 15px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
     border-bottom: 1px solid var(--border-light);
 }
 
@@ -412,7 +409,7 @@ body {
 .patient-profile-content-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 25px;
+    gap: 15px;
 }
 
 .patient-details-card {
@@ -917,3 +914,4 @@ body {
 }
 
 /* ... other existing media queries ... */
+

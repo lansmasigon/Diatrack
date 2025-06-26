@@ -1,4 +1,4 @@
-// ✅ FULL UPDATED Dashboard.jsx WITH HEADER NAVIGATION
+// ✅ FULL UPDATED Dashboard.jsx WITH HEADER NAVIGATION (Notes replaced with Appointment Schedule)
 
 import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
@@ -8,7 +8,8 @@ import logo from '../picture/logo.png'; // Make sure this path is correct
 const Dashboard = ({ user, onLogout }) => {
   const [activePage, setActivePage] = useState("dashboard");
   const [patients, setPatients] = useState([]);
-  const [appointments, setAppointments] = useState([]);
+  const [appointments, setAppointments] = useState([]); // Doctor's appointments
+  const [patientAppointments, setPatientAppointments] = useState([]); // Patient-specific appointments
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -100,7 +101,45 @@ const Dashboard = ({ user, onLogout }) => {
         .order("created_at", { ascending: true });
 
       if (medsError) throw medsError;
-      setPatientMedications(meds);
+
+      // Fetch ALL medication schedules for this patient's medications, ordered by date and time_of_day
+      const { data: schedules, error: schedulesError } = await supabase
+        .from("medication_schedules")
+        .select("medication_id, date, time_of_day, taken")
+        .in("medication_id", meds.map(m => m.id)) // Only fetch schedules for the medications found for this patient
+        .order("date", { ascending: false }) // Order by date descending
+        .order("time_of_day", { ascending: false }); // Then by time_of_day descending
+
+      if (schedulesError) throw schedulesError;
+
+      // Process to determine status for each medication based on its LATEST schedule
+      const medicationsWithStatus = meds.map(med => {
+        const relevantSchedules = schedules ? schedules.filter(s => s.medication_id === med.id) : [];
+
+        let status = "N/A"; // Default status if no schedules found for this medication
+
+        if (relevantSchedules.length > 0) {
+          const latestSchedule = relevantSchedules[0];
+          status = latestSchedule.taken ? "Taken" : "Not Yet";
+        }
+
+        return {
+          ...med,
+          overall_status: status // Add the calculated status to the medication object
+        };
+      });
+
+      setPatientMedications(medicationsWithStatus);
+
+      // --- NEW: Fetch appointments for the selected patient ---
+      const { data: patientAppts, error: patientApptsError } = await supabase
+        .from("appointments")
+        .select("*") // Select all fields for the appointment
+        .eq("patient_id", patientId)
+        .order("appointment_datetime", { ascending: true }); // Order by date ascending
+
+      if (patientApptsError) throw patientApptsError;
+      setPatientAppointments(patientAppts);
 
     } catch (err) {
       setError("Error fetching patient details: " + err.message);
@@ -108,6 +147,7 @@ const Dashboard = ({ user, onLogout }) => {
       setLoading(false);
     }
   };
+
 
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to log out?")) {
@@ -561,6 +601,7 @@ const Dashboard = ({ user, onLogout }) => {
                                 <th>Dosage</th>
                                 <th>Frequency</th>
                                 <th>Start Date</th>
+                                <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -625,6 +666,9 @@ const Dashboard = ({ user, onLogout }) => {
                                                 />
                                             </td>
                                             <td>
+                                                {/* Empty cell to maintain column alignment in edit mode for the Status column */}
+                                            </td>
+                                            <td>
                                                 <button
                                                     className="action-button save-button"
                                                     onClick={() => handleSaveMedication(med.id)}
@@ -656,6 +700,9 @@ const Dashboard = ({ user, onLogout }) => {
                                                 }
                                             </td>
                                             <td>
+                                                {med.overall_status || 'N/A'} {/* Use the new 'overall_status' property */}
+                                            </td>
+                                            <td>
                                                 <button
                                                     className="remove-medication-button"
                                                     onClick={() => handleRemoveMedication(med.id)}
@@ -679,12 +726,32 @@ const Dashboard = ({ user, onLogout }) => {
             </div>
           </div>
 
-          <div className="card notes-card">
-            <h3>Notes for latest entry</h3>
-            {latestMetric && latestMetric.notes ? (
-              <p className="notes-text">{latestMetric.notes}</p>
+          {/* REPLACED NOTES WITH APPOINTMENT SCHEDULE */}
+          <div className="card appointment-schedule-card">
+            <h3>Patient Appointment Schedule</h3>
+            {patientAppointments.length === 0 ? (
+              <p className="no-appointments-text">No appointments scheduled for this patient.</p>
             ) : (
-              <p className="notes-text">No notes for the latest entry.</p>
+              <div className="table-responsive">
+                <table className="appointment-list-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Time</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {patientAppointments.map((appt) => (
+                      <tr key={appt.appointment_id}>
+                        <td>{new Date(appt.appointment_datetime).toLocaleDateString()}</td>
+                        <td>{new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                        <td>{appt.notes || "N/A"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>

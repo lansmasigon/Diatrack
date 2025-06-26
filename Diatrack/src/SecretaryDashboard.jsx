@@ -20,6 +20,42 @@ const formatTimeTo12Hour = (time24h) => {
   return `${displayHours}:${displayMinutes} ${ampm}`; // Corrected typo here (ampm instead of amppm)
 };
 
+// Helper function to determine lab status
+const getLabStatus = (latestLabResult) => {
+  if (!latestLabResult) {
+    console.log("getLabStatus: No lab result provided, returning N/A"); // <-- ADD THIS LOG
+    return 'N/A';
+  }
+
+  const requiredLabFields = [
+    'Hba1c', 'creatinine', 'got_ast', 'gpt_alt',
+    'cholesterol', 'triglycerides', 'hdl_cholesterol', 'ldl_cholesterol'
+  ];
+
+  let missingFields = false;
+  let hasAnyField = false;
+
+  for (const field of requiredLabFields) {
+    if (latestLabResult[field] === null || latestLabResult[field] === undefined || latestLabResult[field] === '') {
+      missingFields = true;
+    } else {
+      hasAnyField = true;
+    }
+  }
+
+  let status;
+  if (!hasAnyField && !missingFields) { // This condition implies a record exists but all *required* fields were empty initially
+      status = 'N/A';
+  } else if (missingFields) {
+      status = 'Pending';
+  } else {
+      status = 'Submitted';
+  }
+
+  console.log("getLabStatus: Result for lab data", latestLabResult, "is:", status); // <-- ADD THIS LOG
+  return status;
+};
+
 const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp, lowRisk, moderateRisk, highRisk }) => {
 
   // Calculate percentages for Patient Categories
@@ -204,6 +240,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showPatientConfirmationModal, setShowPatientConfirmationModal] = useState(false);
 
+  const [currentPageAppointments, setCurrentPageAppointments] = useState(1);
+  const APPOINTMENTS_PER_PAGE = 6; // Define how many appointments per page
+
   // New state for lab result inputs
   const [labResults, setLabResults] = useState({
     selectedPatientForLab: null, // To store the patient object selected for lab entry
@@ -250,6 +289,30 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     "Assignment",
   ];
 
+  const [appointmentChartData, setAppointmentChartData] = useState({
+    labels: [],
+    datasets: [],
+  });
+  const [loadingAppointments, setLoadingAppointments] = useState(false);
+  const [appointmentError, setAppointmentError] = useState(null);
+  
+  // Helper function to get the start of the week (Monday)
+  const getStartOfWeek = (date) => {
+    const d = new Date(date);
+    const day = d.getDay(); // Sunday - Saturday : 0 - 6
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday (0) to be last day of prev week or first day of current
+    return new Date(d.setDate(diff));
+  };
+  
+  // Helper function to format date to YYYY-MM-DD for Supabase query
+  const formatDateToYYYYMMDD = (date) => {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // NEW STATE: Medications for selected patient
   const [patientMedications, setPatientMedications] = useState([]);
 
@@ -283,6 +346,123 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       setPendingLabResultsCount(0);
     }
   }, [linkedDoctors, user]); // Dependencies ensure it runs when doctors are fetched
+
+
+  // New useEffect to fetch appointment data for the chart
+// New useEffect to fetch appointment data for the chart
+// New useEffect to fetch appointment data for the chart (updated for daily view)
+useEffect(() => {
+  const fetchAppointmentsForChart = async () => {
+    setLoadingAppointments(true);
+    setAppointmentError(null);
+
+    const doctorIds = linkedDoctors.map(d => d.doctor_id);
+    if (doctorIds.length === 0) {
+      setAppointmentChartData({ labels: [], datasets: [] });
+      setLoadingAppointments(false);
+      return;
+    }
+
+    // Calculate dates for the last two weeks (14 days total)
+    const today = new Date();
+    // Get start of this week (Monday)
+    const thisWeekStart = new Date(today);
+    const dayOfWeek = thisWeekStart.getDay(); // 0 for Sunday, 1 for Monday
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Adjust if today is Sunday or other day
+    thisWeekStart.setDate(thisWeekStart.getDate() + diffToMonday);
+    thisWeekStart.setHours(0, 0, 0, 0); // Set to beginning of the day
+
+    // Get the start of the period (Monday of last week)
+    const twoWeeksAgoStart = new Date(thisWeekStart);
+    twoWeeksAgoStart.setDate(twoWeeksAgoStart.getDate() - 7);
+
+    // Get the end of the period (Sunday of this week)
+    const endOfThisWeek = new Date(thisWeekStart);
+    endOfThisWeek.setDate(endOfThisWeek.getDate() + 6);
+    endOfThisWeek.setHours(23, 59, 59, 999); // Set to end of the day
+
+    const startDateFormatted = formatDateToYYYYMMDD(twoWeeksAgoStart);
+    const endDateFormatted = formatDateToYYYYMMDD(endOfThisWeek);
+
+    console.log("Fetching appointments from:", startDateFormatted, "to", endDateFormatted);
+
+    try {
+      // Fetch all appointments within the 2-week period
+      const { data: appointmentsData, error } = await supabase
+        .from('appointments')
+        .select('appointment_id, appointment_datetime, doctor_id') // Select necessary columns
+        .in('doctor_id', doctorIds)
+        .gte('appointment_datetime', startDateFormatted)
+        .lte('appointment_datetime', endDateFormatted);
+
+      if (error) throw error;
+
+      // Initialize daily counts and labels
+      const dailyCounts = {};
+      const chartLabels = [];
+      const chartData = [];
+
+      // Populate dailyCounts map and chartLabels
+      for (let d = new Date(twoWeeksAgoStart); d <= endOfThisWeek; d.setDate(d.getDate() + 1)) {
+        const dateString = formatDateToYYYYMMDD(d);
+        dailyCounts[dateString] = 0; // Initialize count for each day
+        chartLabels.push(new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })); // e.g., "Jun 23"
+      }
+
+      // Aggregate counts from fetched data
+      appointmentsData.forEach(appointment => {
+        const appointmentDate = new Date(appointment.appointment_datetime).toISOString().split('T')[0]; // Get YYYY-MM-DD
+        if (dailyCounts.hasOwnProperty(appointmentDate)) {
+          dailyCounts[appointmentDate]++;
+        }
+      });
+
+      // Populate chartData array in the correct order
+      chartLabels.forEach(label => {
+        // Find the full date string corresponding to the short label
+        const fullDate = new Date(
+          new Date().getFullYear(), // Use current year for accurate date construction
+          new Date(label + ', 2000').getMonth(), // Dummy year for parsing month/day
+          new Date(label + ', 2000').getDate()
+        ).toISOString().split('T')[0];
+
+        // Search for the corresponding day in the original date range from twoWeeksAgoStart
+        let foundCount = 0;
+        for (let d = new Date(twoWeeksAgoStart); d <= endOfThisWeek; d.setDate(d.getDate() + 1)) {
+            const tempDateString = formatDateToYYYYMMDD(d);
+            if (tempDateString === fullDate) {
+                foundCount = dailyCounts[tempDateString];
+                break;
+            }
+        }
+        chartData.push(foundCount);
+      });
+
+      setAppointmentChartData({
+        labels: chartLabels,
+        datasets: [
+          {
+            label: 'Number of Appointments',
+            data: chartData,
+            backgroundColor: 'rgba(92, 184, 92, 0.6)', // Green color
+            borderColor: 'rgba(92, 184, 92, 1)',
+            borderWidth: 1,
+          },
+        ],
+      });
+
+    } catch (error) {
+      console.error("Error fetching daily appointment data:", error.message);
+      setAppointmentError("Failed to load daily appointment history.");
+    } finally {
+      setLoadingAppointments(false);
+    }
+  };
+
+  if (supabase && linkedDoctors.length > 0) {
+    fetchAppointmentsForChart();
+  }
+}, [supabase, linkedDoctors]); // Re-run when supabase or linkedDoctors change
 
   // NEW function to fetch wound photos separately
   const fetchAllWoundPhotos = async (patientId) => {
@@ -550,66 +730,96 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       setPendingLabResultsCount(0);
       return;
     }
-
-    const { data, error } = await supabase
+  
+    const { data: patientsData, error: patientsError } = await supabase
       .from("patients")
-      // Select all patient fields. Ensure 'phase', 'risk_classification', 'lab_status' are selected.
       .select("*, doctors (doctor_id, first_name, last_name)");
-
-    if (!error) {
-      const filtered = data.filter(patient => doctorIds.includes(patient.preferred_doctor_id));
-      setPatients(filtered);
-      setTotalPatientsCount(filtered.length);
-
-      // Calculate counts for charts
-      let preOp = 0;
-      let postOp = 0;
-      let lowRisk = 0;
-      let moderateRisk = 0;
-      let highRisk = 0;
-      let pendingLabs = 0; // Keep this, as it still reflects a UI count
-
-      filtered.forEach(patient => {
-          // *** ADD THIS console.log to see the actual value of patient.phase ***
-          // console.log(`Patient: ${patient.first_name} ${patient.last_name}, Phase: ${patient.phase}`);
-
-          // Patient Categories (using 'phase' column as per your instruction)
-          // CORRECTED: Now checks for "Pre-Operative" and "Post-Operative" exactly
-          if (patient.phase === 'Pre-Operative') { // Corrected from 'Pre-Operative Phase'
-              preOp++;
-          } else if (patient.phase === 'Post-Operative') { // Corrected from 'Post-Operative Phase'
-              postOp++;
-          }
-
-          // Risk Classification (remains as is, assuming 'low', 'medium', 'high' lowercase in DB or handled by .toLowerCase())
-          const risk = (patient.risk_classification || '').toLowerCase();
-          if (risk === 'low') {
-              lowRisk++;
-          } else if (risk === 'medium') { // Assuming 'Medium' for moderate risk
-              moderateRisk++;
-          } else if (risk === 'high') {
-              highRisk++;
-          }
-
-          // Pending Lab Results (keeping this logic for now, even if lab_status column is not yet in DB)
-          // It will just count patients where this property might be 'Awaiting'.
-          if (patient.lab_status === 'Awaiting') {
-              pendingLabs++;
-          }
-      });
-
-      // *** ADD THIS console.log to see the final counts before setting state ***
-      // console.log(`Final Pre-Op Count: ${preOp}, Final Post-Op Count: ${postOp}`);
-
-      setPreOpCount(preOp);
-      setPostOpCount(postOp);
-      setLowRiskCount(lowRisk);
-      setModerateRiskCount(moderateRisk);
-      setHighRiskCount(highRisk);
-      setPendingLabResultsCount(pendingLabs);
-
+  
+    if (patientsError) {
+      console.error("Error fetching patients:", patientsError);
+      setMessage("Error fetching patients.");
+      return;
     }
-    else console.error(error);
+  
+    const filteredAndProcessedPatients = await Promise.all(
+      patientsData
+        .filter(patient => doctorIds.includes(patient.preferred_doctor_id))
+        .map(async (patient) => {
+          // Fetch the latest lab results for each patient, including only date_submitted
+          const { data: latestLabData, error: labError } = await supabase
+            .from('patient_labs')
+            .select('Hba1c, creatinine, got_ast, gpt_alt, cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol, date_submitted')
+            .eq('patient_id', patient.patient_id)
+            .order('date_submitted', { ascending: false })
+            .limit(1);
+  
+          let labStatus = 'N/A';
+          let latestLabDate = null;
+  
+          if (labError) {
+            console.error(`Error fetching lab results for patient ${patient.patient_id}:`, labError.message);
+            labStatus = 'Error'; // Handle error case
+          } else if (latestLabData && latestLabData.length > 0) {
+            console.log(`Patient ${patient.patient_id} - Latest Lab Data fetched:`, latestLabData[0]); // Debug log
+            labStatus = getLabStatus(latestLabData[0]);
+            // Store date only if status is 'Submitted'
+            if (labStatus === 'Submitted') {
+              latestLabDate = latestLabData[0].date_submitted;
+            }
+          }
+  
+          const processedPatient = {
+            ...patient,
+            lab_status: labStatus,
+            latest_lab_date: latestLabDate,
+          };
+          console.log(`Patient ${patient.patient_id} - Processed Patient Object:`, processedPatient); // Debug log
+          return processedPatient;
+        })
+    );
+  
+    setPatients(filteredAndProcessedPatients);
+    console.log("Final patients state after fetch:", filteredAndProcessedPatients); // Debug log
+    setTotalPatientsCount(filteredAndProcessedPatients.length);
+  
+    // Recalculate counts for charts based on the new data
+    let preOp = 0;
+    let postOp = 0;
+    let lowRisk = 0;
+    let moderateRisk = 0;
+    let highRisk = 0;
+    let pendingLabs = 0;
+  
+    filteredAndProcessedPatients.forEach(patient => {
+      // Patient Categories
+      if (patient.phase === 'Pre-Operative') {
+        preOp++;
+      } else if (patient.phase === 'Post-Operative') {
+        postOp++;
+      }
+  
+      // Risk Classification
+      const risk = (patient.risk_classification || '').toLowerCase();
+      if (risk === 'low') {
+        lowRisk++;
+      } else if (risk === 'medium') {
+        moderateRisk++;
+      } else if (risk === 'high') {
+        highRisk++;
+      }
+  
+      // Pending Lab Results (including N/A)
+      if (patient.lab_status === 'Pending' || patient.lab_status === 'N/A') {
+        pendingLabs++;
+      }
+    });
+  
+    setPreOpCount(preOp);
+    setPostOpCount(postOp);
+    setLowRiskCount(lowRisk);
+    setModerateRiskCount(moderateRisk);
+    setHighRiskCount(highRisk);
+    setPendingLabResultsCount(pendingLabs);
   };
 
   // Renamed to fetchAllAppointments and removed date filtering
@@ -1165,51 +1375,96 @@ const SecretaryDashboard = ({ user, onLogout }) => {
               <div className="dashboard-right-column">
                 <div className="appointments-today">
                   <h3>All Appointments</h3> {/* Changed heading */}
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Date & Time</th> {/* Changed to Date & Time */}
-                        <th>Patient Name</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {appointmentsToday.length > 0 ? (
-                        appointmentsToday.map((appointment) => (
-                          <tr key={appointment.appointment_id}>
-                            <td>{appointment.dateTimeDisplay}</td> {/* Use the new dateTimeDisplay */}
-                            <td>{appointment.patient_name}</td>
-                            <td className="appointment-actions">
-                              {/* Added Edit, Cancel, Done buttons with handlers */}
-                              <button
-                                className="edit-button"
-                                onClick={() => handleEditAppointment(appointment)}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                className="cancel-button"
-                                onClick={() => handleDeleteAppointment(appointment.appointment_id, 'cancel')}
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    className="done-button"
-                                    onClick={() => handleDeleteAppointment(appointment.appointment_id, 'done')}
-                                  >
-                                    Done
-                                  </button>
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan="3">No appointments found.</td> {/* Changed message */}
+                  <div className="appointment-list-container"> {/* Added container for table + pagination */}
+                    <table className="appointment-list-table"> {/* Class added for potential styling */}
+                      <thead>
+                        <tr>
+                          <th>Date & Time</th> {/* Changed to Date & Time */}
+                          <th>Patient Name</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* Slice the appointmentsToday array for pagination */}
+                        {appointmentsToday
+                          .slice(
+                            (currentPageAppointments - 1) * APPOINTMENTS_PER_PAGE,
+                            currentPageAppointments * APPOINTMENTS_PER_PAGE
+                          )
+                          .map((appointment) => (
+                            <tr key={appointment.appointment_id}>
+                              <td>{appointment.dateTimeDisplay}</td> {/* Use the new dateTimeDisplay */}
+                              <td>{appointment.patient_name}</td>
+                              <td className="appointment-actions">
+                                {/* Added Edit, Cancel, Done buttons with handlers */}
+                                <button
+                                  className="edit-button"
+                                  onClick={() => handleEditAppointment(appointment)}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  className="cancel-button"
+                                  onClick={() => handleDeleteAppointment(appointment.appointment_id, 'cancel')}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  className="done-button"
+                                  onClick={() => handleDeleteAppointment(appointment.appointment_id, 'done')}
+                                >
+                                  Done
+                                </button>
+                              </td>
                             </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
+                          ))}
+                        {/* Message for no appointments on the current page */}
+                        {appointmentsToday.length === 0 && (
+                          <tr>
+                            <td colSpan="3" style={{ textAlign: "center" }}>
+                              No appointments found.
+                            </td>
+                          </tr>
+                        )}
+                        {/* Message if no appointments for the current page slice */}
+                        {appointmentsToday.length > 0 &&
+                        appointmentsToday.slice(
+                          (currentPageAppointments - 1) * APPOINTMENTS_PER_PAGE,
+                          currentPageAppointments * APPOINTMENTS_PER_PAGE
+                        ).length === 0 && (
+                          <tr>
+                            <td colSpan="3" style={{ textAlign: "center" }}>
+                              No appointments on this page.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+
+                    {/* Pagination Controls */}
+                    {appointmentsToday.length > APPOINTMENTS_PER_PAGE && ( // Only show controls if there's more than one page
+                      <div className="pagination-controls">
+                        <button
+                          onClick={() => setCurrentPageAppointments(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPageAppointments === 1}
+                          className="pagination-button"
+                        >
+                          Previous
+                        </button>
+                        <span>
+                          Page {currentPageAppointments} of {Math.ceil(appointmentsToday.length / APPOINTMENTS_PER_PAGE)}
+                        </span>
+                        <button
+                          onClick={() => setCurrentPageAppointments(prev => Math.min(prev + 1, Math.ceil(appointmentsToday.length / APPOINTMENTS_PER_PAGE)))}
+                          disabled={currentPageAppointments === Math.ceil(appointmentsToday.length / APPOINTMENTS_PER_PAGE)}
+                          className="pagination-button"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
                   </div>
                 </div>
               )}
@@ -1479,7 +1734,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                       <th>Patient Name</th>
                       <th>Age/Sex</th>
                       <th>Assigned Doctor</th>
-                      <th>Status</th> {/* New Status column */}
+                      <th>Phase</th> {/* New Status column */}
                       <th>Classification</th>
                       <th>Lab Status</th>
                       <th>Profile Status</th>
@@ -1494,11 +1749,23 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                             <td>{pat.first_name} {pat.last_name}</td>
                             <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
                             <td>{pat.doctors ? `${pat.doctors.first_name} ${pat.doctors.last_name}` : 'Unknown'}</td>
-                            <td>{pat.phase || 'N/A'}</td> {/* Display patient phase */}
+                            <td className={`patient-phase ${
+                            pat.phase === 'Pre-Operative' ? 'phase-pre-operative' :
+                            pat.phase === 'Post-Operative' ? 'phase-post-operative' : ''
+                          }`}>
+                            {pat.phase || N/A}
+                          </td>
                             <td className={`risk-classification-${(pat.risk_classification || 'N/A').toLowerCase()}`}>
                                 {pat.risk_classification || 'N/A'}
                             </td>
-                            <td>{pat.lab_status || 'N/A'}</td> {/* Display actual lab status */}
+                            <td className={
+                            pat.lab_status === 'Submitted' ? 'lab-status-submitted' :
+                            pat.lab_status === 'Pending' ? 'lab-status-pending' : // Add this if you want pending to have a specific style
+                            pat.lab_status === 'N/A' ? 'lab-status-na' : // Add this if you want N/A to have a specific style
+                            ''
+                          }>
+                            {pat.lab_status || 'N/A'}
+                          </td>
                             <td>{pat.profile_status || 'N/A'}</td> {/* Display actual profile status */}
                             <td>{pat.last_doctor_visit || 'N/A'}</td> {/* Corrected line */}
                             <td className="patient-actions-cell">
@@ -2211,12 +2478,127 @@ const SecretaryDashboard = ({ user, onLogout }) => {
                     </div>
                 )}
 
-                {activePage === "reports" && (
-                  <div className="reports-section">
-                    <h2>Reports</h2>
-                    <p>This section is a placeholder for generating various patient reports.</p>
-                  </div>
-                )}
+{activePage === "reports" && (
+  <div className="reports-section">
+    <h2>Reports Overview</h2>
+    <div className="summary-widgets-report-view">
+      {/* Total Patients Widget */}
+      <div className="summary-widget total-patients">
+        <div className="summary-widget-icon">
+          <i className="fas fa-users"></i>
+        </div>
+        <div className="summary-widget-content">
+          <h3>Total Patients</h3>
+          <p className="summary-number">{totalPatientsCount}</p>
+          <p className="summary-subtitle">Overall patient count</p>
+        </div>
+      </div>
+
+      {/* Pending Lab Results Widget */}
+      <div className="summary-widget pending-lab-results">
+        <div className="summary-widget-icon">
+          <i className="fas fa-hourglass-half"></i>
+        </div>
+        <div className="summary-widget-content">
+          <h3>Pending Lab Results</h3>
+          <p className="summary-number">{pendingLabResultsCount}</p>
+          <p className="summary-subtitle">Patients needing complete lab work</p>
+        </div>
+      </div>
+    </div>
+
+    {/* New container for side-by-side layout */}
+    <div className="reports-content-row">
+      {/* Table for Patients with Submitted Labs */}
+      <div className="submitted-labs-table-container">
+        <h3>Patients with Submitted Lab Results</h3>
+        <table className="patient-list-table">
+          <thead>
+            <tr>
+              <th>Patient Name</th>
+              <th>Submission Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {/* Filter and map patients with 'Submitted' lab status and a valid submission date */}
+            {patients
+              .filter(
+                (pat) =>
+                  pat.lab_status === "Submitted" &&
+                  pat.latest_lab_date
+              )
+              .map((patient) => (
+                <tr key={patient.patient_id}>
+                  <td>{patient.first_name} {patient.last_name}</td>
+                  <td>{patient.latest_lab_date}</td>
+                </tr>
+              ))}
+            {/* Display message if no patients meet the criteria */}
+            {patients.filter(
+              (pat) =>
+                pat.lab_status === "Submitted" &&
+                pat.latest_lab_date
+            ).length === 0 && (
+              <tr>
+                <td colSpan="2">
+                  No patients have submitted all their lab results yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Appointment History Chart */}
+      <div className="appointment-chart-container">
+        <h3>Appointment History</h3>
+        {loadingAppointments && <p>Loading appointment data...</p>}
+        {appointmentError && <p className="error-message">Error: {appointmentError}</p>}
+        {!loadingAppointments && !appointmentError && appointmentChartData.labels.length > 0 && (
+          <Bar
+            data={appointmentChartData}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'top',
+                },
+                title: {
+                  display: false,
+                },
+              },
+              scales: {
+                x: {
+                  grid: {
+                    display: false,
+                  },
+                  title: {
+                    display: true,
+                    text: 'Week Period',
+                  },
+                },
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    precision: 0,
+                  },
+                  title: {
+                    display: true,
+                    text: 'Number of Appointments',
+                  },
+                },
+              },
+            }}
+          />
+        )}
+        {!loadingAppointments && !appointmentError && appointmentChartData.labels.length === 0 && (
+          <p>No appointment data available for the last two weeks.</p>
+        )}
+      </div>
+    </div> {/* End of reports-content-row */}
+  </div>
+)}
               </div>
             </div>
           </div>
