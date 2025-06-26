@@ -793,7 +793,7 @@ const Dashboard = ({ user, onLogout }) => {
                 <img src="https://placehold.co/40x40/aabbcc/ffffff?text=User" alt="User Avatar" className="user-avatar" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/aabbcc/ffffff?text=User"; }}/>
                 <div className="user-info-header">
                   <span className="user-name">{user ? `${user.first_name} ${user.last_name}` : 'Maria Batumbakal'}</span>
-                  <span className="user-role">Secretary</span>
+                  <span className="user-role">Doctor</span>
                 </div>
             </div>
             <button className="signout-button-header" onClick={handleLogout}><i className="fas fa-sign-out-alt"></i> <span>Logout</span></button>
