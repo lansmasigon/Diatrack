@@ -31,14 +31,14 @@ body {
   color: var(--text-dark);
 }
 
-.dashboard-container-header-only {
+.dashboard-container-header-only3 {
   display: flex;
   flex-direction: column; /* Stack header and content vertically */
   min-height: 100vh;
 }
 
 /* Main Header */
-.main-header {
+.main-header3 {
   background-color: var(--header-bg);
   padding: 15px 30px;
   box-shadow: 0 2px 8px var(--shadow-light);
@@ -49,18 +49,18 @@ body {
   gap: 10px; /* Space between main sections of the header */
 }
 
-.header-left {
+.header-left3 {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.header-left .app-logo {
+.header-left3 .app-logo3 {
   height: 40px; /* Smaller logo for header */
   width: auto;
 }
 
-.header-left .app-title {
+.header-left3 .app-title3 {
   font-size: 1.5em; /* Smaller title */
   font-weight: 700;
   color: var(--text-dark);
@@ -68,7 +68,7 @@ body {
 }
 
 /* Header Navigation */
-.header-nav ul {
+.header-nav3 ul {
   list-style: none;
   padding: 0;
   margin: 0;
@@ -76,7 +76,7 @@ body {
   gap: 10px; /* Space between nav items */
 }
 
-.header-nav li {
+.header-nav3 li {
   display: flex;
   align-items: center;
   gap: 8px; /* Space between icon and text */
@@ -89,51 +89,52 @@ body {
   font-weight: 500;
 }
 
-.header-nav li i {
+.header-nav3 li i {
   font-size: 1.1em;
   color: var(--text-medium);
 }
 
-.header-nav li:hover {
+.header-nav3 li:hover {
   background-color: var(--header-nav-hover);
   color: var(--primary-blue);
 }
 
-.header-nav li.active {
+.header-nav3 li.active3 {
   background-color: var(--primary-blue);
   color: var(--background-white);
   font-weight: bold;
 }
 
-.header-nav li.active i {
+.header-nav3 li.active3 i {
   color: var(--background-white);
 }
 
 /* Header Right Section (Icons, User Profile, Logout) */
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 20px; /* Space between elements in the right section */
-  margin-left: auto; /* Pushes to the right */
+.header-right3 {
+    display: flex; /* Make it a flex container */
+    align-items: center; /* Align items vertically */
+    gap: 15px; /* Space between the icon group, user profile, and logout button */
 }
 
-.header-icons {
-  display: flex;
-  gap: 18px;
-  font-size: 1.2em; /* Smaller icons than previous topbar */
+.header-icons3 {
+    display: flex; /* Make icons a flex container */
+    gap: 15px; /* Space between individual icons */
+    align-items: center; /* Align icons vertically */
 }
 
-.header-icons i {
-  cursor: pointer;
-  color: var(--text-medium);
-  transition: color 0.3s ease;
+.header-icons3 i {
+    font-size: 1.3em; /* Adjust icon size as needed */
+    color: var(--text-medium);
+    cursor: pointer;
+    transition: color 0.2s ease;
 }
 
-.header-icons i:hover {
-  color: var(--primary-blue);
+.header-icons3 i:hover {
+    color: var(--primary-blue);
 }
 
-.user-profile-header {
+
+.user-profile-header3 {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -142,7 +143,7 @@ body {
   background-color: var(--background-light); /* Light background for user profile */
 }
 
-.user-profile-header .user-avatar {
+.user-profile-header3 .user-avatar3 {
   border-radius: 50%;
   width: 35px; /* Smaller avatar */
   height: 35px;
@@ -150,23 +151,23 @@ body {
   border: 1px solid var(--primary-blue);
 }
 
-.user-info-header {
+.user-info-header3 {
   display: flex;
   flex-direction: column;
 }
 
-.user-profile-header .user-name {
+.user-profile-header3 .user-name3 {
   font-weight: 600;
   font-size: 0.95em;
   color: var(--text-dark);
 }
 
-.user-profile-header .user-role {
+.user-profile-header3 .user-role3 {
   font-size: 0.8em;
   color: var(--text-light);
 }
 
-.signout-button-header {
+.signout-button-header3 {
   background: none;
   border: 1px solid var(--danger-color);
   color: var(--danger-color);
@@ -181,20 +182,20 @@ body {
   white-space: nowrap; /* Prevent text wrapping */
 }
 
-.signout-button-header:hover {
+.signout-button-header3:hover {
   background-color: var(--danger-color);
   color: var(--background-white);
 }
 
 
 /* Content Area - Full Width */
-.content-area-full-width {
+.content-area-full-width3 {
   flex-grow: 1;
   padding: 30px;
   overflow-y: auto;
 }
 
-.content-area-full-width h1 {
+.content-area-full-width3 h1 {
   font-size: 2em;
   margin-top: 0;
   margin-bottom: 25px;
@@ -204,7 +205,7 @@ body {
 
 
 /* Card General Styling (Remains largely the same) */
-.card {
+.card3 {
   background-color: var(--card-bg);
   border-radius: 12px;
   box-shadow: 0 4px 15px var(--shadow-light);
@@ -214,7 +215,7 @@ body {
 }
 
 
-.card h2, .card h3 {
+.card3 h2, .card3 h3 {
   color: var(--text-dark);
   margin-top: 0;
   margin-bottom: 20px;
@@ -224,24 +225,24 @@ body {
 }
 
 /* Dashboard Grid (Remains the same) */
-.dashboard-grid {
+.dashboard-grid3 {
   display: grid;
   grid-template-columns: 1fr;
   gap: 25px;
 }
 
 @media (min-width: 992px) {
-  .dashboard-grid {
+  .dashboard-grid3 {
     grid-template-columns: 2fr 1fr;
   }
 }
 
 /* Patient List Table & Appointments (Remains largely the same) */
-.patient-list-card, .appointments-card {
+.patient-list-card3, .appointments-card3 {
   /* Specific styling for patient list card if needed */
 }
 
-.search-bar-patients {
+.search-bar-patients3 {
   position: relative;
   display: flex;
   align-items: center;
@@ -254,7 +255,7 @@ body {
   background-color: var(--background-light);
 }
 
-.search-bar-patients input[type="text"] {
+.search-bar-patients3 input[type="text"] {
   padding: 10px 15px;
   border: none;
   font-size: 1em;
@@ -265,7 +266,7 @@ body {
   outline: none;
 }
 
-.search-bar-patients .search-icon {
+.search-bar-patients3 .search-icon3 {
   position: absolute;
   right: 15px;
   color: var(--text-light);
@@ -273,13 +274,13 @@ body {
   font-size: 1.1em;
 }
 
-.table-responsive {
+.table-responsive3 {
   overflow-x: auto;
 }
 
-.patient-list-table,
-.appointment-list-table,
-.medication-list-table { /* Added medication-list-table */
+.patient-list-table3,
+.appointment-list-table3,
+.medication-list-table3 { /* Added medication-list-table */
   width: 100%;
   border-collapse: collapse;
   background-color: var(--card-bg);
@@ -287,9 +288,9 @@ body {
   overflow: hidden;
 }
 
-.patient-list-table th,
-.appointment-list-table th,
-.medication-list-table th { /* Added medication-list-table */
+.patient-list-table3 th,
+.appointment-list-table3 th,
+.medication-list-table3 th { /* Added medication-list-table */
   padding: 15px 20px;
   text-align: left;
   font-weight: bold;
@@ -299,9 +300,9 @@ body {
   background-color: #f0f4f7;
 }
 
-.patient-list-table td,
-.appointment-list-table td,
-.medication-list-table td { /* Added medication-list-table */
+.patient-list-table3 td,
+.appointment-list-table3 td,
+.medication-list-table3 td { /* Added medication-list-table */
   border-bottom: 1px solid var(--border-light);
   color: var(--text-dark);
   text-align: left;
@@ -309,15 +310,15 @@ body {
   padding: 12px 20px;
 }
 
-.patient-list-table tr:last-child td,
-.appointment-list-table tr:last-child td,
-.medication-list-table tr:last-child td { /* Added medication-list-table */
+.patient-list-table3 tr:last-child td,
+.appointment-list-table3 tr:last-child td,
+.medication-list-table3 tr:last-child td { /* Added medication-list-table */
     border-bottom: none;
 }
 
 /* Risk Classification and Phase Pills (Remains the same) */
-.risk-classification,
-.phase {
+.risk-classification3,
+.phase3 {
   border-radius: 20px;
   padding: 6px 14px;
   font-size: 0.8em;
@@ -327,33 +328,33 @@ body {
   white-space: nowrap;
 }
 
-.risk-classification.Low {
+.risk-classification3.Low3 {
   background-color: #d4edda;
   color: #155724;
 }
 
-.risk-classification.Moderate {
+.risk-classification3.Moderate3 {
   background-color: #fff3cd;
   color: #85640c;
 }
 
-.risk-classification.High {
+.risk-classification3.High3 {
   background-color: #f8d7da;
   color: #721c24;
 }
 
-.phase.Pre-Operative {
+.phase3.Pre-Operative3 {
   background-color: #ffc107;
   color: #343a40;
 }
 
-.phase.Post-Operative {
+.phase3.Post-Operative3 {
   background-color: #d1ecf1;
   color: #0c5460;
 }
 
 /* Action Buttons (Remains the same) */
-.action-button {
+.action-button3 {
   background: none;
   border: none;
   cursor: pointer;
@@ -365,32 +366,32 @@ body {
   font-weight: 500;
 }
 
-.action-button.view-button {
+.action-button3.view-button3 {
   color: var(--primary-blue);
   border: none;
   background: none;
 }
 
-.action-button.delete-button {
+.action-button3.delete-button3 {
   color: var(--danger-color);
   border: none;
   background: none;
 }
 
-.action-button.view-button:hover {
+.action-button3.view-button3:hover {
   background-color: rgba(0, 123, 255, 0.1);
 }
 
-.action-button.delete-button:hover {
+.action-button3.delete-button3:hover {
   background-color: rgba(220, 53, 69, 0.1);
 }
 
 /* Patient Profile specific styles (Remains largely the same) */
-.patient-profile-wrapper {
+.patient-profile-wrapper3 {
     padding: 20px 0;
 }
 
-.patient-profile-header {
+.patient-profile-header3 {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -399,23 +400,23 @@ body {
     border-bottom: 1px solid var(--border-light);
 }
 
-.patient-profile-header h2 {
+.patient-profile-header3 h2 {
     font-size: 2em;
     color: var(--text-dark);
     margin: 0;
     font-weight: 700;
 }
 
-.patient-profile-content-grid {
+.patient-profile-content-grid3 {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 15px;
 }
 
-.patient-details-card {
+.patient-details-card3 {
     grid-column: span 1;
 }
-.patient-details-card p {
+.patient-details-card3 p {
   color: black;
   display: flex;
   gap: 10px;
@@ -423,13 +424,13 @@ body {
 }
 
 
-.latest-metrics-card {
+.latest-metrics-card3 {
     grid-column: span 2;
     display: flex;
     flex-direction: column;
 }
 
-.metric-cards-container {
+.metric-cards-container3 {
   display: flex;
   gap: 15px;
   flex-wrap: wrap;
@@ -437,7 +438,7 @@ body {
   margin-top: 15px;
 }
 
-.metric-card {
+.metric-card3 {
   background-color: var(--background-light);
   border: 1px solid var(--border-light);
   border-radius: 10px;
@@ -448,31 +449,31 @@ body {
   box-shadow: 0 2px 8px var(--shadow-light); /* Changed to shadow-light for consistency */
 }
 
-.metric-card h4 {
+.metric-card3 h4 {
   margin-top: 0;
   margin-bottom: 8px;
   color: var(--text-medium);
   font-size: 0.9em;
 }
 
-.metric-value {
+.metric-value3 {
   font-size: 1.6em;
   font-weight: bold;
   color: var(--primary-blue);
   margin-bottom: 3px;
 }
 
-.metric-unit {
+.metric-unit3 {
   font-size: 0.75em;
   color: var(--text-light);
 }
 
 /* Medication Management Styles */
-.medication-card {
+.medication-card3 {
     grid-column: span 2;
 }
 
-.medication-input-group {
+.medication-input-group3 {
     display: flex;
     flex-wrap: wrap; /* Allow wrapping inputs on smaller screens */
     gap: 10px;
@@ -480,7 +481,7 @@ body {
     align-items: center;
 }
 
-.medication-input-group .medication-input {
+.medication-input-group3 .medication-input3 {
     flex: 1; /* Allows inputs to grow */
     min-width: 120px; /* Minimum width before wrapping */
     padding: 10px 15px;
@@ -492,14 +493,14 @@ body {
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.medication-input-group .medication-input:focus {
+.medication-input-group3 .medication-input3:focus {
     border-color: var(--primary-blue);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
     outline: none;
 }
 
 /* New: Styles for the checkbox group */
-.medication-checkbox-group {
+.medication-checkbox-group3 {
   display: flex;
   gap: 15px; /* Space between checkboxes */
   flex-wrap: wrap; /* Allow wrapping */
@@ -512,7 +513,7 @@ body {
   min-width: 250px; /* Ensure it doesn't get too small */
 }
 
-.medication-checkbox-group label {
+.medication-checkbox-group3 label {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -521,13 +522,13 @@ body {
   cursor: pointer;
 }
 
-.medication-checkbox-group input[type="checkbox"] {
+.medication-checkbox-group3 input[type="checkbox"] {
   transform: scale(1.1); /* Slightly larger checkboxes */
   accent-color: var(--primary-blue); /* Color of the checked box */
 }
 
 
-.add-medication-button {
+.add-medication-button3 {
   background-color: var(--success-color);
   color: var(--background-white);
   padding: 10px 20px;
@@ -540,13 +541,13 @@ body {
   white-space: nowrap; /* Prevent text from wrapping */
 }
 
-.add-medication-button:hover {
+.add-medication-button3:hover {
   background-color: #218838; /* Darker green */
   transform: translateY(-1px);
 }
 
 /* Medication List Table Specific Styles */
-.medication-list-table {
+.medication-list-table3 {
   width: 100%;
   border-collapse: collapse;
   margin-top: 15px;
@@ -554,35 +555,35 @@ body {
   overflow: hidden;
 }
 
-.medication-list-table th,
-.medication-list-table td {
+.medication-list-table3 th,
+.medication-list-table3 td {
   padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid var(--border-light);
 }
 
-.medication-list-table th {
+.medication-list-table3 th {
   background-color: #f0f4f7;
   font-weight: 600;
   color: var(--text-medium);
   font-size: 0.9em;
 }
 
-.medication-list-table td {
+.medication-list-table3 td {
   color: var(--text-dark);
   font-size: 0.85em;
 }
 
-.medication-list-table tbody tr:last-child td {
+.medication-list-table3 tbody tr:last-child td {
   border-bottom: none;
 }
 
-.medication-list-table {
+.medication-list-table3 {
   padding: 6px 10px;
   font-size: 1em;
 }
 
-.remove-medication-button, .edit-medication-button {
+.remove-medication-button3, .edit-medication-button3 {
   background: none;
   border: none;
   cursor: pointer;
@@ -592,7 +593,7 @@ body {
 }
 
 
-.no-medication-text {
+.no-medication-text3 {
   color: var(--text-light);
   font-style: italic;
   text-align: center;
@@ -602,29 +603,29 @@ body {
 }
 
 
-.notes-card {
+.notes-card3 {
     grid-column: span 1;
 }
 
-.notes-text {
+.notes-text3 {
     font-size: 1em;
     color: var(--text-dark);
     line-height: 1.6;
 }
 
-.assignments-card {
+.assignments-card3 {
     grid-column: span 1;
 }
 
 /* Modified Photo Gallery Styles */
-.photo-gallery {
+.photo-gallery3 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Smaller min-width */
   gap: 15px; /* Reduced gap */
   margin-top: 15px;
 }
 
-.photo-card {
+.photo-card3 {
   background-color: var(--background-light);
   border: 1px solid var(--border-light);
   border-radius: 10px;
@@ -633,14 +634,14 @@ body {
   box-shadow: 0 2px 8px var(--shadow-light);
 }
 
-.photo-card h4 {
+.photo-card3 h4 {
   margin-top: 0;
   margin-bottom: 10px; /* Reduced margin */
   color: var(--text-medium);
   font-size: 0.9em; /* Slightly smaller font */
 }
 
-.photo-card img {
+.photo-card3 img {
   max-width: 100%;
   height: auto;
   border-radius: 6px;
@@ -649,24 +650,24 @@ body {
   width: 100%;
 }
 
-.wound-healing-card {
+.wound-healing-card3 {
     grid-column: span 2;
 }
 
-.card-header {
+.card-header3 {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 15px;
 }
 
-.card-header h3 {
+.card-header3 h3 {
   margin: 0;
   font-size: 1.2em;
   color: var(--text-dark);
 }
 
-.timeframe-select {
+.timeframe-select3 {
   padding: 8px 12px;
   border-radius: 8px;
   border: 1px solid var(--border-medium);
@@ -675,7 +676,7 @@ body {
   color: var(--text-dark);
 }
 
-.progress-meter {
+.progress-meter3 {
   display: flex;
   flex-direction: column;
   gap: 15px;
@@ -683,7 +684,7 @@ body {
   padding-top: 10px;
 }
 
-.meter-item {
+.meter-item3 {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -691,35 +692,35 @@ body {
   border-bottom: 1px dashed var(--border-light);
 }
 
-.meter-item:last-child {
+.meter-item3:last-child {
     border-bottom: none;
 }
 
-.meter-label {
+.meter-label3 {
   font-weight: 500;
   color: var(--text-medium);
   font-size: 0.9em;
 }
 
-.meter-value-container {
+.meter-value-container3 {
   display: flex;
   align-items: baseline;
   gap: 5px;
 }
 
-.meter-value {
+.meter-value3 {
   font-size: 1.4em;
   font-weight: bold;
   color: var(--primary-blue);
 }
 
-.meter-value-large {
+.meter-value-large3 {
   font-size: 2.2em;
   font-weight: bold;
   color: var(--secondary-orange);
 }
 
-.healthy-indicator {
+.healthy-indicator3 {
   font-size: 0.9em;
   color: var(--success-color);
   font-weight: 600;
@@ -728,14 +729,14 @@ body {
   border-radius: 5px;
 }
 
-.small-metrics {
+.small-metrics3 {
     display: grid;
     grid-template-columns: 1fr;
     gap: 15px;
     margin-top: 20px;
 }
 
-.small-metric-item {
+.small-metric-item3 {
     background-color: var(--background-light);
     border: 1px solid var(--border-light);
     border-radius: 8px;
@@ -754,164 +755,163 @@ body {
 
 /* General header responsiveness */
 @media (max-width: 1200px) {
-  .main-header {
+  .main-header3 {
     flex-wrap: wrap;
     justify-content: center;
   }
-  .header-left, .header-nav, .header-right {
+  .header-left3, .header-nav3, .header-right3 {
     flex-basis: 100%; /* Take full width on smaller wide screens */
     justify-content: center;
     margin-left: 0; /* Reset margin auto */
   }
-  .header-nav ul {
+  .header-nav3 ul {
     justify-content: center;
     gap: 15px; /* Reduce gap */
   }
-  .signout-button-header {
+  .signout-button-header3 {
     margin-top: 10px; /* Give some space if it wraps */
   }
 }
 
 @media (max-width: 768px) {
-  .main-header {
+  .main-header3 {
     padding: 10px 15px;
     flex-direction: column; /* Stack items vertically */
     align-items: center;
     gap: 15px;
   }
 
-  .header-left {
+  .header-left3 {
     justify-content: center;
     margin-bottom: 10px;
   }
 
-  .header-nav ul {
+  .header-nav3 ul {
     flex-direction: column; /* Stack nav items vertically */
     align-items: center;
     width: 100%;
     gap: 5px; /* Smaller gap for stacked items */
   }
 
-  .header-nav li {
+  .header-nav3 li {
     width: 100%;
     justify-content: center; /* Center text and icon */
     padding: 8px 10px;
     font-size: 0.95em;
   }
 
-  .header-right {
+  .header-right3 {
     flex-direction: column; /* Stack icons, profile, logout */
     gap: 10px;
     width: 100%;
     margin-left: 0; /* Reset margin */
   }
 
-  .header-icons {
+  .header-icons3 {
     justify-content: center; /* Center icons */
     width: 100%;
     font-size: 1.1em;
     gap: 15px;
   }
 
-  .user-profile-header {
+  .user-profile-header3 {
     justify-content: center;
     width: 100%;
     padding: 8px 10px;
   }
 
-  .signout-button-header {
+  .signout-button-header3 {
     width: 100%;
     padding: 10px;
     font-size: 0.95em;
   }
 
-  .content-area-full-width {
+  .content-area-full-width3 {
     padding: 20px;
   }
 
-  .content-area-full-width h1 {
+  .content-area-full-width3 h1 {
     font-size: 1.8em;
     text-align: center; /* Center welcome message */
   }
 
-  .dashboard-grid, .patient-profile-content-grid {
+  .dashboard-grid3, .patient-profile-content-grid3 {
     grid-template-columns: 1fr; /* Single column on small screens */
   }
 
-  .patient-details-card,
-  .latest-metrics-card,
-  .medication-card,
-  .notes-card,
-  .assignments-card,
-  .wound-healing-card {
+  .patient-details-card3,
+  .latest-metrics-card3,
+  .medication-card3,
+  .notes-card3,
+  .assignments-card3,
+  .wound-healing-card3 {
     grid-column: span 1;
   }
 
-  .metric-cards-container, .photo-gallery {
+  .metric-cards-container3, .photo-gallery3 {
       flex-direction: column;
       align-items: stretch;
   }
 
-  .photo-card img {
+  .photo-card3 img {
       max-height: 120px; /* Adjusted for smaller photo cards */
   }
 
-  .search-bar-patients {
+  .search-bar-patients3 {
     width: 100%;
   }
 
-  .medication-input-group {
+  .medication-input-group3 {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .medication-input-group .medication-input,
-  .add-medication-button,
-  .medication-checkbox-group { /* Ensure checkbox group also takes full width */
+  .medication-input-group3 .medication-input3,
+  .add-medication-button3,
+  .medication-checkbox-group3 { /* Ensure checkbox group also takes full width */
       width: 100%;
       max-width: none;
   }
 }
 
 @media (max-width: 480px) {
-  .header-left .app-title {
+  .header-left3 .app-title3 {
     font-size: 1.3em;
   }
-  .header-nav li {
+  .header-nav3 li {
     font-size: 0.9em;
   }
-  .header-icons {
+  .header-icons3 {
     font-size: 1em;
   }
-  .signout-button-header {
+  .signout-button-header3 {
     font-size: 0.85em;
     padding: 8px 12px;
   }
-  .card {
+  .card3 {
     padding: 15px;
     margin-bottom: 15px;
   }
-  .card h2, .card h3 {
+  .card3 h2, .card3 h3 {
     font-size: 1.2em;
     margin-bottom: 15px;
   }
-  .patient-list-table th,
-  .appointment-list-table th,
-  .medication-list-table th, /* Added */
-  .patient-list-table td,
-  .appointment-list-table td,
-  .medication-list-table td { /* Added */
+  .patient-list-table3 th,
+  .appointment-list-table3 th,
+  .medication-list-table3 th, /* Added */
+  .patient-list-table3 td,
+  .appointment-list-table3 td,
+  .medication-list-table3 td { /* Added */
     padding: 8px 12px;
     font-size: 0.8em;
   }
-  .action-button {
+  .action-button3 {
     font-size: 0.8em;
     padding: 5px 8px;
   }
-  .photo-card img {
+  .photo-card3 img {
       max-height: 100px; /* Even smaller on very small screens */
   }
 }
 
 /* ... other existing media queries ... */
-

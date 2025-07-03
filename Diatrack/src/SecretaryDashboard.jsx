@@ -464,6 +464,9 @@ useEffect(() => {
   }
 }, [supabase, linkedDoctors]); // Re-run when supabase or linkedDoctors change
 
+
+const [woundPhotoData, setWoundPhotoData] = useState([]);
+
   // NEW function to fetch wound photos separately
   const fetchAllWoundPhotos = async (patientId) => {
     setAllWoundPhotos([]); // Clear previous wound photos
@@ -1753,7 +1756,7 @@ useEffect(() => {
                             pat.phase === 'Pre-Operative' ? 'phase-pre-operative' :
                             pat.phase === 'Post-Operative' ? 'phase-post-operative' : ''
                           }`}>
-                            {pat.phase || N/A}
+                            {pat.phase}
                           </td>
                             <td className={`risk-classification-${(pat.risk_classification || 'N/A').toLowerCase()}`}>
                                 {pat.risk_classification || 'N/A'}

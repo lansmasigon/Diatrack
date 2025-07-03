@@ -378,19 +378,19 @@ const Dashboard = ({ user, onLogout }) => {
   );
 
   const renderPatientList = () => (
-    <div className="card patient-list-card">
+    <div className="card3 patient-list-card3">
         <h2>My Patients</h2>
-        <div className="search-bar-patients">
+        <div className="search-bar-patients3">
             <input
               type="text"
               placeholder="Search patients..."
               value={searchTerm}
               onChange={handleSearchChange}
             />
-            <i className="fas fa-search search-icon"></i>
+            <i className="fas fa-search search-icon3"></i>
           </div>
-        <div className="table-responsive">
-            <table className="patient-list-table">
+        <div className="table-responsive3">
+            <table className="patient-list-table3">
               <thead>
                 <tr>
                   <th>Patient Name</th>
@@ -408,18 +408,18 @@ const Dashboard = ({ user, onLogout }) => {
                     <td>{patient.date_of_birth}</td>
                     <td>{patient.contact_info}</td>
                     <td>
-                      <span className={`risk-classification ${patient.risk_classification}`}>
+                      <span className={`risk-classification3 ${patient.risk_classification}`}>
                         {patient.risk_classification}
                       </span>
                     </td>
                     <td>
-                      <span className={`phase ${patient.phase}`}>
+                      <span className={`phase3 ${patient.phase}`}>
                         {patient.phase}
                       </span>
                     </td>
                     <td>
-                      <button className="action-button view-button" onClick={() => handleViewClick(patient)}>View</button>
-                      <button className="action-button delete-button" onClick={() => handleDeleteClick(patient)}>Delete</button>
+                      <button className="action-button3 view-button3" onClick={() => handleViewClick(patient)}>View</button>
+                      <button className="action-button3 delete-button3" onClick={() => handleDeleteClick(patient)}>Delete</button>
                     </td>
                   </tr>
                 ))}
@@ -430,10 +430,10 @@ const Dashboard = ({ user, onLogout }) => {
   );
 
   const renderAppointments = () => (
-    <div className="card appointments-card">
+    <div className="card3 appointments-card3">
         <h2>Upcoming Appointments</h2>
-        <div className="table-responsive">
-            <table className="appointment-list-table">
+        <div className="table-responsive3">
+            <table className="appointment-list-table3">
               <thead>
                 <tr>
                   <th>Patient</th>
@@ -462,85 +462,104 @@ const Dashboard = ({ user, onLogout }) => {
   );
 
   const renderDashboardContent = () => (
-    <div className="dashboard-grid">
+    <div className="dashboard-grid3">
       {renderPatientList()}
       {renderAppointments()}
     </div>
   );
 
   const renderPatientProfile = () => {
-    if (loading) return <div className="loading-message">Loading patient details...</div>;
-    if (error) return <div className="error-message">{error}</div>;
+    if (loading) return <div className="loading-message3">Loading patient details...</div>;
+    if (error) return <div className="error-message3">{error}</div>;
 
     const latestMetric = patientMetrics.length > 0 ? patientMetrics[0] : null;
 
     return (
-      <div className="patient-profile-wrapper">
-        <div className="patient-profile-header">
+      <div className="patient-profile-wrapper3">
+        <div className="patient-profile-header3">
           <h2>Patient Profile: {selectedPatient.first_name} {selectedPatient.last_name}</h2>
-          <button className="back-button" onClick={() => setActivePage("dashboard")}>Back to Dashboard</button>
+          <button className="back-button3" onClick={() => setActivePage("dashboard")}>Back to Dashboard</button>
         </div>
 
-        <div className="patient-profile-content-grid">
-          <div className="card patient-details-card">
+        <div className="patient-profile-content-grid3">
+          <div className="card3 patient-details-card3">
             <h3>Patient Information</h3>
-            <div className="patient-info-display">
+            <div className="patient-info-display3">
                 <p><strong>Date of Birth:</strong> {selectedPatient.date_of_birth}</p>
                 <p><strong>Contact Info:</strong> {selectedPatient.contact_info}</p>
-                <p><strong>Risk Classification:</strong> <span className={`risk-classification ${selectedPatient.risk_classification}`}>{selectedPatient.risk_classification}</span></p>
-                <p><strong>Phase:</strong> <span className={`phase ${selectedPatient.phase}`}>{selectedPatient.phase}</span></p>
+                <p><strong>Risk Classification:</strong> <span className={`risk-classification3 ${selectedPatient.risk_classification}`}>{selectedPatient.risk_classification}</span></p>
+                <p><strong>Phase:</strong> <span className={`phase3 ${selectedPatient.phase}`}>{selectedPatient.phase}</span></p>
                 <p><strong>Preferred Doctor ID:</strong> {selectedPatient.preferred_doctor_id}</p>
             </div>
           </div>
 
-          {latestMetric && (
-            <div className="card latest-metrics-card">
-              <h3>Latest Health Metrics</h3>
-              <div className="metric-cards-container">
-                <div className="metric-card blood-glucose">
+          <div className="card3 latest-metrics-card3">
+            <h3>Latest Health Metrics</h3>
+            {latestMetric && (latestMetric.blood_glucose || latestMetric.bp_systolic || latestMetric.bp_diastolic) ? (
+              <div className="metric-cards-container3">
+                <div className="metric-card3 blood-glucose3">
                   <h4>Blood Glucose</h4>
-                  <p className="metric-value">{latestMetric.blood_glucose || 'N/A'}</p>
-                  <span className="metric-unit">mg/dL</span>
+                  <p className="metric-value3">{latestMetric.blood_glucose || 'No available data'}</p>
+                  <span className="metric-unit3">mg/dL</span>
                 </div>
-                <div className="metric-card blood-pressure">
+                <div className="metric-card3 blood-pressure3">
                   <h4>Blood Pressure</h4>
-                  <p className="metric-value">{latestMetric.bp_systolic || 'N/A'} / {latestMetric.bp_diastolic || 'N/A'}</p>
-                  <span className="metric-unit">mmHg</span>
+                  <p className="metric-value3">
+                    {(latestMetric.bp_systolic && latestMetric.bp_diastolic) ?
+                      `${latestMetric.bp_systolic} / ${latestMetric.bp_diastolic}` :
+                      'No available data'
+                    }
+                  </p>
+                  <span className="metric-unit3">mmHg</span>
                 </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <p>No available data for health metrics.</p>
+            )}
+          </div>
 
-          {latestMetric && (latestMetric.wound_photo_url || latestMetric.food_photo_url) && (
-            <div className="card assignments-card">
-              <h3>Photos</h3>
-              <div className="photo-gallery">
-                {latestMetric.wound_photo_url && (
-                  <div className="photo-card">
+          <div className="card3 assignments-card3">
+            <h3>Photos</h3>
+            {(latestMetric && (latestMetric.wound_photo_url || latestMetric.food_photo_url)) ? (
+              <div className="photo-gallery3">
+                {latestMetric.wound_photo_url ? (
+                  <div className="photo-card3">
                     <h4>Latest Wound Photo</h4>
                     <img src={latestMetric.wound_photo_url} alt="Latest Wound" />
                   </div>
+                ) : (
+                  <div className="photo-card3">
+                    <h4>Latest Wound Photo</h4>
+                    <p>No photo available.</p>
+                  </div>
                 )}
-                {latestMetric.food_photo_url && (
-                  <div className="photo-card">
+                {latestMetric.food_photo_url ? (
+                  <div className="photo-card3">
                     <h4>Latest Food Photo</h4>
                     <img src={latestMetric.food_photo_url} alt="Latest Food" />
                   </div>
+                ) : (
+                  <div className="photo-card3">
+                    <h4>Latest Food Photo</h4>
+                    <p>No photo available.</p>
+                  </div>
                 )}
               </div>
-            </div>
-          )}
+            ) : (
+              <p>No photos available for this patient.</p>
+            )}
+          </div>
           {/* New Medication Management Card */}
-          <div className="card medication-card">
+          <div className="card3 medication-card3">
             <h3>Medication Management</h3>
-            <div className="medication-input-group">
+            <div className="medication-input-group3">
                 <input
                     type="text"
                     name="name"
                     placeholder="Medication Name"
                     value={newMedication.name}
                     onChange={handleNewMedicationInputChange}
-                    className="medication-input"
+                    className="medication-input3"
                 />
                 <input
                     type="text"
@@ -548,10 +567,10 @@ const Dashboard = ({ user, onLogout }) => {
                     placeholder="Dosage"
                     value={newMedication.dosage}
                     onChange={handleNewMedicationInputChange}
-                    className="medication-input"
+                    className="medication-input3"
                 />
                 {/* Checkboxes for timeOfDay */}
-                <div className="medication-checkbox-group">
+                <div className="medication-checkbox-group3">
                     <label>
                         <input
                             type="checkbox"
@@ -585,16 +604,16 @@ const Dashboard = ({ user, onLogout }) => {
                     name="startDate"
                     value={newMedicationFrequency.startDate}
                     onChange={handleNewMedicationFrequencyChange}
-                    className="medication-input"
+                    className="medication-input3"
                 />
-                <button onClick={handleAddMedication} className="add-medication-button">Add Medication</button>
+                <button onClick={handleAddMedication} className="add-medication-button3">Add Medication</button>
             </div>
 
-            <div className="medication-list table-responsive"> {/* Added table-responsive for overflow */}
+            <div className="medication-list3 table-responsive3"> {/* Added table-responsive for overflow */}
                 {patientMedications.length === 0 ? (
-                    <p className="no-medication-text">No medications listed for this patient.</p>
+                    <p className="no-medication-text3">No medications listed for this patient.</p>
                 ) : (
-                    <table className="medication-list-table">
+                    <table className="medication-list-table3">
                         <thead>
                             <tr>
                                 <th>Medication Name</th>
@@ -627,7 +646,7 @@ const Dashboard = ({ user, onLogout }) => {
                                                 />
                                             </td>
                                             <td>
-                                                <div className="medication-checkbox-group-edit">
+                                                <div className="medication-checkbox-group-edit3">
                                                     <label>
                                                         <input
                                                             type="checkbox"
@@ -670,13 +689,13 @@ const Dashboard = ({ user, onLogout }) => {
                                             </td>
                                             <td>
                                                 <button
-                                                    className="action-button save-button"
+                                                    className="action-button3 save-button3"
                                                     onClick={() => handleSaveMedication(med.id)}
                                                 >
                                                     Save
                                                 </button>
                                                 <button
-                                                    className="action-button cancel-button"
+                                                    className="action-button3 cancel-button3"
                                                     onClick={handleCancelEdit}
                                                 >
                                                     Cancel
@@ -704,13 +723,13 @@ const Dashboard = ({ user, onLogout }) => {
                                             </td>
                                             <td>
                                                 <button
-                                                    className="remove-medication-button"
+                                                    className="remove-medication-button3"
                                                     onClick={() => handleRemoveMedication(med.id)}
                                                 >
                                                     Remove
                                                 </button>
                                                 <button
-                                                    className="edit-medication-button"
+                                                    className="edit-medication-button3"
                                                     onClick={() => handleEditClick(med)}
                                                 >
                                                     Edit
@@ -727,13 +746,13 @@ const Dashboard = ({ user, onLogout }) => {
           </div>
 
           {/* REPLACED NOTES WITH APPOINTMENT SCHEDULE */}
-          <div className="card appointment-schedule-card">
+          <div className="card3 appointment-schedule-card3">
             <h3>Patient Appointment Schedule</h3>
             {patientAppointments.length === 0 ? (
-              <p className="no-appointments-text">No appointments scheduled for this patient.</p>
+              <p className="no-appointments-text3">No appointments scheduled for this patient.</p>
             ) : (
-              <div className="table-responsive">
-                <table className="appointment-list-table">
+              <div className="table-responsive3">
+                <table className="appointment-list-table3">
                   <thead>
                     <tr>
                       <th>Date</th>
@@ -760,52 +779,52 @@ const Dashboard = ({ user, onLogout }) => {
   };
 
   return (
-    <div className="dashboard-container-header-only">
-      <header className="main-header">
-        <div className="header-left">
-          <img src={logo} alt="DiaTrack Logo" className="app-logo" />
-          <span className="app-title">
+    <div className="dashboard-container-header-only3">
+      <header className="main-header3">
+        <div className="header-left3">
+          <img src={logo} alt="DiaTrack Logo" className="app-logo3" />
+          <span className="app-title3">
             <span style={{ color: 'var(--primary-blue)' }}>Dia</span>
             <span style={{ color: 'var(--secondary-orange)' }}>Track</span>
           </span>
         </div>
 
-        <nav className="header-nav">
+        <nav className="header-nav3">
           <ul>
-            <li className={activePage === "dashboard" ? "active" : ""} onClick={() => setActivePage("dashboard")}>
+            <li className={activePage === "dashboard" ? "active3" : ""} onClick={() => setActivePage("dashboard")}>
               <i className="fas fa-home"></i> <span>Dashboard</span>
             </li>
-            <li className={activePage === "patient-list" ? "active" : ""} onClick={() => setActivePage("patient-list")}>
+            <li className={activePage === "patient-list" ? "active3" : ""} onClick={() => setActivePage("patient-list")}>
               <i className="fas fa-users"></i> <span>Patient List</span>
             </li>
-            <li className={activePage === "reports" ? "active" : ""} onClick={() => setActivePage("reports")}>
+            <li className={activePage === "reports" ? "active3" : ""} onClick={() => setActivePage("reports")}>
               <i className="fas fa-chart-line"></i> <span>Reports</span>
             </li>
           </ul>
         </nav>
 
-        <div className="header-right">
-            <div className="header-icons">
-                <i className="fas fa-bell notification-icon"></i>
-                <i className="fas fa-envelope message-icon"></i>
+        <div className="header-right3">
+            <div className="header-icons3">
+                <i className="fas fa-bell notification-icon3"></i>
+                <i className="fas fa-envelope message-icon3"></i>
             </div>
-            <div className="user-profile-header">
-                <img src="https://placehold.co/40x40/aabbcc/ffffff?text=User" alt="User Avatar" className="user-avatar" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/aabbcc/ffffff?text=User"; }}/>
-                <div className="user-info-header">
-                  <span className="user-name">{user ? `${user.first_name} ${user.last_name}` : 'Maria Batumbakal'}</span>
-                  <span className="user-role">Doctor</span>
+            <div className="user-profile-header3">
+                <img src="https://placehold.co/40x40/aabbcc/ffffff?text=User" alt="User Avatar" className="user-avatar3" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/aabbcc/ffffff?text=User"; }}/>
+                <div className="user-info-header3">
+                  <span className="user-name3">{user ? `${user.first_name} ${user.last_name}` : 'Maria Batumbakal'}</span>
+                  <span className="user-role3">Doctor</span>
                 </div>
             </div>
-            <button className="signout-button-header" onClick={handleLogout}><i className="fas fa-sign-out-alt"></i> <span>Logout</span></button>
+            <button className="signout-button-header3" onClick={handleLogout}><i className="fas fa-sign-out-alt"></i> <span>Logout</span></button>
         </div>
       </header>
 
-      <main className="content-area-full-width">
+      <main className="content-area-full-width3">
         <h1>Welcome, Dr. {user.first_name} 👋</h1>
         {activePage === "dashboard" && renderDashboardContent()}
         {activePage === "patient-profile" && selectedPatient && renderPatientProfile()}
         {activePage === "patient-list" && renderPatientList()}
-        {activePage === "reports" && <div className="card reports-card"><h2>Reports Section</h2><p>Content for Reports...</p></div>}
+        {activePage === "reports" && <div className="card3 reports-card3"><h2>Reports Section</h2><p>Content for Reports...</p></div>}
       </main>
     </div>
   );

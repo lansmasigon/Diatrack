@@ -10,14 +10,14 @@ body {
 }
 
 /* Dashboard Container (overall layout) */
-.dashboard-container {
+.dashboard-container1 {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 
 /* Header */
-.header {
+.header1 {
   background-color: #ffffff;
   color: #333;
   padding: 15px 30px;
@@ -29,18 +29,18 @@ body {
   flex-wrap: wrap; /* Allow items to wrap on smaller screens */
 }
 
-.header-left {
+.header-left1 {
   display: flex; /* Make logo and title side-by-side */
   align-items: center;
   gap: 10px; /* Space between logo and title */
 }
 
-.app-logo {
+.app-logo1 {
   height: 40px; /* Adjust logo size as needed */
   width: auto;
 }
 
-.app-title {
+.app-title1 {
   font-size: 2rem;
   font-weight: 700;
   margin: 0;
@@ -52,13 +52,13 @@ body {
 /* .search-bar input[type="text"] { ... } */
 /* .search-bar .search-icon { ... } */
 
-.main-nav {
+.main-nav1 {
   flex-grow: 1; /* Allow navigation to take available space */
   display: flex;
   justify-content: center; /* Center the navigation links */
 }
 
-.main-nav .nav-list {
+.main-nav1 .nav-list1 {
   list-style: none;
   padding: 0;
   margin: 0;
@@ -66,7 +66,7 @@ body {
   gap: 25px;
 }
 
-.main-nav .nav-list li {
+.main-nav1 .nav-list1 li {
   padding: 8px 0;
   cursor: pointer;
   font-size: 1.1em;
@@ -79,16 +79,16 @@ body {
   gap: 8px;
 }
 
-.main-nav .nav-list li:hover {
+.main-nav1 .nav-list1 li:hover {
   color: #007bff;
 }
 
-.main-nav .nav-list li.active {
+.main-nav1 .nav-list1 li.active1 {
   color: #007bff;
   font-weight: 700;
 }
 
-.main-nav .nav-list li.active::after {
+.main-nav1 .nav-list1 li.active1::after {
   content: '';
   position: absolute;
   bottom: -5px;
@@ -100,7 +100,7 @@ body {
   border-radius: 2px;
 }
 
-.signout-button {
+.signout-button1 {
   background-color: #dc3545;
   color: white;
   border: none;
@@ -112,13 +112,13 @@ body {
   white-space: nowrap; /* Prevent button text from wrapping */
 }
 
-.signout-button:hover {
+.signout-button1:hover {
   background-color: #c82333;
   transform: translateY(-2px);
 }
 
 /* Main Content Area */
-.main-content {
+.main-content1 {
   flex-grow: 1;
   padding: 20px;
   background-color: #eef2f7;
@@ -128,7 +128,7 @@ body {
   align-items: flex-start; /* Align contents to the left */
 }
 
-.welcome-message { /* New style for the welcome message */
+.welcome-message1 { /* New style for the welcome message */
   font-size: 2rem;
   color: #007bff;
   margin-top: 10px; /* Space from header */
@@ -137,7 +137,7 @@ body {
 }
 
 
-.admin-dashboard-body {
+.admin-dashboard-body1 {
   background-color: #ffffff;
   padding: 30px;
   border-radius: 10px;
@@ -161,74 +161,82 @@ h3 {
   margin-bottom: 15px;
 }
 
-/* Variables for new widget styles */
-:root {
-  --white: #ffffff;
-  --primary-blue: #007bff;
-  --secondary-orange: #ff9800; /* Adjusted from reference for consistency with app's orange */
-  --dark-gray-text: #333;
-  --light-blue-bg: #e7f3ff;
-}
 
-.summary-widget-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Responsive grid for widgets */
+/* Summary Widget Grid */
+.summary-widget-grid1 {
+  display: flex; /* Changed to flex */
+  flex-wrap: wrap; /* Allow wrapping for responsiveness */
+  justify-content: space-around; /* Distribute space evenly */
   gap: 20px; /* Increased gap for better spacing */
-  margin-bottom: 40px;
 }
 
-.summary-widget {
-  background-color: var(--white);
+.summary-widget1 {
+  background-color: #ffffff;
   border-radius: 12px;
-  padding: 20px; /* Adjusted padding */
+  padding: 20px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e0e0e0; /* Added subtle border for clearer card definition */
-  display: flex;
-  align-items: center;
-  gap: 15px; /* Adjusted gap */
+  border: 1px solid #e0e0e0;
+  display: flex; /* Changed from inline to flex */
+  align-items: center; /* Vertically align items in the widget */
+  gap: 15px;
+  flex: 1;
+  min-width: 280px; /* Ensure a minimum width for widgets */
 }
 
-.summary-widget-icon {
-  width: 60px; /* Increased size */
-  height: 60px; /* Increased size */
+
+
+.summary-widget1.total-patients1 .summary-widget-icon1 {
+  background-color: #007bff; /* Using explicit color instead of var */
+  color: white;
   border-radius: 50%;
+  padding: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px; /* Increased font size */
-  color: var(--white);
+  font-size: 24px;
 }
 
-.summary-widget.total-patients .summary-widget-icon {
-  background-color: var(--primary-blue);
-}
-
-.summary-widget.total-doctors .summary-widget-icon {
+.summary-widget1.total-doctors1 .summary-widget-icon1 {
   background-color: #28a745; /* Green for doctors */
+  color: white;
+  border-radius: 50%;
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
 }
 
-.summary-widget.total-secretaries .summary-widget-icon {
-  background-color: var(--secondary-orange); /* Orange for secretaries */
+.summary-widget1.total-secretaries1 .summary-widget-icon1 {
+  background-color: #ff9800; /* Orange for secretaries */
+  color: white;
+  border-radius: 50%;
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
 }
 
-.summary-widget-content {
+
+.summary-widget-content1 {
   flex-grow: 1;
 }
 
-.summary-widget h3 {
+.summary-widget1 h3 {
   margin: 0;
   font-size: 18px;
   color: #666;
 }
 
-.summary-number {
+.summary-number1 {
   font-size: 40px;
   font-weight: bold;
   margin: 5px 0 0;
-  color: var(--dark-gray-text);
+  color: #333; /* Using explicit color instead of var */
 }
 
-.summary-subtitle {
+.summary-subtitle1 {
   font-size: 13px;
   color: #888;
   margin-top: 5px;
@@ -236,7 +244,7 @@ h3 {
 
 
 /* Panels Container (for Add Doctor/Secretary) */
-.panels-container {
+.panels-container1 {
   display: flex;
   justify-content: space-around;
   gap: 30px;
@@ -244,7 +252,7 @@ h3 {
   flex-wrap: wrap; /* Allow panels to wrap */
 }
 
-.left-panel, .right-panel {
+.left-panel1, .right-panel1 {
   flex: 1;
   min-width: 300px;
   padding: 25px;
@@ -272,7 +280,7 @@ input:focus, select:focus {
   outline: none;
 }
 
-.action-button {
+.action-button1 {
   background-color: #007bff;
   color: white;
   border: none;
@@ -286,19 +294,40 @@ input:focus, select:focus {
   display: block; /* Make button block to take full width of parent */
 }
 
-.action-button:hover {
+.action-button1:hover {
   background-color: #0056b3;
   transform: translateY(-2px);
 }
 
+/* New: Cancel Button Style */
+.cancel-button1 {
+  background-color: #6c757d; /* Grey color */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1em;
+  margin-top: 15px;
+  margin-left: 10px; /* Space from action button */
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  width: auto;
+}
+
+.cancel-button1:hover {
+  background-color: #5a6268;
+  transform: translateY(-2px);
+}
+
+
 /* Link List */
-.link-list {
+.link-list1 {
   list-style: none;
   padding: 0;
   margin-top: 20px;
 }
 
-.link-list li {
+.link-list1 li {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -312,7 +341,7 @@ input:focus, select:focus {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.link-list li button {
+.link-list1 li button {
   background-color: #ff9800;
   color: white;
   border: none;
@@ -323,12 +352,12 @@ input:focus, select:focus {
   transition: background-color 0.3s ease;
 }
 
-.link-list li button:hover {
+.link-list1 li button:hover {
   background-color: #e68a00;
 }
 
 /* Link Creation Section */
-.link-creation-section {
+.link-creation-section1 {
   display: flex;
   flex-wrap: wrap;
   gap: 15px;
@@ -340,19 +369,19 @@ input:focus, select:focus {
   border: 1px solid #e0e6ed;
 }
 
-.link-creation-section select {
+.link-creation-section1 select {
   flex: 1;
   min-width: 180px;
   margin: 0; /* Override global margin */
 }
 
-.link-creation-section .action-button {
+.link-creation-section1 .action-button1 {
   margin: 0; /* Override global margin */
   align-self: flex-end; /* Align to the bottom if other items grow */
 }
 
 /* Master List Table (Patients) */
-.master-list {
+.master-list1 {
   width: 100%;
   border-collapse: collapse;
   margin: 20px 0;
@@ -362,39 +391,56 @@ input:focus, select:focus {
   overflow: hidden; /* Ensures border-radius applies to children */
 }
 
-.master-list thead tr {
+.master-list1 thead tr {
   background-color: #007bff;
   color: #ffffff;
   text-align: left;
 }
 
-.master-list th,
-.master-list td {
+.master-list1 th,
+.master-list1 td {
   padding: 15px 20px;
   border-bottom: 1px solid #e0e0e0;
 }
 
-.master-list tbody tr {
+.master-list1 tbody tr {
   background-color: #ffffff;
   transition: background-color 0.3s ease;
 }
 
-.master-list tbody tr:nth-child(even) {
+.master-list1 tbody tr:nth-child(even) {
   background-color: #f8fbfd;
 }
 
-.master-list tbody tr:hover {
+.master-list1 tbody tr:hover {
   background-color: #e6f2ff;
 }
 
-.master-list th {
+.master-list1 th {
   font-weight: 600;
   text-transform: uppercase;
   font-size: 0.9em;
 }
 
+/* New: Table Button Styles */
+.master-list1 td button {
+  background-color: #28a745; /* Green for edit */
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.master-list1 td button:hover {
+  background-color: #218838;
+  transform: translateY(-1px);
+}
+
 /* Message Styling */
-p.message {
+p.message1 {
   margin-top: 20px;
   padding: 10px 15px;
   border-radius: 5px;
@@ -406,21 +452,28 @@ p.message {
 }
 
 /* Filter Controls Styling */
-.filter-controls {
+.filter-controls1 {
   margin-bottom: 20px;
   display: flex;
   align-items: center;
   gap: 10px;
-  max-width: 300px;
+  max-width: 400px; /* Adjusted max-width for better look */
 }
 
-.filter-controls label {
+.filter-controls1 label {
   font-weight: 600;
   color: #555;
+  white-space: nowrap; /* Prevent label from wrapping */
+}
+
+.filter-controls1 select {
+  flex-grow: 1; /* Allow select to take available space */
+  width: auto; /* Override calc(100% - 20px) */
+  margin: 0; /* Remove default margin */
 }
 
 /* Pagination Controls Styling */
-.pagination-controls {
+.pagination-controls1 {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -429,7 +482,7 @@ p.message {
   margin-bottom: 20px;
 }
 
-.pagination-button {
+.pagination-button1 {
   background-color: #007bff;
   color: white;
   border: none;
@@ -440,88 +493,157 @@ p.message {
   transition: background-color 0.3s ease;
 }
 
-.pagination-button:hover:not(:disabled) {
+.pagination-button1:hover:not(:disabled) {
   background-color: #0056b3;
 }
 
-.pagination-button:disabled {
+.pagination-button1:disabled {
   background-color: #cccccc;
   cursor: not-allowed;
 }
 
-.pagination-controls span {
+.pagination-controls1 span {
   font-size: 1em;
   color: #555;
+}
+
+/* New: Patient Editing Form Styles */
+.edit-patient-form-container1 {
+  background-color: #f9fcff;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e0e6ed;
+  margin-top: 30px;
+}
+
+.edit-patient-form-container1 h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #007bff;
+}
+
+.form-row1 {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 15px;
+  flex-wrap: wrap; /* Allow form fields to wrap */
+}
+
+.form-row1 label {
+  flex: 1;
+  min-width: 250px; /* Ensure labels and inputs have enough space */
+  display: flex;
+  flex-direction: column;
+  font-weight: 500;
+  color: #555;
+}
+
+.form-row1 label input {
+  width: 100%;
+  margin-top: 5px;
+  margin-bottom: 0; /* Override default margin */
+}
+
+.form-actions1 {
+  display: flex;
+  justify-content: flex-end; /* Align buttons to the right */
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.form-actions1 .action-button1,
+.form-actions1 .cancel-button1 {
+  margin-top: 0; /* Override default margin */
+  display: inline-block; /* Make them inline for flex */
+  width: auto;
 }
 
 
 /* Responsive Adjustments */
 @media (max-width: 900px) {
-  .header {
+  .header1 {
       flex-direction: column;
       align-items: flex-start;
   }
 
-  .main-nav {
+  .main-nav1 {
       width: 100%;
       justify-content: center;
   }
 
-  .main-nav .nav-list {
+  .main-nav1 .nav-list1 {
       flex-direction: column;
       gap: 10px;
       width: 100%;
   }
 
-  .main-nav .nav-list li {
+  .main-nav1 .nav-list1 li {
       width: 100%;
       text-align: center;
       justify-content: center;
   }
 
-  .signout-button {
+  .signout-button1 {
       width: 100%;
       margin-top: 15px;
   }
 
-  .summary-widget-grid {
-    grid-template-columns: 1fr; /* Stack widgets on smaller screens */
+  .summary-widget-grid1 {
+    /* Stack widgets on smaller screens */
+    flex-direction: column; /* Stack widgets on smaller screens */
+    align-items: center;
   }
 
-  .panels-container {
+  .summary-widget1 {
+      max-width: 100%; /* Take full width on smaller screens */
+  }
+
+  .panels-container1 {
       flex-direction: column;
   }
 
-  .left-panel, .right-panel {
+  .left-panel1, .right-panel1 {
       width: 100%;
       min-width: unset;
   }
 
-  .link-creation-section {
+  .link-creation-section1 {
       flex-direction: column;
       align-items: stretch;
   }
 
-  .link-creation-section select,
-  .link-creation-section .action-button {
+  .link-creation-section1 select,
+  .link-creation-section1 .action-button1 {
       width: 100%;
   }
+
+  .form-row1 {
+      flex-direction: column;
+      gap: 0;
+  }
+
+  .form-row1 label {
+      min-width: unset;
+      width: 100%;
+  }
+
 }
 
 @media (max-width: 600px) {
-  .header {
+  .header1 {
       padding: 10px 15px;
   }
 
-  .app-title {
+  .app-title1 {
       font-size: 1.7rem;
   }
 
-  .main-content {
+  .main-content1 {
       padding: 15px;
   }
 
-  .admin-dashboard-body {
+  .admin-dashboard-body1 {
       padding: 20px;
   }
 
@@ -533,19 +655,27 @@ p.message {
       font-size: 1.2rem;
   }
 
-  .master-list th,
-  .master-list td {
+  .master-list1 th,
+  .master-list1 td {
       padding: 10px 12px;
       font-size: 0.85rem;
   }
 
-  .link-list li {
+  .link-list1 li {
       flex-direction: column;
       align-items: flex-start;
       gap: 10px;
   }
 
-  .link-list li button {
+  .link-list1 li button {
       width: 100%;
+  }
+
+  .filter-controls1 {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .filter-controls1 select {
+    width: 100%;
   }
 }

@@ -150,7 +150,7 @@ const AdminDashboard = ({ onLogout }) => {
 
     if (doctorForm.secretaryId) {
       await supabase.from("secretary_doctor_links").insert({
-        secretary_id: doctorForm.secretaryId,
+        secretary_id: data.doctor_id,
         doctor_id: data.doctor_id,
       });
     }
@@ -325,30 +325,30 @@ const AdminDashboard = ({ onLogout }) => {
   const currentDoctors = filteredDoctors.slice(indexOfFirstDoctor, indexOfLastDoctor);
 
   return (
-    <div className="dashboard-container">
-      <div className="header">
-        <div className="header-left">
-          <img src={logo} alt="DiaTrack Logo" className="app-logo" />
-          <h1 className="app-title">
+    <div className="dashboard-container1">
+      <div className="header1">
+        <div className="header-left1">
+          <img src={logo} alt="DiaTrack Logo" className="app-logo1" />
+          <h1 className="app-title1">
             <span style={{ color: "#00aaff" }}>DIA</span>
             <span style={{ color: "#ff9800" }}>TRACK</span>
           </h1>
         </div>
-        <nav className="main-nav">
-          <ul className="nav-list">
-            <li className={activeTab === "dashboard" ? "active" : ""} onClick={() => setActiveTab("dashboard")}>
+        <nav className="main-nav1">
+          <ul className="nav-list1">
+            <li className={activeTab === "dashboard" ? "active1" : ""} onClick={() => setActiveTab("dashboard")}>
               Dashboard
             </li>
-            <li className={activeTab === "manage" ? "active" : ""} onClick={() => setActiveTab("manage")}>
+            <li className={activeTab === "manage" ? "active1" : ""} onClick={() => setActiveTab("manage")}>
               Manage
             </li>
-            <li className={activeTab === "patients" ? "active" : ""} onClick={() => setActiveTab("patients")}>
+            <li className={activeTab === "patients" ? "active1" : ""} onClick={() => setActiveTab("patients")}>
               Patients
             </li>
           </ul>
         </nav>
         <button
-          className="signout-button"
+          className="signout-button1"
           onClick={() => {
             if (window.confirm("Are you sure you want to sign out?")) onLogout();
           }}
@@ -357,43 +357,43 @@ const AdminDashboard = ({ onLogout }) => {
         </button>
       </div>
 
-      <div className="main-content">
-        <h2 className="welcome-message">Welcome, Admin! 👋</h2>
+      <div className="main-content1">
+        <h2 className="welcome-message1">Welcome, Admin! 👋</h2>
 
-        <div className="admin-dashboard-body">
+        <div className="admin-dashboard-body1">
           {activeTab === "dashboard" && (
             <>
-              <div className="summary-widget-grid">
-                <div className="summary-widget total-patients">
-                  <div className="summary-widget-icon">
+              <div className="summary-widget-grid1">
+                <div className="summary-widget1 total-patients1">
+                  <div className="summary-widget-icon1">
                     <i className="fas fa-users"></i>
                   </div>
-                  <div className="summary-widget-content">
+                  <div className="summary-widget-content1">
                     <h3>Total Patients</h3>
-                    <p className="summary-number">{patients.length}</p>
-                    <p className="summary-subtitle">Patients registered in the system</p>
+                    <p className="summary-number1">{patients.length}</p>
+                    <p className="summary-subtitle1">Patients registered in the system</p>
                   </div>
                 </div>
 
-                <div className="summary-widget total-doctors">
-                  <div className="summary-widget-icon">
+                <div className="summary-widget1 total-doctors1">
+                  <div className="summary-widget-icon1">
                     <i className="fas fa-user-md"></i> {/* Icon for doctors */}
                   </div>
-                  <div className="summary-widget-content">
+                  <div className="summary-widget-content1">
                     <h3>Total Doctors</h3>
-                    <p className="summary-number">{doctors.length}</p>
-                    <p className="summary-subtitle">Doctors registered in the system</p>
+                    <p className="summary-number1">{doctors.length}</p>
+                    <p className="summary-subtitle1">Doctors registered in the system</p>
                   </div>
                 </div>
 
-                <div className="summary-widget total-secretaries">
-                  <div className="summary-widget-icon">
+                <div className="summary-widget1 total-secretaries1">
+                  <div className="summary-widget-icon1">
                     <i className="fas fa-user-tie"></i> {/* Icon for secretaries */}
                   </div>
-                  <div className="summary-widget-content">
+                  <div className="summary-widget-content1">
                     <h3>Total Secretaries</h3>
-                    <p className="summary-number">{secretaries.length}</p>
-                    <p className="summary-subtitle">Secretaries registered in the system</p>
+                    <p className="summary-number1">{secretaries.length}</p>
+                    <p className="summary-subtitle1">Secretaries registered in the system</p>
                   </div>
                 </div>
               </div>
@@ -403,8 +403,8 @@ const AdminDashboard = ({ onLogout }) => {
           {activeTab === "manage" && (
             <>
               <h2>Create Accounts</h2>
-              <div className="panels-container">
-                <div className="left-panel">
+              <div className="panels-container1">
+                <div className="left-panel1">
                   <h3>Add Doctor</h3>
                   <input placeholder="First Name" value={doctorForm.firstName} onChange={(e) => setDoctorForm({ ...doctorForm, firstName: e.target.value })} />
                   <input placeholder="Last Name" value={doctorForm.lastName} onChange={(e) => setDoctorForm({ ...doctorForm, lastName: e.target.value })} />
@@ -419,10 +419,10 @@ const AdminDashboard = ({ onLogout }) => {
                       </option>
                     ))}
                   </select>
-                  <button className="action-button" onClick={createDoctor}>Create Doctor</button>
+                  <button className="action-button1" onClick={createDoctor}>Create Doctor</button>
                 </div>
 
-                <div className="right-panel">
+                <div className="right-panel1">
                   <h3>Add Secretary</h3>
                   <input placeholder="First Name" value={secretaryForm.firstName} onChange={(e) => setSecretaryForm({ ...secretaryForm, firstName: e.target.value })} />
                   <input placeholder="Last Name" value={secretaryForm.lastName} onChange={(e) => setSecretaryForm({ ...secretaryForm, lastName: e.target.value })} />
@@ -436,12 +436,12 @@ const AdminDashboard = ({ onLogout }) => {
                       </option>
                     ))}
                   </select>
-                  <button className="action-button" onClick={createSecretary}>Create Secretary</button>
+                  <button className="action-button1" onClick={createSecretary}>Create Secretary</button>
                 </div>
               </div>
 
               <h2>Existing Secretary-Doctor Links</h2>
-              <table className="master-list">
+              <table className="master-list1">
                 <thead>
                   <tr>
                     <th>Secretary Name</th>
@@ -469,7 +469,7 @@ const AdminDashboard = ({ onLogout }) => {
               </table>
 
               <h2>Create New Link</h2>
-              <div className="link-creation-section">
+              <div className="link-creation-section1">
                 <select value={newLinkSecretary} onChange={(e) => setNewLinkSecretary(e.target.value)}>
                   <option value="">Select Secretary</option>
                   {secretaries.map((sec) => (
@@ -488,7 +488,7 @@ const AdminDashboard = ({ onLogout }) => {
                   ))}
                 </select>
 
-                <button className="action-button" onClick={() => linkNewPair(newLinkSecretary, newLinkDoctor)}>
+                <button className="action-button1" onClick={() => linkNewPair(newLinkSecretary, newLinkDoctor)}>
                   Link Secretary to Doctor
                 </button>
               </div>
@@ -498,7 +498,7 @@ const AdminDashboard = ({ onLogout }) => {
           {activeTab === "patients" && (
             <>
               <h2>Master List of All Patients</h2>
-              <div className="filter-controls">
+              <div className="filter-controls1">
                 <label htmlFor="doctor-filter">Filter by Doctor:</label>
                 <select id="doctor-filter" value={selectedDoctorFilter} onChange={(e) => {
                   setSelectedDoctorFilter(e.target.value);
@@ -512,7 +512,7 @@ const AdminDashboard = ({ onLogout }) => {
                   ))}
                 </select>
               </div>
-              <table className="master-list">
+              <table className="master-list1">
                 <thead>
                   <tr>
                     <th>Patient Name</th>
@@ -542,11 +542,11 @@ const AdminDashboard = ({ onLogout }) => {
                   )}
                 </tbody>
               </table>
-              <div className="pagination-controls">
+              <div className="pagination-controls1">
                 <button
                   onClick={() => setCurrentPagePatients(prev => Math.max(prev - 1, 1))}
                   disabled={currentPagePatients === 1}
-                  className="pagination-button"
+                  className="pagination-button1"
                 >
                   Previous
                 </button>
@@ -554,7 +554,7 @@ const AdminDashboard = ({ onLogout }) => {
                 <button
                   onClick={() => setCurrentPagePatients(prev => Math.min(prev + 1, Math.ceil(patients.length / patientsPerPage)))}
                   disabled={currentPagePatients === Math.ceil(patients.length / patientsPerPage)}
-                  className="pagination-button"
+                  className="pagination-button1"
                 >
                   Next
                 </button>
@@ -562,9 +562,9 @@ const AdminDashboard = ({ onLogout }) => {
 
               {/* Patient Editing Form - Appears when editingPatientId is set */}
               {editingPatientId && (
-                <div className="edit-patient-form-container">
+                <div className="edit-patient-form-container1">
                   <h3>Edit Patient Details</h3>
-                  <div className="form-row">
+                  <div className="form-row1">
                     <label>
                       First Name:
                       <input
@@ -584,7 +584,7 @@ const AdminDashboard = ({ onLogout }) => {
                       />
                     </label>
                   </div>
-                  <div className="form-row">
+                  <div className="form-row1">
                     <label>
                       Password (leave blank to keep current):
                       <input
@@ -604,7 +604,7 @@ const AdminDashboard = ({ onLogout }) => {
                       />
                     </label>
                   </div>
-                  <div className="form-row">
+                  <div className="form-row1">
                     <label>
                       Contact Info:
                       <input
@@ -615,16 +615,16 @@ const AdminDashboard = ({ onLogout }) => {
                       />
                     </label>
                   </div>
-                  <div className="form-actions">
-                    <button className="action-button" onClick={savePatientChanges}>Save Changes</button>
-                    <button className="cancel-button" onClick={cancelEdit}>Cancel</button>
+                  <div className="form-actions1">
+                    <button className="action-button1" onClick={savePatientChanges}>Save Changes</button>
+                    <button className="cancel-button1" onClick={cancelEdit}>Cancel</button>
                   </div>
                 </div>
               )}
 
               {/* Doctors by Secretary section - MOVED HERE */}
               <h2>Doctors by Secretary</h2>
-              <div className="filter-controls">
+              <div className="filter-controls1">
                 <label htmlFor="secretary-filter">Filter by Secretary:</label>
                 <select id="secretary-filter" value={selectedSecretaryFilter} onChange={(e) => {
                   setSelectedSecretaryFilter(e.target.value);
@@ -638,7 +638,7 @@ const AdminDashboard = ({ onLogout }) => {
                   ))}
                 </select>
               </div>
-              <table className="master-list">
+              <table className="master-list1">
                 <thead>
                   <tr>
                     <th>Doctor Name</th>
@@ -662,11 +662,11 @@ const AdminDashboard = ({ onLogout }) => {
                   )}
                 </tbody>
               </table>
-              <div className="pagination-controls">
+              <div className="pagination-controls1">
                 <button
                   onClick={() => setCurrentPageDoctors(prev => Math.max(prev - 1, 1))}
                   disabled={currentPageDoctors === 1}
-                  className="pagination-button"
+                  className="pagination-button1"
                 >
                   Previous
                 </button>
@@ -674,7 +674,7 @@ const AdminDashboard = ({ onLogout }) => {
                 <button
                   onClick={() => setCurrentPageDoctors(prev => Math.min(prev + 1, Math.ceil(filteredDoctors.length / doctorsPerPage)))}
                   disabled={currentPageDoctors === Math.ceil(filteredDoctors.length / doctorsPerPage)}
-                  className="pagination-button"
+                  className="pagination-button1"
                 >
                   Next
                 </button>
@@ -682,7 +682,7 @@ const AdminDashboard = ({ onLogout }) => {
             </>
           )}
 
-          {message && <p className="message">{message}</p>}
+          {message && <p className="message1">{message}</p>}
         </div>
       </div>
     </div>
