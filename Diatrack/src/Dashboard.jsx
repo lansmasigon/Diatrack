@@ -804,16 +804,16 @@ const Dashboard = ({ user, onLogout }) => {
         </nav>
 
         <div className="header-right3">
-            <div className="header-icons3">
-                <i className="fas fa-bell notification-icon3"></i>
-                <i className="fas fa-envelope message-icon3"></i>
-            </div>
             <div className="user-profile-header3">
                 <img src="https://placehold.co/40x40/aabbcc/ffffff?text=User" alt="User Avatar" className="user-avatar3" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/aabbcc/ffffff?text=User"; }}/>
                 <div className="user-info-header3">
                   <span className="user-name3">{user ? `${user.first_name} ${user.last_name}` : 'Maria Batumbakal'}</span>
                   <span className="user-role3">Doctor</span>
                 </div>
+            </div>
+            <div className="header-icons3">
+                <i className="fas fa-bell notification-icon3"></i>
+                <i className="fas fa-envelope message-icon3"></i>
             </div>
             <button className="signout-button-header3" onClick={handleLogout}><i className="fas fa-sign-out-alt"></i> <span>Logout</span></button>
         </div>
