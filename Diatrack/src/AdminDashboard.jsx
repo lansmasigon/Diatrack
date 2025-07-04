@@ -5,13 +5,14 @@ import supabase from "./supabaseClient";
 import "./AdminDashboard.css";
 import logo from "../picture/logo.png"; // Import the logo image
 
-const AdminDashboard = ({ onLogout }) => {
+const AdminDashboard = ({ onLogout, user }) => {
   const [secretaries, setSecretaries] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
   const [links, setLinks] = useState([]);
   const [activeTab, setActiveTab] = useState("dashboard"); // Default to dashboard tab
   const [message, setMessage] = useState("");
+  const [adminName, setAdminName] = useState("Admin"); // State for admin name
 
   const [doctorForm, setDoctorForm] = useState({
     firstName: "",
@@ -60,6 +61,16 @@ const AdminDashboard = ({ onLogout }) => {
     fetchDoctors();
     fetchLinks();
   }, []);
+
+  // Effect to update adminName when the user prop changes
+  useEffect(() => {
+    if (user && user.first_name && user.last_name) {
+      setAdminName(`${user.first_name} ${user.last_name}`);
+    } else {
+      setAdminName("Admin"); // Fallback if user data isn't complete
+    }
+  }, [user]);
+
 
   // Effect for fetching patients (with optional doctor filter)
   useEffect(() => {
@@ -150,7 +161,7 @@ const AdminDashboard = ({ onLogout }) => {
 
     if (doctorForm.secretaryId) {
       await supabase.from("secretary_doctor_links").insert({
-        secretary_id: data.doctor_id,
+        secretary_id: doctorForm.secretaryId, // Corrected this to use doctorForm.secretaryId
         doctor_id: data.doctor_id,
       });
     }
@@ -347,18 +358,27 @@ const AdminDashboard = ({ onLogout }) => {
             </li>
           </ul>
         </nav>
-        <button
-          className="signout-button1"
-          onClick={() => {
-            if (window.confirm("Are you sure you want to sign out?")) onLogout();
-          }}
-        >
-          Sign Out
-        </button>
+        {/* ✅ RE-ADDED NAVBAR-RIGHT SECTION */}
+        <div className="navbar-right">
+          <div className="user-profile">
+            <img src="../picture/secretary.png" alt="User Avatar" className="user-avatar" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/aabbcc/ffffff?text=User"; }}/>
+            <div className="user-info">
+              <span className="user-name">{adminName}</span> {/* Using adminName state */}
+              <span className="user-role">Admin</span>
+            </div>
+          </div>
+          <div className="header-icons">
+            <i className="fas fa-bell"></i>
+            <i className="fas fa-envelope"></i>
+            <button className="signout-button1" onClick={() => {
+              if (window.confirm("Are you sure you want to sign out?")) onLogout();
+            }}><i className="fas fa-sign-out-alt"></i></button>
+          </div>
+        </div>
       </div>
 
       <div className="main-content1">
-        <h2 className="welcome-message1">Welcome, Admin! 👋</h2>
+        <h2 className="welcome-message1">Welcome, {adminName}! 👋</h2> {/* Using adminName state */}
 
         <div className="admin-dashboard-body1">
           {activeTab === "dashboard" && (

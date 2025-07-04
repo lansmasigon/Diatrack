@@ -2539,6 +2539,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             {/* Display message if no patients meet the criteria */}
             {patients.filter(
               (pat) =>
+                
                 pat.lab_status === "Submitted" &&
                 pat.latest_lab_date
             ).length === 0 && (

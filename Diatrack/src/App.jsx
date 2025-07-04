@@ -158,8 +158,8 @@ const App = () => {
       {currentPage === "doctor-dashboard" && (
         <Dashboard user={user} onLogout={handleLogout} />
       )}
-      {currentPage === "admin-dashboard" && (
-        <AdminDashboard onLogout={handleLogout} />
+       {currentPage === "admin-dashboard" && (
+        <AdminDashboard onLogout={handleLogout} user={user} />
       )}
       {currentPage === "secretary-dashboard" && (
         <SecretaryDashboard user={user} onLogout={handleLogout} />
