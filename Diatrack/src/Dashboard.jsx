@@ -32,7 +32,7 @@ const Dashboard = ({ user, onLogout }) => {
     if (activePage === "dashboard" || activePage === "patient-list") {
       fetchPatients();
     }
-    if (activePage === "dashboard" || activePage === "appointments") {
+    if (activePage === "dashboard" || activePage === "appointments" || activePage === "reports") { // Added 'reports' here
         fetchAppointments();
     }
     if (activePage === "patient-profile" && selectedPatient) {
@@ -61,10 +61,13 @@ const Dashboard = ({ user, onLogout }) => {
 
   const fetchAppointments = async () => {
     try {
+      // Filter appointments to only include future appointments
+      const now = new Date().toISOString();
       const { data, error } = await supabase
         .from("appointments")
         .select("*, patients(first_name, last_name)")
         .eq("doctor_id", user.doctor_id)
+        .gte("appointment_datetime", now) // Only fetch appointments from now onwards
         .order("appointment_datetime", { ascending: true });
 
       if (error) throw error;
@@ -468,6 +471,26 @@ const Dashboard = ({ user, onLogout }) => {
     </div>
   );
 
+  // NEW: Render Reports Content
+  const renderReportsContent = () => (
+    <div className="reports-grid3">
+      <div className="card3 report-widget-card3">
+        <div className="summary-widget-icon3">
+          <i className="fas fa-users"></i>
+        </div>
+        <h3>Total Patients</h3>
+        <p className="report-value3">{patients.length}</p>
+      </div>
+      <div className="card3 report-widget-card3">
+        <div className="summary-widget-icon3">
+          <i className="fas fa-calendar-alt"></i>
+        </div>
+        <h3>Upcoming Appointments</h3>
+        <p className="report-value3">{appointments.length}</p>
+      </div>
+    </div>
+  );
+
   const renderPatientProfile = () => {
     if (loading) return <div className="loading-message3">Loading patient details...</div>;
     if (error) return <div className="error-message3">{error}</div>;
@@ -824,7 +847,7 @@ const Dashboard = ({ user, onLogout }) => {
         {activePage === "dashboard" && renderDashboardContent()}
         {activePage === "patient-profile" && selectedPatient && renderPatientProfile()}
         {activePage === "patient-list" && renderPatientList()}
-        {activePage === "reports" && <div className="card3 reports-card3"><h2>Reports Section</h2><p>Content for Reports...</p></div>}
+        {activePage === "reports" && renderReportsContent()} {/* Changed to renderReportsContent */}
       </main>
     </div>
   );

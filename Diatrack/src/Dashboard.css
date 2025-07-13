@@ -763,6 +763,58 @@ body {
     font-size: 0.9em;
 }
 
+/* NEW: Reports Grid and Widget Styling */
+.reports-grid3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 25px;
+  margin-top: 20px;
+}
+
+.report-widget-card3 {
+  display: flex;
+  align-items: center; 
+  gap: 15px; /* Matched gap from summary-widget1 */
+  padding: 20px; /* Matched padding from summary-widget1 */
+  background: linear-gradient(135deg, var(--background-white), #f0f4f7);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 6px 20px var(--shadow-light);
+  position: relative; 
+  text-align: left; 
+  flex: 1; /* Added flex and min-width based on summary-widget1 */
+  min-width: 280px; 
+}
+
+.report-widget-card3 h3 {
+  margin: 0;
+  font-size: 18px; /* Matched font size from summary-widget1 h3 */
+  color: #666; /* Matched color from summary-widget1 h3 */
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.report-value3 {
+  font-size: 40px; /* Matched font size from summary-number1 */
+  font-weight: bold;
+  margin: 5px 0 0; /* Matched margin from summary-number1 */
+  color: #333; /* Matched color from summary-number1 */
+  text-align: center; 
+}
+
+/* Styling for the new summary widget icons */
+.summary-widget-icon3 {
+  background-color: var(--primary-blue);
+  color: var(--background-white);
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px; /* Matched font size from summary-widget-icon1 */
+  box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+  flex-shrink: 0; 
+}
 
 /* Media Queries for Responsiveness */
 
@@ -773,23 +825,23 @@ body {
     justify-content: center;
   }
   .header-left3, .header-nav3, .header-right3 {
-    flex-basis: 100%; /* Take full width on smaller wide screens */
+    flex-basis: 100%; 
     justify-content: center;
-    margin-left: 0; /* Reset margin auto */
+    margin-left: 0; 
   }
   .header-nav3 ul {
     justify-content: center;
-    gap: 15px; /* Reduce gap */
+    gap: 15px; 
   }
   .signout-button-header3 {
-    margin-top: 10px; /* Give some space if it wraps */
+    margin-top: 10px; 
   }
 }
 
 @media (max-width: 768px) {
   .main-header3 {
     padding: 10px 15px;
-    flex-direction: column; /* Stack items vertically */
+    flex-direction: column; 
     align-items: center;
     gap: 15px;
   }
@@ -800,28 +852,28 @@ body {
   }
 
   .header-nav3 ul {
-    flex-direction: column; /* Stack nav items vertically */
+    flex-direction: column; 
     align-items: center;
     width: 100%;
-    gap: 5px; /* Smaller gap for stacked items */
+    gap: 5px; 
   }
 
   .header-nav3 li {
     width: 100%;
-    justify-content: center; /* Center text and icon */
+    justify-content: center; 
     padding: 8px 10px;
     font-size: 0.95em;
   }
 
   .header-right3 {
-    flex-direction: column; /* Stack icons, profile, logout */
+    flex-direction: column; 
     gap: 10px;
     width: 100%;
-    margin-left: 0; /* Reset margin */
+    margin-left: 0; 
   }
 
   .header-icons3 {
-    justify-content: center; /* Center icons */
+    justify-content: center; 
     width: 100%;
     font-size: 1.1em;
     gap: 15px;
@@ -845,11 +897,11 @@ body {
 
   .content-area-full-width3 h1 {
     font-size: 1.8em;
-    text-align: center; /* Center welcome message */
+    text-align: center; 
   }
 
-  .dashboard-grid3, .patient-profile-content-grid3 {
-    grid-template-columns: 1fr; /* Single column on small screens */
+  .dashboard-grid3, .patient-profile-content-grid3, .reports-grid3 { 
+    grid-template-columns: 1fr; 
   }
 
   .patient-details-card3,
@@ -857,8 +909,16 @@ body {
   .medication-card3,
   .notes-card3,
   .assignments-card3,
-  .wound-healing-card3 {
+  .wound-healing-card3,
+  .report-widget-card3 { 
     grid-column: span 1;
+    padding: 20px; 
+  }
+
+  .summary-widget-icon3 {
+    width: 40px; 
+    height: 40px; 
+    font-size: 1.5em; 
   }
 
   .metric-cards-container3, .photo-gallery3 {
@@ -867,7 +927,7 @@ body {
   }
 
   .photo-card3 img {
-      max-height: 120px; /* Adjusted for smaller photo cards */
+      max-height: 120px; 
   }
 
   .search-bar-patients3 {
@@ -881,7 +941,7 @@ body {
 
   .medication-input-group3 .medication-input3,
   .add-medication-button3,
-  .medication-checkbox-group3 { /* Ensure checkbox group also takes full width */
+  .medication-checkbox-group3 { 
       width: 100%;
       max-width: none;
   }
@@ -911,10 +971,10 @@ body {
   }
   .patient-list-table3 th,
   .appointment-list-table3 th,
-  .medication-list-table3 th, /* Added */
+  .medication-list-table3 th, 
   .patient-list-table3 td,
   .appointment-list-table3 td,
-  .medication-list-table3 td { /* Added */
+  .medication-list-table3 td { 
     padding: 8px 12px;
     font-size: 0.8em;
   }
@@ -923,8 +983,6 @@ body {
     padding: 5px 8px;
   }
   .photo-card3 img {
-      max-height: 100px; /* Even smaller on very small screens */
+      max-height: 100px; 
   }
 }
-
-/* ... other existing media queries ... */
