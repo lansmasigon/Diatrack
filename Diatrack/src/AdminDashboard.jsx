@@ -55,6 +55,16 @@ const AdminDashboard = ({ onLogout, user }) => {
     contact_info: "",
   });
 
+  // New states for doctor editing
+  const [editingDoctorId, setEditingDoctorId] = useState(null);
+  const [editDoctorForm, setEditDoctorForm] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    password: "", // Password for doctors too
+    specialization: "",
+  });
+
 
   useEffect(() => {
     fetchSecretaries();
@@ -122,7 +132,7 @@ const AdminDashboard = ({ onLogout, user }) => {
 
     const { data: linksData, error: linksError } = await supabase
       .from("secretary_doctor_links")
-      .select("doctor_id, doctors(first_name, last_name, specialization, email)")
+      .select("doctor_id, doctors(doctor_id, first_name, last_name, specialization, email)") // Ensure doctor_id is fetched
       .eq("secretary_id", secretaryId);
 
     if (linksError) {
@@ -243,9 +253,9 @@ const AdminDashboard = ({ onLogout, user }) => {
     if (error) setMessage(`Error linking: ${error.message}`);
     else {
       setMessage("Link added successfully!");
-      fetchLinks();
       setNewLinkSecretary(""); // Clear selection
       setNewLinkDoctor(""); // Clear selection
+      fetchLinks();
     }
   };
 
@@ -324,6 +334,135 @@ const AdminDashboard = ({ onLogout, user }) => {
     setMessage("Patient editing canceled.");
   };
 
+  // New: Handle view patient details
+  const handleViewPatient = (patient) => {
+    alert(`Patient Details:\nName: ${patient.first_name} ${patient.last_name}\nEmail: ${patient.email}\nDate of Birth: ${patient.date_of_birth}\nContact: ${patient.contact_info}`);
+    // You can replace alert with a more sophisticated modal or navigation
+  };
+
+  // New: Handle delete patient
+  const handleDeletePatient = async (patientId) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this patient? This action cannot be undone.");
+    if (!confirmDelete) {
+      setMessage("Patient deletion canceled.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("patients")
+      .delete()
+      .eq("patient_id", patientId);
+
+    if (error) {
+      setMessage(`Error deleting patient: ${error.message}`);
+    } else {
+      setMessage("Patient deleted successfully!");
+      fetchPatients(selectedDoctorFilter); // Re-fetch patients to show updated data
+    }
+  };
+
+  // Doctor editing functions (new)
+  const handleEditDoctor = (doctor) => {
+    setEditingDoctorId(doctor.doctor_id);
+    setEditDoctorForm({
+      first_name: doctor.first_name,
+      last_name: doctor.last_name,
+      email: doctor.email,
+      password: "", // Leave blank for security
+      specialization: doctor.specialization,
+    });
+  };
+
+  const handleEditDoctorChange = (e) => {
+    const { name, value } = e.target;
+    setEditDoctorForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const saveDoctorChanges = async () => {
+    if (!editingDoctorId) return;
+
+    const confirmSave = window.confirm("Are you sure you want to save these doctor changes?");
+    if (!confirmSave) {
+      setMessage("Doctor changes canceled.");
+      return;
+    }
+
+    const updates = {
+      first_name: editDoctorForm.first_name,
+      last_name: editDoctorForm.last_name,
+      email: editDoctorForm.email,
+      specialization: editDoctorForm.specialization,
+    };
+
+    if (editDoctorForm.password) {
+      updates.password = editDoctorForm.password;
+    }
+
+    const { error } = await supabase
+      .from("doctors")
+      .update(updates)
+      .eq("doctor_id", editingDoctorId);
+
+    if (error) {
+      setMessage(`Error updating doctor: ${error.message}`);
+    } else {
+      setMessage("Doctor updated successfully!");
+      setEditingDoctorId(null);
+      setEditDoctorForm({
+        first_name: "",
+        last_name: "",
+        email: "",
+        password: "",
+        specialization: "",
+      });
+      fetchDoctorsBySecretary(selectedSecretaryFilter); // Re-fetch filtered doctors
+      fetchDoctors(); // Also re-fetch all doctors for other lists
+    }
+  };
+
+  const cancelDoctorEdit = () => {
+    setEditingDoctorId(null);
+    setEditDoctorForm({
+      first_name: "",
+      last_name: "",
+      email: "",
+      password: "",
+      specialization: "",
+    });
+    setMessage("Doctor editing canceled.");
+  };
+
+  // New: Handle view doctor details
+  const handleViewDoctor = (doctor) => {
+    alert(`Doctor Details:\nName: ${doctor.first_name} ${doctor.last_name}\nEmail: ${doctor.email}\nSpecialization: ${doctor.specialization}`);
+    // You can replace alert with a more sophisticated modal or navigation
+  };
+
+  // New: Handle delete doctor
+  const handleDeleteDoctor = async (doctorId) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this doctor? This action cannot be undone.");
+    if (!confirmDelete) {
+      setMessage("Doctor deletion canceled.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("doctors")
+      .delete()
+      .eq("doctor_id", doctorId);
+
+    if (error) {
+      setMessage(`Error deleting doctor: ${error.message}`);
+    } else {
+      setMessage("Doctor deleted successfully!");
+      fetchDoctorsBySecretary(selectedSecretaryFilter); // Re-fetch filtered doctors
+      fetchDoctors(); // Re-fetch all doctors to update other lists
+      fetchLinks(); // Links might be affected if a linked doctor is deleted
+    }
+  };
 
   // Pagination for patients
   const indexOfLastPatient = currentPagePatients * patientsPerPage;
@@ -539,7 +678,7 @@ const AdminDashboard = ({ onLogout, user }) => {
                     <th>Email</th>
                     <th>Date of Birth</th>
                     <th>Contact Info</th>
-                    <th>Actions</th> {/* New column for edit button */}
+                    <th>Actions</th> {/* New column for edit, view, and delete buttons */}
                   </tr>
                 </thead>
                 <tbody>
@@ -551,7 +690,9 @@ const AdminDashboard = ({ onLogout, user }) => {
                         <td>{pat.date_of_birth}</td>
                         <td>{pat.contact_info}</td>
                         <td>
-                          <button onClick={() => handleEditPatient(pat)}>Edit</button>
+                          <button className= "Editbutton1" onClick={() => handleEditPatient(pat)}>Edit</button>
+                          <button className= "Viewbutton1" onClick={() => handleViewPatient(pat)}>View</button>
+                          <button className= "Deletebutton1" onClick={() => handleDeletePatient(pat.patient_id)}>Delete</button>
                         </td>
                       </tr>
                     ))
@@ -642,7 +783,7 @@ const AdminDashboard = ({ onLogout, user }) => {
                 </div>
               )}
 
-              {/* Doctors by Secretary section - MOVED HERE */}
+              {/* Doctors by Secretary section */}
               <h2>Doctors by Secretary</h2>
               <div className="filter-controls1">
                 <label htmlFor="secretary-filter">Filter by Secretary:</label>
@@ -664,6 +805,7 @@ const AdminDashboard = ({ onLogout, user }) => {
                     <th>Doctor Name</th>
                     <th>Specialization</th>
                     <th>Email</th>
+                    <th>Actions</th> {/* New column for actions */}
                   </tr>
                 </thead>
                 <tbody>
@@ -673,11 +815,16 @@ const AdminDashboard = ({ onLogout, user }) => {
                         <td>{doctor.first_name} {doctor.last_name}</td>
                         <td>{doctor.specialization}</td>
                         <td>{doctor.email}</td>
+                        <td>
+                          <button className= "Editbutton1" onClick={() => handleEditDoctor(doctor)}>Edit</button>
+                          <button className= "Viewbutton1" onClick={() => handleViewDoctor(doctor)}>View</button>
+                          <button className= "Deletebutton1" onClick={() => handleDeleteDoctor(doctor.doctor_id)}>Delete</button>
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="3">No doctors found for this secretary.</td>
+                      <td colSpan="4">No doctors found for this secretary.</td> {/* Updated colspan */}
                     </tr>
                   )}
                 </tbody>
@@ -699,6 +846,68 @@ const AdminDashboard = ({ onLogout, user }) => {
                   Next
                 </button>
               </div>
+
+              {/* Doctor Editing Form - Appears when editingDoctorId is set */}
+              {editingDoctorId && (
+                <div className="edit-patient-form-container1"> {/* Reusing the same styling class */}
+                  <h3>Edit Doctor Details</h3>
+                  <div className="form-row1">
+                    <label>
+                      First Name:
+                      <input
+                        type="text"
+                        name="first_name"
+                        value={editDoctorForm.first_name}
+                        onChange={handleEditDoctorChange}
+                      />
+                    </label>
+                    <label>
+                      Last Name:
+                      <input
+                        type="text"
+                        name="last_name"
+                        value={editDoctorForm.last_name}
+                        onChange={handleEditDoctorChange}
+                      />
+                    </label>
+                  </div>
+                  <div className="form-row1">
+                    <label>
+                      Email:
+                      <input
+                        type="email"
+                        name="email"
+                        value={editDoctorForm.email}
+                        onChange={handleEditDoctorChange}
+                      />
+                    </label>
+                    <label>
+                      Password (leave blank to keep current):
+                      <input
+                        type="password"
+                        name="password"
+                        value={editDoctorForm.password}
+                        onChange={handleEditDoctorChange}
+                      />
+                    </label>
+                  </div>
+                  <div className="form-row1">
+                    <label>
+                      Specialization:
+                      <input
+                        type="text"
+                        name="specialization"
+                        value={editDoctorForm.specialization}
+                        onChange={handleEditDoctorChange}
+                      />
+                    </label>
+                  </div>
+                  <div className="form-actions1">
+                    <button className="action-button1" onClick={saveDoctorChanges}>Save Changes</button>
+                    <button className="cancel-button1" onClick={cancelDoctorEdit}>Cancel</button>
+                  </div>
+                </div>
+              )}
             </>
           )}
 

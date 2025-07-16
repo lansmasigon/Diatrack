@@ -235,6 +235,8 @@ h3 {
 }
 
 
+
+
 /* Panels Container (for Add Doctor/Secretary) */
 .panels-container1 {
   display: flex;
@@ -421,9 +423,12 @@ input:focus, select:focus {
   border: none;
   padding: 8px 12px;
   border-radius: 4px;
+  align-items: center;
+  display: inline-flex; /* Use inline-flex for better alignment */
   cursor: pointer;
   font-size: 0.85em;
   transition: background-color 0.3s ease, transform 0.2s ease;
+  margin-right: 10px;
 }
 
 .master-list1 td button:hover {
