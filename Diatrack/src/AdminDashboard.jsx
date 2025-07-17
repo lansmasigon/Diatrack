@@ -14,6 +14,15 @@ const AdminDashboard = ({ onLogout, user }) => {
   const [message, setMessage] = useState("");
   const [adminName, setAdminName] = useState("Admin"); // State for admin name
 
+  const [filteredDoctors, setFilteredDoctors] = useState([]);
+
+  // New state for selected list type in the "List" dropdown
+  const [selectedListType, setSelectedListType] = useState("patients"); // Default to showing patients
+
+  // New state to control the dropdown visibility
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+
   const [doctorForm, setDoctorForm] = useState({
     firstName: "",
     lastName: "",
@@ -34,16 +43,16 @@ const AdminDashboard = ({ onLogout, user }) => {
   const [newLinkSecretary, setNewLinkSecretary] = useState("");
   const [newLinkDoctor, setNewLinkDoctor] = useState("");
 
-  // New states for filtering and pagination
-  const [selectedDoctorFilter, setSelectedDoctorFilter] = useState(""); // For filtering patients
-  const [selectedSecretaryFilter, setSelectedSecretaryFilter] = useState(""); // For filtering doctors
-  const [filteredDoctors, setFilteredDoctors] = useState([]); // Separate state for doctors filtered by secretary
-
+  // New states for pagination
   const [currentPagePatients, setCurrentPagePatients] = useState(1);
   const [patientsPerPage] = useState(6); // Max 6 items per page
 
   const [currentPageDoctors, setCurrentPageDoctors] = useState(1);
   const [doctorsPerPage] = useState(6); // Max 6 items per page
+
+  // New states for secretary pagination
+  const [currentPageSecretaries, setCurrentPageSecretaries] = useState(1);
+  const [secretariesPerPage] = useState(6); // Max 6 items per page
 
   // New states for patient editing
   const [editingPatientId, setEditingPatientId] = useState(null);
@@ -65,6 +74,20 @@ const AdminDashboard = ({ onLogout, user }) => {
     specialization: "",
   });
 
+  // New states for secretary editing
+  const [editingSecretaryId, setEditingSecretaryId] = useState(null);
+  const [editSecretaryForm, setEditSecretaryForm] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    password: "",
+  });
+
+  // New state for search queries
+  const [patientSearchQuery, setPatientSearchQuery] = useState('');
+  const [doctorSearchQuery, setDoctorSearchQuery] = useState('');
+  const [secretarySearchQuery, setSecretarySearchQuery] = useState('');
+
 
   useEffect(() => {
     fetchSecretaries();
@@ -82,20 +105,26 @@ const AdminDashboard = ({ onLogout, user }) => {
   }, [user]);
 
 
-  // Effect for fetching patients (with optional doctor filter)
+  // Effect for fetching patients
   useEffect(() => {
-    fetchPatients(selectedDoctorFilter);
-  }, [selectedDoctorFilter, currentPagePatients]); // Re-fetch patients when filter or page changes
+    fetchPatients();
+  }, [currentPagePatients]); // Re-fetch patients when page changes
 
-  // Effect for fetching doctors by secretary
+  // Effect for fetching doctors with secretary info
   useEffect(() => {
-    fetchDoctorsBySecretary(selectedSecretaryFilter);
-  }, [selectedSecretaryFilter, currentPageDoctors]); // Re-fetch filtered doctors when filter or page changes
+    fetchDoctorsWithSecretaryInfo(); // Call the new function
+  }, [currentPageDoctors]); // Re-fetch doctors when page changes
+
+  // Effect for fetching secretaries (for the new table)
+  useEffect(() => {
+    fetchSecretaries(); // Already fetching all, pagination will slice
+  }, [currentPageSecretaries]); // Re-fetch secretaries when page changes
 
 
   const fetchSecretaries = async () => {
-    const { data } = await supabase.from("secretaries").select("*");
-    setSecretaries(data);
+    const { data, error } = await supabase.from("secretaries").select("*");
+    if (error) setMessage(`Error fetching secretaries: ${error.message}`);
+    else setSecretaries(data);
   };
 
   const fetchDoctors = async () => {
@@ -103,11 +132,9 @@ const AdminDashboard = ({ onLogout, user }) => {
     setDoctors(data);
   };
 
-  const fetchPatients = async (doctorId = null) => {
-    let query = supabase.from("patients").select("*");
-    if (doctorId) {
-      query = query.eq("preferred_doctor_id", doctorId); // Corrected to preferred_doctor_id
-    }
+  const fetchPatients = async () => {
+    // Corrected select to join with 'doctors' table using 'preferred_doctor_id'
+    let query = supabase.from("patients").select("*, preferred_doctor_id:doctors(first_name, last_name)");
     const { data, error } = await query;
     if (error) setMessage(`Error fetching patients: ${error.message}`);
     else setPatients(data);
@@ -121,29 +148,21 @@ const AdminDashboard = ({ onLogout, user }) => {
     else setLinks(data);
   };
 
-  const fetchDoctorsBySecretary = async (secretaryId = null) => {
-    if (!secretaryId) {
-      // If no secretary selected, show all doctors for the filtered list
-      const { data, error } = await supabase.from("doctors").select("*");
-      if (error) setMessage(`Error fetching all doctors: ${error.message}`);
-      else setFilteredDoctors(data);
+  // Renamed and modified from fetchDoctorsBySecretary
+  const fetchDoctorsWithSecretaryInfo = async () => {
+    // Fetch all doctors and their linked secretaries
+    const { data, error } = await supabase
+      .from("doctors")
+      .select("*, secretary_doctor_links(secretaries(first_name, last_name))"); // Join through link table to secretaries
+
+    if (error) {
+      setMessage(`Error fetching doctors with secretary info: ${error.message}`);
+      setFilteredDoctors([]); // Clear doctors if error
       return;
     }
-
-    const { data: linksData, error: linksError } = await supabase
-      .from("secretary_doctor_links")
-      .select("doctor_id, doctors(doctor_id, first_name, last_name, specialization, email)") // Ensure doctor_id is fetched
-      .eq("secretary_id", secretaryId);
-
-    if (linksError) {
-      setMessage(`Error fetching linked doctors: ${linksError.message}`);
-      setFilteredDoctors([]);
-      return;
-    }
-
-    const linkedDoctors = linksData.map(link => link.doctors);
-    setFilteredDoctors(linkedDoctors);
+    setFilteredDoctors(data); // Set all doctors with their secretary info
   };
+
 
   const createDoctor = async () => {
     const confirm = window.confirm("Are you sure you want to create this doctor?");
@@ -179,6 +198,7 @@ const AdminDashboard = ({ onLogout, user }) => {
     setMessage("Doctor created and linked successfully!");
     fetchDoctors();
     fetchLinks();
+    fetchDoctorsWithSecretaryInfo(); // Re-fetch doctors with secretary info to update the list
     setDoctorForm({ firstName: "", lastName: "", email: "", password: "", specialization: "", secretaryId: "" }); // Clear form
   };
 
@@ -230,6 +250,7 @@ const AdminDashboard = ({ onLogout, user }) => {
     else {
       setMessage("Link removed successfully!");
       fetchLinks();
+      fetchDoctorsWithSecretaryInfo(); // Re-fetch doctors with secretary info to update the list
     }
   };
 
@@ -256,6 +277,7 @@ const AdminDashboard = ({ onLogout, user }) => {
       setNewLinkSecretary(""); // Clear selection
       setNewLinkDoctor(""); // Clear selection
       fetchLinks();
+      fetchDoctorsWithSecretaryInfo(); // Re-fetch doctors with secretary info to update the list
     }
   };
 
@@ -318,7 +340,7 @@ const AdminDashboard = ({ onLogout, user }) => {
         date_of_birth: "",
         contact_info: "",
       });
-      fetchPatients(selectedDoctorFilter); // Re-fetch patients to show updated data
+      fetchPatients(); // Re-fetch patients to show updated data
     }
   };
 
@@ -357,7 +379,7 @@ const AdminDashboard = ({ onLogout, user }) => {
       setMessage(`Error deleting patient: ${error.message}`);
     } else {
       setMessage("Patient deleted successfully!");
-      fetchPatients(selectedDoctorFilter); // Re-fetch patients to show updated data
+      fetchPatients(); // Re-fetch patients to show updated data
     }
   };
 
@@ -418,7 +440,7 @@ const AdminDashboard = ({ onLogout, user }) => {
         password: "",
         specialization: "",
       });
-      fetchDoctorsBySecretary(selectedSecretaryFilter); // Re-fetch filtered doctors
+      fetchDoctorsWithSecretaryInfo(); // Re-fetch doctors with secretary info
       fetchDoctors(); // Also re-fetch all doctors for other lists
     }
   };
@@ -458,21 +480,167 @@ const AdminDashboard = ({ onLogout, user }) => {
       setMessage(`Error deleting doctor: ${error.message}`);
     } else {
       setMessage("Doctor deleted successfully!");
-      fetchDoctorsBySecretary(selectedSecretaryFilter); // Re-fetch filtered doctors
+      fetchDoctorsWithSecretaryInfo(); // Re-fetch filtered doctors
       fetchDoctors(); // Re-fetch all doctors to update other lists
       fetchLinks(); // Links might be affected if a linked doctor is deleted
     }
   };
 
+  // Secretary editing functions (new)
+  const handleEditSecretary = (secretary) => {
+    setEditingSecretaryId(secretary.secretary_id);
+    setEditSecretaryForm({
+      first_name: secretary.first_name,
+      last_name: secretary.last_name,
+      email: secretary.email,
+      password: "", // Leave blank for security
+    });
+  };
+
+  const handleEditSecretaryChange = (e) => {
+    const { name, value } = e.target;
+    setEditSecretaryForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const saveSecretaryChanges = async () => {
+    if (!editingSecretaryId) return;
+
+    const confirmSave = window.confirm("Are you sure you want to save these secretary changes?");
+    if (!confirmSave) {
+      setMessage("Secretary changes canceled.");
+      return;
+    }
+
+    const updates = {
+      first_name: editSecretaryForm.first_name,
+      last_name: editSecretaryForm.last_name,
+      email: editSecretaryForm.email,
+    };
+
+    if (editSecretaryForm.password) {
+      updates.password = editSecretaryForm.password; // Corrected: should be editSecretaryForm.password
+    }
+
+    const { error } = await supabase
+      .from("secretaries")
+      .update(updates)
+      .eq("secretary_id", editingSecretaryId);
+
+    if (error) {
+      setMessage(`Error updating secretary: ${error.message}`);
+    } else {
+      setMessage("Secretary updated successfully!");
+      setEditingSecretaryId(null);
+      setEditSecretaryForm({
+        first_name: "",
+        last_name: "",
+        email: "",
+        password: "",
+      });
+      fetchSecretaries(); // Re-fetch secretaries to show updated data
+      fetchLinks(); // Links might be affected if secretary info changes
+    }
+  };
+
+  const cancelSecretaryEdit = () => {
+    setEditingSecretaryId(null);
+    setEditSecretaryForm({
+      first_name: "",
+      last_name: "",
+      email: "",
+      password: "",
+    });
+    setMessage("Secretary editing canceled.");
+  };
+
+  // New: Handle view secretary details
+  const handleViewSecretary = (secretary) => {
+    alert(`Secretary Details:\nName: ${secretary.first_name} ${secretary.last_name}\nEmail: ${secretary.email}`);
+    // You can replace alert with a more sophisticated modal or navigation
+  };
+
+  // New: Handle delete secretary
+  const handleDeleteSecretary = async (secretaryId) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this secretary? This action cannot be undone.");
+    if (!confirmDelete) {
+      setMessage("Secretary deletion canceled.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("secretaries")
+      .delete()
+      .eq("secretary_id", secretaryId);
+
+    if (error) {
+      setMessage(`Error deleting secretary: ${error.message}`);
+    } else {
+      setMessage("Secretary deleted successfully!");
+      fetchSecretaries(); // Re-fetch secretaries to update the list
+      fetchLinks(); // Links might be affected if a linked secretary is deleted
+    }
+  };
+
+
+  // Filtering logic for patients
+  const filteredPatients = patients.filter(patient => {
+    const query = patientSearchQuery.toLowerCase();
+    const doctorName = patient.preferred_doctor_id
+      ? `${patient.preferred_doctor_id.first_name} ${patient.preferred_doctor_id.last_name}`.toLowerCase()
+      : "n/a";
+    return (
+      patient.first_name.toLowerCase().includes(query) ||
+      patient.last_name.toLowerCase().includes(query) ||
+      patient.email.toLowerCase().includes(query) ||
+      (patient.date_of_birth && patient.date_of_birth.toLowerCase().includes(query)) ||
+      (patient.contact_info && patient.contact_info.toLowerCase().includes(query)) ||
+      doctorName.includes(query)
+    );
+  });
+
+  // Filtering logic for doctors
+  const filteredDoctorsForSearch = filteredDoctors.filter(doctor => {
+    const query = doctorSearchQuery.toLowerCase();
+    const secretaryName = doctor.secretary_doctor_links?.[0]?.secretaries
+      ? `${doctor.secretary_doctor_links[0].secretaries.first_name} ${doctor.secretary_doctor_links[0].secretaries.last_name}`.toLowerCase()
+      : "n/a";
+    return (
+      doctor.first_name.toLowerCase().includes(query) ||
+      doctor.last_name.toLowerCase().includes(query) ||
+      doctor.email.toLowerCase().includes(query) ||
+      doctor.specialization.toLowerCase().includes(query) ||
+      secretaryName.includes(query)
+    );
+  });
+
+  // Filtering logic for secretaries
+  const filteredSecretaries = secretaries.filter(secretary => {
+    const query = secretarySearchQuery.toLowerCase();
+    return (
+      secretary.first_name.toLowerCase().includes(query) ||
+      secretary.last_name.toLowerCase().includes(query) ||
+      secretary.email.toLowerCase().includes(query)
+    );
+  });
+
+
   // Pagination for patients
   const indexOfLastPatient = currentPagePatients * patientsPerPage;
   const indexOfFirstPatient = indexOfLastPatient - patientsPerPage;
-  const currentPatients = patients.slice(indexOfFirstPatient, indexOfLastPatient);
+  const currentPatients = filteredPatients.slice(indexOfFirstPatient, indexOfLastPatient);
 
-  // Pagination for filtered doctors
+  // Pagination for doctors
   const indexOfLastDoctor = currentPageDoctors * doctorsPerPage;
   const indexOfFirstDoctor = indexOfLastDoctor - doctorsPerPage;
-  const currentDoctors = filteredDoctors.slice(indexOfFirstDoctor, indexOfLastDoctor);
+  const currentDoctors = filteredDoctorsForSearch.slice(indexOfFirstDoctor, indexOfLastDoctor);
+
+  // Pagination for secretaries
+  const indexOfLastSecretary = currentPageSecretaries * secretariesPerPage;
+  const indexOfFirstSecretary = indexOfLastSecretary - secretariesPerPage;
+  const currentSecretaries = filteredSecretaries.slice(indexOfFirstSecretary, indexOfLastSecretary);
 
   return (
     <div className="dashboard-container1">
@@ -492,8 +660,18 @@ const AdminDashboard = ({ onLogout, user }) => {
             <li className={activeTab === "manage" ? "active1" : ""} onClick={() => setActiveTab("manage")}>
               Manage
             </li>
-            <li className={activeTab === "patients" ? "active1" : ""} onClick={() => setActiveTab("patients")}>
-              Patients
+            {/* Modified "List" tab to be a dropdown */}
+            <li className={`dropdown ${activeTab === "list" ? "active1" : ""} ${isDropdownOpen ? "open" : ""}`}
+                onClick={() => {
+                  // Only toggle dropdown visibility, do not change activeTab here
+                  setIsDropdownOpen(!isDropdownOpen);
+                }}>
+              List <i className="fas fa-caret-down"></i>
+              <div className={`dropdown-content ${isDropdownOpen ? "show" : ""}`}>
+                <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab("list"); setSelectedListType("patients"); setIsDropdownOpen(false); }}>Patients</a>
+                <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab("list"); setSelectedListType("doctors"); setIsDropdownOpen(false); }}>Doctors</a>
+                <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab("list"); setSelectedListType("secretaries"); setIsDropdownOpen(false); }}>Secretaries</a>
+              </div>
             </li>
           </ul>
         </nav>
@@ -654,259 +832,378 @@ const AdminDashboard = ({ onLogout, user }) => {
             </>
           )}
 
-          {activeTab === "patients" && (
+          {/* Conditional rendering based on selectedListType */}
+          {activeTab === "list" && (
             <>
-              <h2>Master List of All Patients</h2>
-              <div className="filter-controls1">
-                <label htmlFor="doctor-filter">Filter by Doctor:</label>
-                <select id="doctor-filter" value={selectedDoctorFilter} onChange={(e) => {
-                  setSelectedDoctorFilter(e.target.value);
-                  setCurrentPagePatients(1); // Reset pagination on filter change
-                }}>
-                  <option value="">All Doctors</option>
-                  {doctors.map((doc) => (
-                    <option key={doc.doctor_id} value={doc.doctor_id}>
-                      {doc.first_name} {doc.last_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <table className="master-list1">
-                <thead>
-                  <tr>
-                    <th>Patient Name</th>
-                    <th>Email</th>
-                    <th>Date of Birth</th>
-                    <th>Contact Info</th>
-                    <th>Actions</th> {/* New column for edit, view, and delete buttons */}
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentPatients.length > 0 ? (
-                    currentPatients.map((pat) => (
-                      <tr key={pat.patient_id}>
-                        <td>{pat.first_name} {pat.last_name}</td>
-                        <td>{pat.email}</td>
-                        <td>{pat.date_of_birth}</td>
-                        <td>{pat.contact_info}</td>
-                        <td>
-                          <button className= "Editbutton1" onClick={() => handleEditPatient(pat)}>Edit</button>
-                          <button className= "Viewbutton1" onClick={() => handleViewPatient(pat)}>View</button>
-                          <button className= "Deletebutton1" onClick={() => handleDeletePatient(pat.patient_id)}>Delete</button>
-                        </td>
+              {selectedListType === "patients" && (
+                <>
+                  <h2>Master List of All Patients</h2>
+                  <input
+                    type="text"
+                    placeholder="Search patients..."
+                    className="search-input"
+                    value={patientSearchQuery}
+                    onChange={(e) => {
+                      setPatientSearchQuery(e.target.value);
+                      setCurrentPagePatients(1); // Reset to first page on new search
+                    }}
+                  />
+                  <table className="master-list1">
+                    <thead>
+                      <tr>
+                        <th>Patient Name</th>
+                        <th>Assigned Doctor</th>
+                        <th>Email</th>
+                        <th>Date of Birth</th>
+                        <th>Contact Info</th>
+                        <th>Actions</th>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="5">No patients found.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-              <div className="pagination-controls1">
-                <button
-                  onClick={() => setCurrentPagePatients(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPagePatients === 1}
-                  className="pagination-button1"
-                >
-                  Previous
-                </button>
-                <span>Page {currentPagePatients} of {Math.ceil(patients.length / patientsPerPage)}</span>
-                <button
-                  onClick={() => setCurrentPagePatients(prev => Math.min(prev + 1, Math.ceil(patients.length / patientsPerPage)))}
-                  disabled={currentPagePatients === Math.ceil(patients.length / patientsPerPage)}
-                  className="pagination-button1"
-                >
-                  Next
-                </button>
-              </div>
+                    </thead>
+                    <tbody>
+                      {currentPatients.length > 0 ? (
+                        currentPatients.map((pat) => (
+                          <tr key={pat.patient_id}>
+                            <td>{pat.first_name} {pat.last_name}</td>
+                            <td>
+                              {pat.preferred_doctor_id ? `${pat.preferred_doctor_id.first_name} ${pat.preferred_doctor_id.last_name}` : "N/A"}
+                            </td>
+                            <td>{pat.email}</td>
+                            <td>{pat.date_of_birth}</td>
+                            <td>{pat.contact_info}</td>
+                            <td>
+                              <button className= "Editbutton1" onClick={() => handleEditPatient(pat)}>Edit</button>
+                              <button className= "Viewbutton1" onClick={() => handleViewPatient(pat)}>View</button>
+                              <button className= "Deletebutton1" onClick={() => handleDeletePatient(pat.patient_id)}>Delete</button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="6">No patients found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                  <div className="pagination-controls1">
+                    <button
+                      onClick={() => setCurrentPagePatients(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPagePatients === 1}
+                      className="pagination-button1"
+                    >
+                      Previous
+                    </button>
+                    <span>Page {currentPagePatients} of {Math.ceil(filteredPatients.length / patientsPerPage)}</span>
+                    <button
+                      onClick={() => setCurrentPagePatients(prev => Math.min(prev + 1, Math.ceil(filteredPatients.length / patientsPerPage)))}
+                      disabled={currentPagePatients === Math.ceil(filteredPatients.length / patientsPerPage)}
+                      className="pagination-button1"
+                    >
+                      Next
+                    </button>
+                  </div>
 
-              {/* Patient Editing Form - Appears when editingPatientId is set */}
-              {editingPatientId && (
-                <div className="edit-patient-form-container1">
-                  <h3>Edit Patient Details</h3>
-                  <div className="form-row1">
-                    <label>
-                      First Name:
-                      <input
-                        type="text"
-                        name="first_name"
-                        value={editPatientForm.first_name}
-                        onChange={handleEditPatientChange}
-                      />
-                    </label>
-                    <label>
-                      Last Name:
-                      <input
-                        type="text"
-                        name="last_name"
-                        value={editPatientForm.last_name}
-                        onChange={handleEditPatientChange}
-                      />
-                    </label>
-                  </div>
-                  <div className="form-row1">
-                    <label>
-                      Password (leave blank to keep current):
-                      <input
-                        type="password"
-                        name="password"
-                        value={editPatientForm.password}
-                        onChange={handleEditPatientChange}
-                      />
-                    </label>
-                    <label>
-                      Date of Birth:
-                      <input
-                        type="date"
-                        name="date_of_birth"
-                        value={editPatientForm.date_of_birth}
-                        onChange={handleEditPatientChange}
-                      />
-                    </label>
-                  </div>
-                  <div className="form-row1">
-                    <label>
-                      Contact Info:
-                      <input
-                        type="text"
-                        name="contact_info"
-                        value={editPatientForm.contact_info}
-                        onChange={handleEditPatientChange}
-                      />
-                    </label>
-                  </div>
-                  <div className="form-actions1">
-                    <button className="action-button1" onClick={savePatientChanges}>Save Changes</button>
-                    <button className="cancel-button1" onClick={cancelEdit}>Cancel</button>
-                  </div>
-                </div>
+                  {editingPatientId && (
+                    <div className="edit-patient-form-container1">
+                      <h3>Edit Patient Details</h3>
+                      <div className="form-row1">
+                        <label>
+                          First Name:
+                          <input
+                            type="text"
+                            name="first_name"
+                            value={editPatientForm.first_name}
+                            onChange={handleEditPatientChange}
+                          />
+                        </label>
+                        <label>
+                          Last Name:
+                          <input
+                            type="text"
+                            name="last_name"
+                            value={editPatientForm.last_name}
+                            onChange={handleEditPatientChange}
+                          />
+                        </label>
+                      </div>
+                      <div className="form-row1">
+                        <label>
+                          Password (leave blank to keep current):
+                          <input
+                            type="password"
+                            name="password"
+                            value={editPatientForm.password}
+                            onChange={handleEditPatientChange}
+                          />
+                        </label>
+                        <label>
+                          Date of Birth:
+                          <input
+                            type="date"
+                            name="date_of_birth"
+                            value={editPatientForm.date_of_birth}
+                            onChange={handleEditPatientChange}
+                          />
+                        </label>
+                      </div>
+                      <div className="form-row1">
+                        <label>
+                          Contact Info:
+                          <input
+                            type="text"
+                            name="contact_info"
+                            value={editPatientForm.contact_info}
+                            onChange={handleEditPatientChange}
+                          />
+                        </label>
+                      </div>
+                      <div className="form-actions1">
+                        <button className="action-button1" onClick={savePatientChanges}>Save Changes</button>
+                        <button className="cancel-button1" onClick={cancelEdit}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
-              {/* Doctors by Secretary section */}
-              <h2>Doctors by Secretary</h2>
-              <div className="filter-controls1">
-                <label htmlFor="secretary-filter">Filter by Secretary:</label>
-                <select id="secretary-filter" value={selectedSecretaryFilter} onChange={(e) => {
-                  setSelectedSecretaryFilter(e.target.value);
-                  setCurrentPageDoctors(1); // Reset pagination on filter change
-                }}>
-                  <option value="">All Secretaries</option>
-                  {secretaries.map((sec) => (
-                    <option key={sec.secretary_id} value={sec.secretary_id}>
-                      {sec.first_name} {sec.last_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <table className="master-list1">
-                <thead>
-                  <tr>
-                    <th>Doctor Name</th>
-                    <th>Specialization</th>
-                    <th>Email</th>
-                    <th>Actions</th> {/* New column for actions */}
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentDoctors.length > 0 ? (
-                    currentDoctors.map((doctor) => (
-                      <tr key={doctor.doctor_id}>
-                        <td>{doctor.first_name} {doctor.last_name}</td>
-                        <td>{doctor.specialization}</td>
-                        <td>{doctor.email}</td>
-                        <td>
-                          <button className= "Editbutton1" onClick={() => handleEditDoctor(doctor)}>Edit</button>
-                          <button className= "Viewbutton1" onClick={() => handleViewDoctor(doctor)}>View</button>
-                          <button className= "Deletebutton1" onClick={() => handleDeleteDoctor(doctor.doctor_id)}>Delete</button>
-                        </td>
+              {selectedListType === "doctors" && (
+                <>
+                  <h2>Master List of All Doctors</h2>
+                  <input
+                    type="text"
+                    placeholder="Search doctors..."
+                    className="search-input"
+                    value={doctorSearchQuery}
+                    onChange={(e) => {
+                      setDoctorSearchQuery(e.target.value);
+                      setCurrentPageDoctors(1); // Reset to first page on new search
+                    }}
+                  />
+                  <table className="master-list1">
+                    <thead>
+                      <tr>
+                        <th>Doctor Name</th>
+                        <th>Specialization</th>
+                        <th>Secretary</th>
+                        <th>Email</th>
+                        <th>Actions</th>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="4">No doctors found for this secretary.</td> {/* Updated colspan */}
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-              <div className="pagination-controls1">
-                <button
-                  onClick={() => setCurrentPageDoctors(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPageDoctors === 1}
-                  className="pagination-button1"
-                >
-                  Previous
-                </button>
-                <span>Page {currentPageDoctors} of {Math.ceil(filteredDoctors.length / doctorsPerPage)}</span>
-                <button
-                  onClick={() => setCurrentPageDoctors(prev => Math.min(prev + 1, Math.ceil(filteredDoctors.length / doctorsPerPage)))}
-                  disabled={currentPageDoctors === Math.ceil(filteredDoctors.length / doctorsPerPage)}
-                  className="pagination-button1"
-                >
-                  Next
-                </button>
-              </div>
+                    </thead>
+                    <tbody>
+                      {currentDoctors.length > 0 ? (
+                        currentDoctors.map((doctor) => (
+                          <tr key={doctor.doctor_id}>
+                            <td>{doctor.first_name} {doctor.last_name}</td>
+                            <td>{doctor.specialization}</td>
+                            <td>
+                              {doctor.secretary_doctor_links?.[0]?.secretaries
+                                ? `${doctor.secretary_doctor_links[0].secretaries.first_name} ${doctor.secretary_doctor_links[0].secretaries.last_name}`
+                                : "N/A"}
+                            </td>
+                            <td>{doctor.email}</td>
+                            <td>
+                              <button className= "Editbutton1" onClick={() => handleEditDoctor(doctor)}>Edit</button>
+                              <button className= "Viewbutton1" onClick={() => handleViewDoctor(doctor)}>View</button>
+                              <button className= "Deletebutton1" onClick={() => handleDeleteDoctor(doctor.doctor_id)}>Delete</button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5">No doctors found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                  <div className="pagination-controls1">
+                    <button
+                      onClick={() => setCurrentPageDoctors(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPageDoctors === 1}
+                      className="pagination-button1"
+                    >
+                      Previous
+                    </button>
+                    <span>Page {currentPageDoctors} of {Math.ceil(filteredDoctorsForSearch.length / doctorsPerPage)}</span>
+                    <button
+                      onClick={() => setCurrentPageDoctors(prev => Math.min(prev + 1, Math.ceil(filteredDoctorsForSearch.length / doctorsPerPage)))}
+                      disabled={currentPageDoctors === Math.ceil(filteredDoctorsForSearch.length / doctorsPerPage)}
+                      className="pagination-button1"
+                    >
+                      Next
+                    </button>
+                  </div>
 
-              {/* Doctor Editing Form - Appears when editingDoctorId is set */}
-              {editingDoctorId && (
-                <div className="edit-patient-form-container1"> {/* Reusing the same styling class */}
-                  <h3>Edit Doctor Details</h3>
-                  <div className="form-row1">
-                    <label>
-                      First Name:
-                      <input
-                        type="text"
-                        name="first_name"
-                        value={editDoctorForm.first_name}
-                        onChange={handleEditDoctorChange}
-                      />
-                    </label>
-                    <label>
-                      Last Name:
-                      <input
-                        type="text"
-                        name="last_name"
-                        value={editDoctorForm.last_name}
-                        onChange={handleEditDoctorChange}
-                      />
-                    </label>
+                  {editingDoctorId && (
+                    <div className="edit-patient-form-container1">
+                      <h3>Edit Doctor Details</h3>
+                      <div className="form-row1">
+                        <label>
+                          First Name:
+                          <input
+                            type="text"
+                            name="first_name"
+                            value={editDoctorForm.first_name}
+                            onChange={handleEditDoctorChange}
+                          />
+                        </label>
+                        <label>
+                          Last Name:
+                          <input
+                            type="text"
+                            name="last_name"
+                            value={editDoctorForm.last_name}
+                            onChange={handleEditDoctorChange}
+                          />
+                        </label>
+                      </div>
+                      <div className="form-row1">
+                        <label>
+                          Email:
+                          <input
+                            type="email"
+                            name="email"
+                            value={editDoctorForm.email}
+                            onChange={handleEditDoctorChange}
+                          />
+                        </label>
+                        <label>
+                          Password (leave blank to keep current):
+                          <input
+                            type="password"
+                            name="password"
+                            value={editDoctorForm.password}
+                            onChange={handleEditDoctorChange}
+                          />
+                        </label>
+                      </div>
+                      <div className="form-row1">
+                        <label>
+                          Specialization:
+                          <input
+                            type="text"
+                            name="specialization"
+                            value={editDoctorForm.specialization}
+                            onChange={handleEditDoctorChange}
+                          />
+                        </label>
+                      </div>
+                      <div className="form-actions1">
+                        <button className="action-button1" onClick={saveDoctorChanges}>Save Changes</button>
+                        <button className="cancel-button1" onClick={cancelDoctorEdit}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {selectedListType === "secretaries" && (
+                <>
+                  <h2>Master List of All Secretaries</h2>
+                  <input
+                    type="text"
+                    placeholder="Search secretaries..."
+                    className="search-input"
+                    value={secretarySearchQuery}
+                    onChange={(e) => {
+                      setSecretarySearchQuery(e.target.value);
+                      setCurrentPageSecretaries(1); // Reset to first page on new search
+                    }}
+                  />
+                  <table className="master-list1">
+                    <thead>
+                      <tr>
+                        <th>Secretary Name</th>
+                        <th>Email</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentSecretaries.length > 0 ? (
+                        currentSecretaries.map((sec) => (
+                          <tr key={sec.secretary_id}>
+                            <td>{sec.first_name} {sec.last_name}</td>
+                            <td>{sec.email}</td>
+                            <td>
+                              <button className= "Editbutton1" onClick={() => handleEditSecretary(sec)}>Edit</button>
+                              <button className= "Viewbutton1" onClick={() => handleViewSecretary(sec)}>View</button>
+                              <button className= "Deletebutton1" onClick={() => handleDeleteSecretary(sec.secretary_id)}>Delete</button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="3">No secretaries found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                  <div className="pagination-controls1">
+                    <button
+                      onClick={() => setCurrentPageSecretaries(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPageSecretaries === 1}
+                      className="pagination-button1"
+                    >
+                      Previous
+                    </button>
+                    <span>Page {currentPageSecretaries} of {Math.ceil(filteredSecretaries.length / secretariesPerPage)}</span>
+                    <button
+                      onClick={() => setCurrentPageSecretaries(prev => Math.min(prev + 1, Math.ceil(filteredSecretaries.length / secretariesPerPage)))}
+                      disabled={currentPageSecretaries === Math.ceil(filteredSecretaries.length / secretariesPerPage)}
+                      className="pagination-button1"
+                    >
+                      Next
+                    </button>
                   </div>
-                  <div className="form-row1">
-                    <label>
-                      Email:
-                      <input
-                        type="email"
-                        name="email"
-                        value={editDoctorForm.email}
-                        onChange={handleEditDoctorChange}
-                      />
-                    </label>
-                    <label>
-                      Password (leave blank to keep current):
-                      <input
-                        type="password"
-                        name="password"
-                        value={editDoctorForm.password}
-                        onChange={handleEditDoctorChange}
-                      />
-                    </label>
-                  </div>
-                  <div className="form-row1">
-                    <label>
-                      Specialization:
-                      <input
-                        type="text"
-                        name="specialization"
-                        value={editDoctorForm.specialization}
-                        onChange={handleEditDoctorChange}
-                      />
-                    </label>
-                  </div>
-                  <div className="form-actions1">
-                    <button className="action-button1" onClick={saveDoctorChanges}>Save Changes</button>
-                    <button className="cancel-button1" onClick={cancelDoctorEdit}>Cancel</button>
-                  </div>
-                </div>
+
+                  {editingSecretaryId && (
+                    <div className="edit-patient-form-container1">
+                      <h3>Edit Secretary Details</h3>
+                      <div className="form-row1">
+                        <label>
+                          First Name:
+                          <input
+                            type="text"
+                            name="first_name"
+                            value={editSecretaryForm.first_name}
+                            onChange={handleEditSecretaryChange}
+                          />
+                        </label>
+                        <label>
+                          Last Name:
+                          <input
+                            type="text"
+                            name="last_name"
+                            value={editSecretaryForm.last_name}
+                            onChange={handleEditSecretaryChange}
+                          />
+                        </label>
+                      </div>
+                      <div className="form-row1">
+                        <label>
+                          Email:
+                          <input
+                            type="email"
+                            name="email"
+                            value={editSecretaryForm.email}
+                            onChange={handleEditSecretaryChange}
+                          />
+                        </label>
+                        <label>
+                          Password (leave blank to keep current):
+                          <input
+                            type="password"
+                            name="password"
+                            value={editSecretaryForm.password}
+                            onChange={handleEditSecretaryChange}
+                          />
+                        </label>
+                      </div>
+                      <div className="form-actions1">
+                        <button className="action-button1" onClick={saveSecretaryChanges}>Save Changes</button>
+                        <button className="cancel-button1" onClick={cancelSecretaryEdit}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
