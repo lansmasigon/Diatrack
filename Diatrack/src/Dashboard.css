@@ -396,6 +396,25 @@ body {
   background-color: rgba(220, 53, 69, 0.1);
 }
 
+.back-button3{
+  color: white;
+  background-color: var(--primary-blue);
+  border: 1px solid;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.95em;
+  padding: 5px 8px;
+  margin: 0 4px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.back-button3:hover{
+  color: white;
+  background-color: #007bff;
+}
+
 /* Patient Profile specific styles (Remains largely the same) */
 .patient-profile-wrapper3 {
     padding: 20px 0;

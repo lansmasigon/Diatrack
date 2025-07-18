@@ -12,9 +12,11 @@ const Dashboard = ({ user, onLogout }) => {
   const [patientAppointments, setPatientAppointments] = useState([]); // Patient-specific appointments
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(""); // Corrected: Initialized with useState
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [patientMetrics, setPatientMetrics] = useState([]);
+  const [patientLabs, setPatientLabs] = useState([]); // New state for patient lab results
+
 
   // New states for medication management
   const [patientMedications, setPatientMedications] = useState([]); // State for medications
@@ -89,6 +91,16 @@ const Dashboard = ({ user, onLogout }) => {
 
       if (metricsError) throw metricsError;
       setPatientMetrics(metrics);
+
+      // Fetch lab results for the patient
+      const { data: labs, error: labsError } = await supabase
+        .from("patient_labs")
+        .select("*")
+        .eq("patient_id", patientId)
+        .order("date_submitted", { ascending: false }); // Changed to 'date_submitted'
+
+      if (labsError) throw labsError;
+      setPatientLabs(labs);
 
       // Fetch medications for the patient, including their frequencies
       const { data: meds, error: medsError } = await supabase
@@ -496,6 +508,7 @@ const Dashboard = ({ user, onLogout }) => {
     if (error) return <div className="error-message3">{error}</div>;
 
     const latestMetric = patientMetrics.length > 0 ? patientMetrics[0] : null;
+    const latestLab = patientLabs.length > 0 ? patientLabs[0] : null; // Get the latest lab result
 
     return (
       <div className="patient-profile-wrapper3">
@@ -517,27 +530,77 @@ const Dashboard = ({ user, onLogout }) => {
           </div>
 
           <div className="card3 latest-metrics-card3">
-            <h3>Latest Health Metrics</h3>
-            {latestMetric && (latestMetric.blood_glucose || latestMetric.bp_systolic || latestMetric.bp_diastolic) ? (
+            <h3>Latest Health Metrics & Lab Results</h3>
+            {(latestMetric && (latestMetric.blood_glucose || latestMetric.bp_systolic || latestMetric.bp_diastolic)) || latestLab ? (
               <div className="metric-cards-container3">
-                <div className="metric-card3 blood-glucose3">
-                  <h4>Blood Glucose</h4>
-                  <p className="metric-value3">{latestMetric.blood_glucose || 'No available data'}</p>
-                  <span className="metric-unit3">mg/dL</span>
-                </div>
-                <div className="metric-card3 blood-pressure3">
-                  <h4>Blood Pressure</h4>
-                  <p className="metric-value3">
-                    {(latestMetric.bp_systolic && latestMetric.bp_diastolic) ?
-                      `${latestMetric.bp_systolic} / ${latestMetric.bp_diastolic}` :
-                      'No available data'
-                    }
-                  </p>
-                  <span className="metric-unit3">mmHg</span>
-                </div>
+                {latestMetric && (latestMetric.blood_glucose || latestMetric.bp_systolic || latestMetric.bp_diastolic) ? (
+                    <>
+                        <div className="metric-card3 blood-glucose3">
+                        <h4>Blood Glucose</h4>
+                        <p className="metric-value3">{latestMetric.blood_glucose || 'No available data'}</p>
+                        <span className="metric-unit3">mg/dL</span>
+                        </div>
+                        <div className="metric-card3 blood-pressure3">
+                        <h4>Blood Pressure</h4>
+                        <p className="metric-value3">
+                            {(latestMetric.bp_systolic && latestMetric.bp_diastolic) ?
+                            `${latestMetric.bp_systolic} / ${latestMetric.bp_diastolic}` :
+                            'No available data'
+                            }
+                        </p>
+                        <span className="metric-unit3">mmHg</span>
+                        </div>
+                    </>
+                ) : null}
+
+                {/* Display Latest Lab Results */}
+                {latestLab ? (
+                    <>
+                        <div className="metric-card3">
+                            <h4>Hba1c</h4>
+                            <p className="metric-value3">{latestLab.Hba1c || 'N/A'}</p>
+                            <span className="metric-unit3">%</span>
+                        </div>
+                        <div className="metric-card3">
+                            <h4>Creatinine</h4>
+                            <p className="metric-value3">{latestLab.creatinine || 'N/A'}</p>
+                            <span className="metric-unit3">mg/dL</span>
+                        </div>
+                        <div className="metric-card3">
+                            <h4>GOT (AST)</h4>
+                            <p className="metric-value3">{latestLab.got_ast || 'N/A'}</p>
+                            <span className="metric-unit3">U/L</span>
+                        </div>
+                        <div className="metric-card3">
+                            <h4>GPT (ALT)</h4>
+                            <p className="metric-value3">{latestLab.gpt_alt || 'N/A'}</p>
+                            <span className="metric-unit3">U/L</span>
+                        </div>
+                        <div className="metric-card3">
+                            <h4>Tryglycerides</h4>
+                            <p className="metric-value3">{latestLab.triglycerides || 'N/A'}</p>
+                            <span className="metric-unit3">mg/dL</span>
+                        </div>
+                        <div className="metric-card3">
+                            <h4>HDL Cholesterol</h4>
+                            <p className="metric-value3">{latestLab.hdl_cholesterol || 'N/A'}</p>
+                            <span className="metric-unit3">mg/dL</span>
+                        </div>
+                        <div className="metric-card3">
+                            <h4>LDL Cholesterol</h4>
+                            <p className="metric-value3">{latestLab.ldl_cholesterol || 'N/A'}</p>
+                            <span className="metric-unit3">mg/dL</span>
+                        </div>
+                        <div className="metric-card3">
+                            <h4>Cholesterol</h4>
+                            <p className="metric-value3">{latestLab.cholesterol || 'N/A'}</p>
+                            <span className="metric-unit3">mg/dL</span>
+                        </div>
+                    </>
+                ) : null}
               </div>
             ) : (
-              <p>No available data for health metrics.</p>
+              <p>No available data for health metrics or lab results.</p>
             )}
           </div>
 
