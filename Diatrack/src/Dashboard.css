@@ -200,7 +200,7 @@ body {
 /* Content Area - Full Width */
 .content-area-full-width3 {
   flex-grow: 1;
-  padding: 30px;
+  padding: 20px;
   overflow-y: auto;
 }
 

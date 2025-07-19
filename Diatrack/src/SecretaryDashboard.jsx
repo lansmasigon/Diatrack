@@ -2116,56 +2116,61 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
               {activePage === "appointments" && (
                 <div className="appointments-section">
-                  <h2>{editingAppointmentId ? "Edit Appointment" : "Schedule New Appointment"}</h2> {/* Dynamic title */}
-                  <div className="form-group">
-                    <label>Select Doctor:</label>
-                    <select value={appointmentForm.doctorId} onChange={(e) => handleAppointmentChange("doctorId", e.target.value)}>
-                      <option value="">Select Doctor</option>
-                      {linkedDoctors.map(doc => (
-                        <option key={doc.doctor_id} value={doc.doctor_id}>{doc.doctor_name}</option>
-                      ))}
-                    </select>
+                  <h2>{editingAppointmentId ? "Edit Appointment" : "Schedule New Appointment"}</h2>
+
+                  <div className="form-columns"> {/* New wrapper for two-column layout */}
+                    <div className="form-group">
+                      <label>Select Doctor:</label>
+                      <select value={appointmentForm.doctorId} onChange={(e) => handleAppointmentChange("doctorId", e.target.value)}>
+                        <option value="">Select Doctor</option>
+                        {linkedDoctors.map(doc => (
+                          <option key={doc.doctor_id} value={doc.doctor_id}>{doc.doctor_name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Select Patient:</label>
+                      <select value={appointmentForm.patientId} onChange={(e) => handleAppointmentChange("patientId", e.target.value)}>
+                        <option value="">Select Patient</option>
+                        {patients.map(pat => (
+                          <option key={pat.patient_id} value={pat.patient_id}>{pat.first_name} {pat.last_name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Date:</label>
+                      <input type="date" value={appointmentForm.date} onChange={(e) => handleAppointmentChange("date", e.target.value)} />
+                    </div>
+                    <div className="form-group">
+                      <label>Time:</label>
+                      <input type="time" value={appointmentForm.time} onChange={(e) => handleAppointmentChange("time", e.target.value)} />
+                    </div>
+                  </div> {/* End of form-columns wrapper */}
+
+                  <div className="form-group full-width"> {/* Added full-width class here */}
+                    <label>Notes:</label>
+                    <textarea placeholder="Notes" value={appointmentForm.notes} onChange={(e) => handleAppointmentChange("notes", e.target.value)} />
                   </div>
 
-                  <div className="form-group">
-                    <label>Select Patient:</label>
-                    <select value={appointmentForm.patientId} onChange={(e) => handleAppointmentChange("patientId", e.target.value)}>
-                      <option value="">Select Patient</option>
-                      {patients.map(pat => (
-                        <option key={pat.patient_id} value={pat.patient_id}>{pat.first_name} {pat.last_name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <div className="button-group"> {/* New wrapper for buttons */}
+                      <button onClick={createAppointment}>{editingAppointmentId ? "Update Appointment" : "Schedule Appointment"}</button>
+                      {editingAppointmentId && (
+                          <button
+                              className="cancel-button"
+                              onClick={() => {
+                                  setEditingAppointmentId(null);
+                                  setAppointmentForm({ doctorId: "", patientId: "", date: "", time: "", notes: "" });
+                                  setActivePage("appointments");
+                              }}
+                          >
+                              Cancel Edit
+                          </button>
+                      )}
+                  </div> {/* End of button-group wrapper */}
 
-                  <div className="form-group">
-                    <label>Date:</label>
-                    <input type="date" value={appointmentForm.date} onChange={(e) => handleAppointmentChange("date", e.target.value)} />
-                  </div>
-                  <div className="form-group">
-                    <label>Time:</label>
-                    {/* Input type="time" uses 24-hour format by default, no change here */}
-                    <input type="time" value={appointmentForm.time} onChange={(e) => handleAppointmentChange("time", e.target.value)} />
-                  </div>
-                  <div className="form-group">
-                    <label>Notes (optional):</label>
-                    <textarea placeholder="Notes (optional)" value={appointmentForm.notes} onChange={(e) => handleAppointmentChange("notes", e.target.value)} />
-                  </div>
-                  <button onClick={createAppointment}>{editingAppointmentId ? "Update Appointment" : "Schedule Appointment"}</button> {/* Dynamic button text */}
-                  {editingAppointmentId && (
-                    <button
-                      className="cancel-button"
-                      onClick={() => {
-                        setEditingAppointmentId(null);
-                        setAppointmentForm({ doctorId: "", patientId: "", date: "", time: "", notes: "" });
-                        setActivePage("appointments"); // Stay on appointments page but clear form
-                      }}
-                      style={{ marginLeft: '10px' }}
-                    >
-                      Cancel Edit
-                    </button>
-                  )}
                   {message && <p className="form-message">{message}</p>}
-
                 </div>
               )}
 

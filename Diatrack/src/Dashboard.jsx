@@ -265,7 +265,7 @@ const Dashboard = ({ user, onLogout }) => {
       alert("Medication and frequency added successfully!");
     } catch (err) {
       console.error("Error adding medication:", err);
-      setError("Error adding medication: " + err.message);
+      setError("Error adding medication: "    + err.message);
     } finally {
       setLoading(false);
     }
@@ -376,7 +376,7 @@ const Dashboard = ({ user, onLogout }) => {
       alert("Medication updated successfully!");
     } catch (err) {
       console.error("Error updating medication:", err);
-      setError("Error updating medication: " + err.message);
+      setError("Error updating medication: "    + err.message);
     } finally {
       setLoading(false);
     }
@@ -523,9 +523,12 @@ const Dashboard = ({ user, onLogout }) => {
             <div className="patient-info-display3">
                 <p><strong>Date of Birth:</strong> {selectedPatient.date_of_birth}</p>
                 <p><strong>Contact Info:</strong> {selectedPatient.contact_info}</p>
+                <p><strong>Gender:</strong> {selectedPatient.gender}</p>
+                <p><strong>Diabetes Type:</strong> {selectedPatient.diabetes_type}</p>
+                <p><strong>Smoking Status:</strong> {selectedPatient.smoking_status}</p>
+                <p><strong>Last Doctor Visit:</strong> {selectedPatient.last_doctor_visit}</p>
                 <p><strong>Risk Classification:</strong> <span className={`risk-classification3 ${selectedPatient.risk_classification}`}>{selectedPatient.risk_classification}</span></p>
                 <p><strong>Phase:</strong> <span className={`phase3 ${selectedPatient.phase}`}>{selectedPatient.phase}</span></p>
-                <p><strong>Preferred Doctor ID:</strong> {selectedPatient.preferred_doctor_id}</p>
             </div>
           </div>
 
@@ -906,7 +909,9 @@ const Dashboard = ({ user, onLogout }) => {
       </header>
 
       <main className="content-area-full-width3">
-        <h1>Welcome, Dr. {user.first_name} 👋</h1>
+        {activePage !== "patient-profile" && (
+          <h1>Welcome, Dr. {user.first_name} 👋</h1>
+        )}
         {activePage === "dashboard" && renderDashboardContent()}
         {activePage === "patient-profile" && selectedPatient && renderPatientProfile()}
         {activePage === "patient-list" && renderPatientList()}
