@@ -5,6 +5,7 @@ import supabase from "./supabaseClient";
 import "./Dashboard.css";
 import logo from '../picture/logo.png'; // Make sure this path is correct
 
+
 const Dashboard = ({ user, onLogout }) => {
   const [activePage, setActivePage] = useState("dashboard");
   const [patients, setPatients] = useState([]);
@@ -16,6 +17,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [patientMetrics, setPatientMetrics] = useState([]);
   const [patientLabs, setPatientLabs] = useState([]); // New state for patient lab results
+  const [woundPhotos, setWoundPhotos] = useState([]); // New state for wound photos
 
 
   // New states for medication management
@@ -91,6 +93,15 @@ const Dashboard = ({ user, onLogout }) => {
 
       if (metricsError) throw metricsError;
       setPatientMetrics(metrics);
+
+      // Filter for wound photos and set the state
+      const photos = metrics.filter(metric => metric.wound_photo_url).map(metric => ({
+        url: metric.wound_photo_url,
+        date: metric.submission_date,
+        notes: metric.notes,
+      }));
+      setWoundPhotos(photos);
+
 
       // Fetch lab results for the patient
       const { data: labs, error: labsError } = await supabase
@@ -510,16 +521,20 @@ const Dashboard = ({ user, onLogout }) => {
     const latestMetric = patientMetrics.length > 0 ? patientMetrics[0] : null;
     const latestLab = patientLabs.length > 0 ? patientLabs[0] : null; // Get the latest lab result
 
+    const handleCreateTreatmentPlan = () => {
+        alert("Create Treatment Plan button clicked!");
+        // You can add logic here to navigate to a new page, open a modal, etc.
+    };
+
     return (
       <div className="patient-profile-wrapper3">
         <div className="patient-profile-header3">
-          <h2>Patient Profile: {selectedPatient.first_name} {selectedPatient.last_name}</h2>
           <button className="back-button3" onClick={() => setActivePage("dashboard")}>Back to Dashboard</button>
         </div>
 
         <div className="patient-profile-content-grid3">
           <div className="card3 patient-details-card3">
-            <h3>Patient Information</h3>
+              <h2>Patient Profile: {selectedPatient.first_name} {selectedPatient.last_name}</h2>
             <div className="patient-info-display3">
                 <p><strong>Date of Birth:</strong> {selectedPatient.date_of_birth}</p>
                 <p><strong>Contact Info:</strong> {selectedPatient.contact_info}</p>
@@ -607,37 +622,35 @@ const Dashboard = ({ user, onLogout }) => {
             )}
           </div>
 
-          <div className="card3 assignments-card3">
-            <h3>Photos</h3>
-            {(latestMetric && (latestMetric.wound_photo_url || latestMetric.food_photo_url)) ? (
-              <div className="photo-gallery3">
-                {latestMetric.wound_photo_url ? (
-                  <div className="photo-card3">
-                    <h4>Latest Wound Photo</h4>
-                    <img src={latestMetric.wound_photo_url} alt="Latest Wound" />
-                  </div>
-                ) : (
-                  <div className="photo-card3">
-                    <h4>Latest Wound Photo</h4>
-                    <p>No photo available.</p>
-                  </div>
-                )}
-                {latestMetric.food_photo_url ? (
-                  <div className="photo-card3">
-                    <h4>Latest Food Photo</h4>
-                    <img src={latestMetric.food_photo_url} alt="Latest Food" />
-                  </div>
-                ) : (
-                  <div className="photo-card3">
-                    <h4>Latest Food Photo</h4>
-                    <p>No photo available.</p>
-                  </div>
-                )}
-              </div>
+          {/* REPLACED NOTES WITH APPOINTMENT SCHEDULE */}
+          <div className="card3 appointment-schedule-card3">
+            <h3>Patient Appointment Schedule</h3>
+            {patientAppointments.length === 0 ? (
+              <p className="no-appointments-text3">No appointments scheduled for this patient.</p>
             ) : (
-              <p>No photos available for this patient.</p>
+              <div className="table-responsive3">
+                <table className="appointment-list-table3">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Time</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {patientAppointments.map((appt) => (
+                      <tr key={appt.appointment_id}>
+                        <td>{new Date(appt.appointment_datetime).toLocaleDateString()}</td>
+                        <td>{new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                        <td>{appt.notes || "N/A"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
+
           {/* New Medication Management Card */}
           <div className="card3 medication-card3">
             <h3>Medication Management</h3>
@@ -833,35 +846,33 @@ const Dashboard = ({ user, onLogout }) => {
                 )}
             </div>
           </div>
-
-          {/* REPLACED NOTES WITH APPOINTMENT SCHEDULE */}
-          <div className="card3 appointment-schedule-card3">
-            <h3>Patient Appointment Schedule</h3>
-            {patientAppointments.length === 0 ? (
-              <p className="no-appointments-text3">No appointments scheduled for this patient.</p>
-            ) : (
-              <div className="table-responsive3">
-                <table className="appointment-list-table3">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Time</th>
-                      <th>Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {patientAppointments.map((appt) => (
-                      <tr key={appt.appointment_id}>
-                        <td>{new Date(appt.appointment_datetime).toLocaleDateString()}</td>
-                        <td>{new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                        <td>{appt.notes || "N/A"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <div className="card3 assignments-card3">
+            <div className="wound-photo-button3"> {/* New div for header and button */}
+                <h3>Wound Photos </h3>
+                <button className="treatment-plan-button3" onClick={handleCreateTreatmentPlan}>
+                    Create Treatment Plan
+                </button>
+            </div>
+            {woundPhotos.length > 0 ? (
+              <div className="photo-gallery3">
+                {woundPhotos.map((photo, index) => (
+                  <div className="photo-card3" key={index}>
+                    <h4>Wound Photo</h4>
+                    <img src={photo.url} alt={`Wound ${index}`} />
+                    {photo.date && (
+                        <p className="photo-date">Date: {new Date(photo.date).toLocaleDateString()}</p>
+                    )}
+                    {photo.notes && (
+                        <p className="photo-notes">Notes: {photo.notes || 'Not Available'}</p>
+                    )}
+                  </div>
+                ))}
               </div>
+            ) : (
+              <p>No photos available for this patient.</p>
             )}
           </div>
+
         </div>
       </div>
     );

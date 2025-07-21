@@ -646,14 +646,46 @@ body {
 }
 
 .assignments-card3 {
-    grid-column: span 1;
+    grid-column: 1 / -1; /* This makes it span from the first column line to the last */
+}
+/* New styles for the button in the Photos section */
+.wound-photo-button3 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.wound-photo-button3 h3 {
+  margin: 0; /* Reset margin to align properly */
+  border-bottom: none; /* Remove border from h3 as parent div has it */
+  padding-bottom: 0; /* Remove padding from h3 */
+}
+
+.treatment-plan-button3 {
+  background-color: var(--primary-blue);
+  color: white;
+  padding: 8px 15px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  white-space: nowrap; /* Prevent text wrapping */
+}
+
+.treatment-plan-button3:hover {
+  background-color: #0056b3;
+  transform: translateY(-2px);
 }
 
 /* Modified Photo Gallery Styles */
 .photo-gallery3 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Smaller min-width */
-  gap: 15px; /* Reduced gap */
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Adjusted for wider images */
+  gap: 20px; /* Adjusted gap */
   margin-top: 15px;
 }
 
@@ -675,15 +707,14 @@ body {
 
 .photo-card3 img {
   max-width: 100%;
-  height: auto;
+  height: 250px; /* Set a fixed height or adjust as needed for consistent sizing */
+  object-fit: contain; /* Use 'contain' to ensure the whole image is visible, 'cover' to fill the space */
   border-radius: 6px;
-  object-fit: cover;
-  max-height: 400px; /* Reduced max-height for smaller images */
-  width: 100%;
+  width: 100%; /* Make image fill its container horizontally */
 }
 
 .wound-healing-card3 {
-    grid-column: span 2;
+    grid-column: span ;
 }
 
 .card-header3 {
@@ -946,7 +977,7 @@ body {
   }
 
   .photo-card3 img {
-      max-height: 120px; 
+      max-height: 180px; /* Adjusted to original value for consistency */
   }
 
   .search-bar-patients3 {
@@ -1002,6 +1033,6 @@ body {
     padding: 5px 8px;
   }
   .photo-card3 img {
-      max-height: 100px; 
+      max-height: 150px; /* Adjusted to original value for consistency */
   }
 }
