@@ -31,15 +31,15 @@ const Dashboard = ({ user, onLogout }) => {
   const [editMedicationData, setEditMedicationData] = useState({ name: '', dosage: '' });
   const [editMedicationFrequencyData, setEditMedicationFrequencyData] = useState({ timeOfDay: [], startDate: '' });
 
-  // NEW: State for Treatment Plan forms (Step 1)
-  const [diagnosisDetails, setDiagnosisDetails] = useState(''); // NEW: State for Diagnosis
-  const [woundCareDetails, setWoundCareDetails] = useState('');
-  const [dressingDetails, setDressingDetails] = useState('');
+  // NEW: State for Treatment Plan forms (Step 1) - NOW ARRAYS FOR MULTIPLE ENTRIES
+  const [diagnosisDetails, setDiagnosisDetails] = useState([{ id: Date.now(), text: '' }]); // Array of objects
+  const [woundCareDetails, setWoundCareDetails] = useState([{ id: Date.now() + 1, text: '' }]);
+  const [dressingDetails, setDressingDetails] = useState([{ id: Date.now() + 2, text: '' }]);
 
-  // NEW: State for Treatment Plan forms (Step 2)
-  const [medicationTreatmentPlan, setMedicationTreatmentPlan] = useState('');
-  const [importantNotes, setImportantNotes] = useState('');
-  const [followUpDetails, setFollowUpDetails] = useState('');
+  // NEW: State for Treatment Plan forms (Step 2) - NOW ARRAYS FOR MULTIPLE ENTRIES
+  const [medicationTreatmentPlan, setMedicationTreatmentPlan] = useState([{ id: Date.now() + 3, text: '' }]);
+  const [importantNotes, setImportantNotes] = useState([{ id: Date.now() + 4, text: '' }]);
+  const [followUpDetails, setFollowUpDetails] = useState([{ id: Date.now() + 5, text: '' }]);
 
 
   useEffect(() => {
@@ -504,25 +504,74 @@ const Dashboard = ({ user, onLogout }) => {
     </div>
   );
 
+  // NEW: Function to get counts of patients by risk classification
+  const getPatientRiskCounts = () => {
+    const counts = { Low: 0, Medium: 0, High: 0 };
+    patients.forEach(patient => {
+      if (counts.hasOwnProperty(patient.risk_classification)) {
+        counts[patient.risk_classification]++;
+      }
+    });
+    return counts;
+  };
+
+  // NEW: Helper function to get patient phase counts
+  const getPatientPhaseCounts = () => {
+    const counts = { 'Pre-Operative': 0, 'Post-Operative': 0 };
+    patients.forEach(patient => {
+      if (counts.hasOwnProperty(patient.phase)) {
+        counts[patient.phase]++;
+      }
+    });
+    return counts;
+  };
+
+  const phaseCounts = getPatientPhaseCounts(); // NEW: Get phase counts
+  
   // NEW: Render Reports Content
-  const renderReportsContent = () => (
-    <div className="reports-grid3">
-      <div className="card3 report-widget-card3">
-        <div className="summary-widget-icon3">
-          <i className="fas fa-users"></i>
+  const renderReportsContent = () => {
+    const riskCounts = getPatientRiskCounts();
+    const maxCount = Math.max(riskCounts.Low, riskCounts.Medium, riskCounts.High);
+
+    return (
+      <div className="reports-grid3">
+        <div className="card3 report-widget-card3">
+          <div className="summary-widget-icon3">
+            <i className="fas fa-users"></i>
+          </div>
+          <h3>Total Patients</h3>
+          <p className="report-value3">{patients.length}</p>
         </div>
-        <h3>Total Patients</h3>
-        <p className="report-value3">{patients.length}</p>
-      </div>
-      <div className="card3 report-widget-card3">
-        <div className="summary-widget-icon3">
-          <i className="fas fa-calendar-alt"></i>
+        <div className="card3 report-widget-card3">
+          <div className="summary-widget-icon3">
+            <i className="fas fa-calendar-alt"></i>
+          </div>
+          <h3>Upcoming Appointments</h3>
+          <p className="report-value3">{appointments.length}</p>
         </div>
-        <h3>Upcoming Appointments</h3>
-        <p className="report-value3">{appointments.length}</p>
+
+        {/* NEW: Risk Classification Bar Chart */}
+        <div className="card3 risk-chart-card3">
+          <h3>Patient Risk Classification</h3>
+          <div className="bar-chart-container3">
+            {Object.entries(riskCounts).map(([risk, count]) => (
+              <div className="bar-chart-item3" key={risk}>
+                <div className="bar-chart-label3">{risk}</div>
+                <div className="bar-chart-bar-wrapper3">
+                  <div
+                    className={`bar-chart-bar3 ${risk.toLowerCase()}-risk-bar3`}
+                    style={{ height: `${(count / (maxCount || 1)) * 100}%` }}
+                    title={`${risk}: ${count} patients`}
+                  ></div>
+                </div>
+                <div className="bar-chart-value3">{count}</div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
     // NEW: Function to handle "Create Treatment Plan" button click
     const handleCreateTreatmentPlan = () => {
@@ -536,6 +585,83 @@ const Dashboard = ({ user, onLogout }) => {
         }
     };
 
+    // NEW: Handlers for dynamic Diagnosis fields
+    const handleAddDiagnosis = () => {
+      setDiagnosisDetails([...diagnosisDetails, { id: Date.now(), text: '' }]);
+    };
+
+    const handleRemoveDiagnosis = (idToRemove) => {
+      setDiagnosisDetails(diagnosisDetails.filter(diag => diag.id !== idToRemove));
+    };
+
+    const handleDiagnosisChange = (id, newText) => {
+      setDiagnosisDetails(diagnosisDetails.map(diag =>
+        diag.id === id ? { ...diag, text: newText } : diag
+      ));
+    };
+
+    // (Add similar handlers for WoundCare, Dressing, MedicationTreatmentPlan, ImportantNotes, FollowUpDetails)
+    const handleAddWoundCare = () => {
+      setWoundCareDetails([...woundCareDetails, { id: Date.now(), text: '' }]);
+    };
+    const handleRemoveWoundCare = (idToRemove) => {
+      setWoundCareDetails(woundCareDetails.filter(wc => wc.id !== idToRemove));
+    };
+    const handleWoundCareChange = (id, newText) => {
+      setWoundCareDetails(woundCareDetails.map(wc =>
+        wc.id === id ? { ...wc, text: newText } : wc
+      ));
+    };
+
+    const handleAddDressing = () => {
+      setDressingDetails([...dressingDetails, { id: Date.now(), text: '' }]);
+    };
+    const handleRemoveDressing = (idToRemove) => {
+      setDressingDetails(dressingDetails.filter(d => d.id !== idToRemove));
+    };
+    const handleDressingChange = (id, newText) => {
+      setDressingDetails(dressingDetails.map(d =>
+        d.id === id ? { ...d, text: newText } : d
+      ));
+    };
+
+    const handleAddMedicationTreatmentPlan = () => {
+      setMedicationTreatmentPlan([...medicationTreatmentPlan, { id: Date.now(), text: '' }]);
+    };
+    const handleRemoveMedicationTreatmentPlan = (idToRemove) => {
+      setMedicationTreatmentPlan(medicationTreatmentPlan.filter(mtp => mtp.id !== idToRemove));
+    };
+    const handleMedicationTreatmentPlanChange = (id, newText) => {
+      setMedicationTreatmentPlan(medicationTreatmentPlan.map(mtp =>
+        mtp.id === id ? { ...mtp, text: newText } : mtp
+      ));
+    };
+
+    const handleAddImportantNotes = () => {
+      setImportantNotes([...importantNotes, { id: Date.now(), text: '' }]);
+    };
+    const handleRemoveImportantNotes = (idToRemove) => {
+      setImportantNotes(importantNotes.filter(notes => notes.id !== idToRemove));
+    };
+    const handleImportantNotesChange = (id, newText) => {
+      setImportantNotes(importantNotes.map(notes =>
+        notes.id === id ? { ...notes, text: newText } : notes
+      ));
+    };
+
+    const handleAddFollowUpDetails = () => {
+      setFollowUpDetails([...followUpDetails, { id: Date.now(), text: '' }]);
+    };
+    const handleRemoveFollowUpDetails = (idToRemove) => {
+      setFollowUpDetails(followUpDetails.filter(fud => fud.id !== idToRemove));
+    };
+    const handleFollowUpDetailsChange = (id, newText) => {
+      setFollowUpDetails(followUpDetails.map(fud =>
+        fud.id === id ? { ...fud, text: newText } : fud
+      ));
+    };
+
+
     // NEW: Render Treatment Plan Content (Step 1)
     const renderTreatmentPlan = () => {
         const latestWoundPhoto = woundPhotos.length > 0 ? woundPhotos[0] : null;
@@ -544,11 +670,13 @@ const Dashboard = ({ user, onLogout }) => {
 
         return (
             <div className="treatment-plan-wrapper3">
-                <div className="patient-profile-header3">
-                    <button className="back-button3" onClick={() => setActivePage("patient-profile")}>Back to Patient Profile</button>
-                </div>
                 <h2>Treatment Plan for {selectedPatient.first_name} {selectedPatient.last_name}</h2>
-
+                  <div className="card3 patient-details-card3" style={{ marginBottom: '20px' }}>
+                    <h3>Patient Information</h3>
+                    <p><strong>Name:</strong> {selectedPatient.first_name} {selectedPatient.last_name}</p>
+                    <p><strong>Date of Birth:</strong> {selectedPatient.date_of_birth}</p>
+                    <p><strong>Contact Info:</strong> {selectedPatient.contact_info}</p>
+                  </div>
                 {latestWoundPhoto ? (
                     <div className="card3 latest-wound-photo-card3">
                         <h3>Latest Wound Photo</h3>
@@ -565,30 +693,57 @@ const Dashboard = ({ user, onLogout }) => {
                 <div className="forms-container3"> {/* New container for two-column forms */}
                     <div className="card3 diagnosis-form3"> {/* NEW: Diagnosis Form */}
                         <h3>Diagnosis</h3>
-                        <textarea
-                            placeholder="Enter diagnosis details..."
-                            rows="8"
-                            value={diagnosisDetails}
-                            onChange={(e) => setDiagnosisDetails(e.target.value)}
-                        ></textarea>
+                        {diagnosisDetails.map((entry, index) => (
+                          <div key={entry.id} className="dynamic-textarea-group3">
+                            <textarea
+                                placeholder="Enter diagnosis details..."
+                                rows="4" // Reduced rows to accommodate buttons
+                                value={entry.text}
+                                onChange={(e) => handleDiagnosisChange(entry.id, e.target.value)}
+                            ></textarea>
+                          </div>
+                        ))}
                     </div>
-                    <div className="card3 wound-care-form3">
-                        <h3>Wound Care</h3>
-                        <textarea
-                            placeholder="Enter wound care details..."
-                            rows="8"
-                            value={woundCareDetails}
-                            onChange={(e) => setWoundCareDetails(e.target.value)}
-                        ></textarea>
-                    </div>
-                    <div className="card3 dressing-form3">
-                        <h3>Dressing</h3>
-                        <textarea
-                            placeholder="Enter dressing details..."
-                            rows="8"
-                            value={dressingDetails}
-                            onChange={(e) => setDressingDetails(e.target.value)}
-                        ></textarea>
+                    {/* NEW CONTAINER for Wound Care and Dressing to keep them side-by-side */}
+                    <div className="wound-dressing-section3">
+                        <div className="card3 wound-care-form3">
+                            <h3>Wound Care</h3>
+                            {woundCareDetails.map((entry, index) => (
+                              <div key={entry.id} className="dynamic-textarea-group3">
+                                <textarea
+                                    placeholder="Enter wound care details..."
+                                    rows="4"
+                                    value={entry.text}
+                                    onChange={(e) => handleWoundCareChange(entry.id, e.target.value)}
+                                ></textarea>
+                                <div className="dynamic-buttons3">
+                                  <button onClick={handleAddWoundCare} className="add-button3">+</button>
+                                  {woundCareDetails.length > 1 && (
+                                    <button onClick={() => handleRemoveWoundCare(entry.id)} className="remove-button3">-</button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                        <div className="card3 dressing-form3">
+                            <h3>Dressing</h3>
+                            {dressingDetails.map((entry, index) => (
+                              <div key={entry.id} className="dynamic-textarea-group3">
+                                <textarea
+                                    placeholder="Enter dressing details..."
+                                    rows="4"
+                                    value={entry.text}
+                                    onChange={(e) => handleDressingChange(entry.id, e.target.value)}
+                                ></textarea>
+                                <div className="dynamic-buttons3">
+                                  <button onClick={handleAddDressing} className="add-button3">+</button>
+                                  {dressingDetails.length > 1 && (
+                                    <button onClick={() => handleRemoveDressing(entry.id)} className="remove-button3">-</button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
@@ -612,38 +767,66 @@ const Dashboard = ({ user, onLogout }) => {
 
         return (
             <div className="treatment-plan-wrapper3">
-                <div className="patient-profile-header3">
-                    <button className="back-button3" onClick={() => setActivePage("treatment-plan")}>Back to Treatment Plan</button>
-                </div>
+               
                 <h2>Additional Treatment Plan Details for {selectedPatient.first_name} {selectedPatient.last_name}</h2>
 
                 <div className="forms-container3"> {/* Using the same forms-container for consistent layout */}
                     <div className="card3 medication-treatment-form3">
                         <h3>Medication</h3>
-                        <textarea
-                            placeholder="Enter medication details specific to this treatment plan..."
-                            rows="8"
-                            value={medicationTreatmentPlan}
-                            onChange={(e) => setMedicationTreatmentPlan(e.target.value)}
-                        ></textarea>
+                        {medicationTreatmentPlan.map((entry, index) => (
+                          <div key={entry.id} className="dynamic-textarea-group3">
+                            <textarea
+                                placeholder="Enter medication details specific to this treatment plan..."
+                                rows="4"
+                                value={entry.text}
+                                onChange={(e) => handleMedicationTreatmentPlanChange(entry.id, e.target.value)}
+                            ></textarea>
+                            <div className="dynamic-buttons3">
+                              <button onClick={handleAddMedicationTreatmentPlan} className="add-button3">+</button>
+                              {medicationTreatmentPlan.length > 1 && (
+                                <button onClick={() => handleRemoveMedicationTreatmentPlan(entry.id)} className="remove-button3">-</button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                     </div>
                     <div className="card3 important-notes-form3">
                         <h3>Important Notes</h3>
-                        <textarea
-                            placeholder="Enter any important notes..."
-                            rows="8"
-                            value={importantNotes}
-                            onChange={(e) => setImportantNotes(e.target.value)}
-                        ></textarea>
+                        {importantNotes.map((entry, index) => (
+                          <div key={entry.id} className="dynamic-textarea-group3">
+                            <textarea
+                                placeholder="Enter any important notes..."
+                                rows="4"
+                                value={entry.text}
+                                onChange={(e) => handleImportantNotesChange(entry.id, e.target.value)}
+                            ></textarea>
+                            <div className="dynamic-buttons3">
+                              <button onClick={handleAddImportantNotes} className="add-button3">+</button>
+                              {importantNotes.length > 1 && (
+                                <button onClick={() => handleRemoveImportantNotes(entry.id)} className="remove-button3">-</button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                     </div>
                     <div className="card3 follow-up-form3">
                         <h3>Follow-up</h3>
-                        <textarea
-                            placeholder="Enter follow-up instructions or schedule..."
-                            rows="8"
-                            value={followUpDetails}
-                            onChange={(e) => setFollowUpDetails(e.target.value)}
-                        ></textarea>
+                        {followUpDetails.map((entry, index) => (
+                          <div key={entry.id} className="dynamic-textarea-group3">
+                            <textarea
+                                placeholder="Enter follow-up instructions or schedule..."
+                                rows="4"
+                                value={entry.text}
+                                onChange={(e) => handleFollowUpDetailsChange(entry.id, e.target.value)}
+                            ></textarea>
+                            <div className="dynamic-buttons3">
+                              <button onClick={handleAddFollowUpDetails} className="add-button3">+</button>
+                              {followUpDetails.length > 1 && (
+                                <button onClick={() => handleRemoveFollowUpDetails(entry.id)} className="remove-button3">-</button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                     </div>
                 </div>
 
@@ -689,27 +872,63 @@ const Dashboard = ({ user, onLogout }) => {
                 <div className="forms-container3">
                     <div className="card3 diagnosis-form3"> {/* NEW: Diagnosis Summary */}
                         <h3>Diagnosis</h3>
-                        <p>{diagnosisDetails || 'N/A'}</p>
+                        {diagnosisDetails.length > 0 ? (
+                            diagnosisDetails.map((entry, index) => (
+                                <p key={entry.id}>{entry.text || 'N/A'}</p>
+                            ))
+                        ) : (
+                            <p>N/A</p>
+                        )}
                     </div>
                     <div className="card3 wound-care-form3">
                         <h3>Wound Care</h3>
-                        <p>{woundCareDetails || 'N/A'}</p>
+                        {woundCareDetails.length > 0 ? (
+                            woundCareDetails.map((entry, index) => (
+                                <p key={entry.id}>{entry.text || 'N/A'}</p>
+                            ))
+                        ) : (
+                            <p>N/A</p>
+                        )}
                     </div>
                     <div className="card3 dressing-form3">
                         <h3>Dressing</h3>
-                        <p>{dressingDetails || 'N/A'}</p>
+                        {dressingDetails.length > 0 ? (
+                            dressingDetails.map((entry, index) => (
+                                <p key={entry.id}>{entry.text || 'N/A'}</p>
+                            ))
+                        ) : (
+                            <p>N/A</p>
+                        )}
                     </div>
                     <div className="card3 medication-treatment-form3">
                         <h3>Medication</h3>
-                        <p>{medicationTreatmentPlan || 'N/A'}</p>
+                        {medicationTreatmentPlan.length > 0 ? (
+                            medicationTreatmentPlan.map((entry, index) => (
+                                <p key={entry.id}>{entry.text || 'N/A'}</p>
+                            ))
+                        ) : (
+                            <p>N/A</p>
+                        )}
                     </div>
                     <div className="card3 important-notes-form3">
                         <h3>Important Notes</h3>
-                        <p>{importantNotes || 'N/A'}</p>
+                        {importantNotes.length > 0 ? (
+                            importantNotes.map((entry, index) => (
+                                <p key={entry.id}>{entry.text || 'N/A'}</p>
+                            ))
+                        ) : (
+                            <p>N/A</p>
+                        )}
                     </div>
                     <div className="card3 follow-up-form3">
                         <h3>Follow-up</h3>
-                        <p>{followUpDetails || 'N/A'}</p>
+                        {followUpDetails.length > 0 ? (
+                            followUpDetails.map((entry, index) => (
+                                <p key={entry.id}>{entry.text || 'N/A'}</p>
+                            ))
+                        ) : (
+                            <p>N/A</p>
+                        )}
                     </div>
                 </div>
 
@@ -1098,7 +1317,7 @@ const Dashboard = ({ user, onLogout }) => {
               <i className="fas fa-home"></i> <span>Dashboard</span>
             </li>
             <li className={activePage === "patient-list" ? "active3" : ""} onClick={() => setActivePage("patient-list")}>
-              <i className="fas fa-users"></i> <span>Patient List</span>
+              <i className="fas fa-users"></i> <span>Patients</span>
             </li>
             <li className={activePage === "reports" ? "active3" : ""} onClick={() => setActivePage("reports")}>
               <i className="fas fa-chart-line"></i> <span>Reports</span>
