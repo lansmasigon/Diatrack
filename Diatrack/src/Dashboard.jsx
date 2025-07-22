@@ -1,4 +1,4 @@
-// ✅ FULL UPDATED Dashboard.jsx WITH HEADER NAVIGATION (Notes replaced with Appointment Schedule)
+// ✅ FULL UPDATED Dashboard.jsx WITH HEADER NAVIGATION (Notes replaced with Appointment Schedule) AND TREATMENT PLAN SUMMARY
 
 import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
@@ -20,7 +20,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [woundPhotos, setWoundPhotos] = useState([]); // New state for wound photos
 
 
-  // New states for medication management
+  // New states for medication management (from previous iterations, for patient profile)
   const [patientMedications, setPatientMedications] = useState([]); // State for medications
   const [newMedication, setNewMedication] = useState({ name: '', dosage: '' }); // State for new medication input
   // Changed timeOfDay from string to array for checkboxes
@@ -30,6 +30,16 @@ const Dashboard = ({ user, onLogout }) => {
   const [editingMedicationId, setEditingMedicationId] = useState(null);
   const [editMedicationData, setEditMedicationData] = useState({ name: '', dosage: '' });
   const [editMedicationFrequencyData, setEditMedicationFrequencyData] = useState({ timeOfDay: [], startDate: '' });
+
+  // NEW: State for Treatment Plan forms (Step 1)
+  const [diagnosisDetails, setDiagnosisDetails] = useState(''); // NEW: State for Diagnosis
+  const [woundCareDetails, setWoundCareDetails] = useState('');
+  const [dressingDetails, setDressingDetails] = useState('');
+
+  // NEW: State for Treatment Plan forms (Step 2)
+  const [medicationTreatmentPlan, setMedicationTreatmentPlan] = useState('');
+  const [importantNotes, setImportantNotes] = useState('');
+  const [followUpDetails, setFollowUpDetails] = useState('');
 
 
   useEffect(() => {
@@ -514,17 +524,210 @@ const Dashboard = ({ user, onLogout }) => {
     </div>
   );
 
+    // NEW: Function to handle "Create Treatment Plan" button click
+    const handleCreateTreatmentPlan = () => {
+        // Find the latest wound photo if available
+        const latestWoundPhoto = woundPhotos.length > 0 ? woundPhotos[0] : null;
+        if (latestWoundPhoto) {
+            // Set active page to 'treatment-plan' to render the new content
+            setActivePage("treatment-plan");
+        } else {
+            alert("No wound photos available for this patient to create a treatment plan.");
+        }
+    };
+
+    // NEW: Render Treatment Plan Content (Step 1)
+    const renderTreatmentPlan = () => {
+        const latestWoundPhoto = woundPhotos.length > 0 ? woundPhotos[0] : null;
+
+        if (!selectedPatient) return <p>No patient selected for treatment plan.</p>;
+
+        return (
+            <div className="treatment-plan-wrapper3">
+                <div className="patient-profile-header3">
+                    <button className="back-button3" onClick={() => setActivePage("patient-profile")}>Back to Patient Profile</button>
+                </div>
+                <h2>Treatment Plan for {selectedPatient.first_name} {selectedPatient.last_name}</h2>
+
+                {latestWoundPhoto ? (
+                    <div className="card3 latest-wound-photo-card3">
+                        <h3>Latest Wound Photo</h3>
+                        <img src={latestWoundPhoto.url} alt="Latest Wound" className="latest-wound-image3" />
+                        <p><strong>Date:</strong> {new Date(latestWoundPhoto.date).toLocaleDateString()}</p>
+                        <p><strong>Notes:</strong> {latestWoundPhoto.notes || 'N/A'}</p>
+                    </div>
+                ) : (
+                    <div className="card3">
+                        <p>No wound photos available for this patient.</p>
+                    </div>
+                )}
+
+                <div className="forms-container3"> {/* New container for two-column forms */}
+                    <div className="card3 diagnosis-form3"> {/* NEW: Diagnosis Form */}
+                        <h3>Diagnosis</h3>
+                        <textarea
+                            placeholder="Enter diagnosis details..."
+                            rows="8"
+                            value={diagnosisDetails}
+                            onChange={(e) => setDiagnosisDetails(e.target.value)}
+                        ></textarea>
+                    </div>
+                    <div className="card3 wound-care-form3">
+                        <h3>Wound Care</h3>
+                        <textarea
+                            placeholder="Enter wound care details..."
+                            rows="8"
+                            value={woundCareDetails}
+                            onChange={(e) => setWoundCareDetails(e.target.value)}
+                        ></textarea>
+                    </div>
+                    <div className="card3 dressing-form3">
+                        <h3>Dressing</h3>
+                        <textarea
+                            placeholder="Enter dressing details..."
+                            rows="8"
+                            value={dressingDetails}
+                            onChange={(e) => setDressingDetails(e.target.value)}
+                        ></textarea>
+                    </div>
+                </div>
+
+                <div className="treatment-plan-actions3">
+                    <button className="cancel-button3" onClick={() => setActivePage("patient-profile")}>Cancel</button>
+                    <button className="next-step-button3" onClick={() => setActivePage("treatment-plan-next-step")}>Next Step</button>
+                </div>
+            </div>
+        );
+    };
+
+    // NEW: Render Next Step Forms (Medication, Important Notes, Follow-up)
+    const renderNextStepForms = () => {
+        if (!selectedPatient) return <p>No patient selected for treatment plan.</p>;
+
+        const handleSaveTreatmentPlan = () => {
+            // Here you would typically save the data to your backend
+            // For now, we'll just navigate to the summary page
+            setActivePage("treatment-plan-summary");
+        };
+
+        return (
+            <div className="treatment-plan-wrapper3">
+                <div className="patient-profile-header3">
+                    <button className="back-button3" onClick={() => setActivePage("treatment-plan")}>Back to Treatment Plan</button>
+                </div>
+                <h2>Additional Treatment Plan Details for {selectedPatient.first_name} {selectedPatient.last_name}</h2>
+
+                <div className="forms-container3"> {/* Using the same forms-container for consistent layout */}
+                    <div className="card3 medication-treatment-form3">
+                        <h3>Medication</h3>
+                        <textarea
+                            placeholder="Enter medication details specific to this treatment plan..."
+                            rows="8"
+                            value={medicationTreatmentPlan}
+                            onChange={(e) => setMedicationTreatmentPlan(e.target.value)}
+                        ></textarea>
+                    </div>
+                    <div className="card3 important-notes-form3">
+                        <h3>Important Notes</h3>
+                        <textarea
+                            placeholder="Enter any important notes..."
+                            rows="8"
+                            value={importantNotes}
+                            onChange={(e) => setImportantNotes(e.target.value)}
+                        ></textarea>
+                    </div>
+                    <div className="card3 follow-up-form3">
+                        <h3>Follow-up</h3>
+                        <textarea
+                            placeholder="Enter follow-up instructions or schedule..."
+                            rows="8"
+                            value={followUpDetails}
+                            onChange={(e) => setFollowUpDetails(e.target.value)}
+                        ></textarea>
+                    </div>
+                </div>
+
+                <div className="treatment-plan-actions3">
+                    <button className="cancel-button3" onClick={() => setActivePage("treatment-plan")}>Back</button> {/* Back button */}
+                    <button className="next-step-button3" onClick={handleSaveTreatmentPlan}>Save Treatment Plan</button> {/* Final save button */}
+                </div>
+            </div>
+        );
+    };
+
+    // NEW: Render Treatment Plan Summary
+    const renderTreatmentPlanSummary = () => {
+        if (!selectedPatient) return <p>No patient selected for treatment plan summary.</p>;
+
+        const latestWoundPhoto = woundPhotos.length > 0 ? woundPhotos[0] : null;
+
+        const handlePrint = () => {
+            window.print();
+        };
+
+        const handleSend = () => {
+            alert("Treatment Plan Sent!");
+            // Here you would implement actual sending logic (e.g., via email API)
+        };
+
+        return (
+            <div className="treatment-plan-wrapper3">
+                <div className="patient-profile-header3">
+                    <button className="back-button3" onClick={() => setActivePage("treatment-plan-next-step")}>Back to Edit Treatment Plan</button>
+                </div>
+                <h2>Treatment Plan Summary for {selectedPatient.first_name} {selectedPatient.last_name}</h2>
+
+                {latestWoundPhoto && (
+                    <div className="card3 latest-wound-photo-card3">
+                        <h3>Latest Wound Photo</h3>
+                        <img src={latestWoundPhoto.url} alt="Latest Wound" className="latest-wound-image3" />
+                        <p><strong>Date:</strong> {new Date(latestWoundPhoto.date).toLocaleDateString()}</p>
+                        <p><strong>Notes:</strong> {latestWoundPhoto.notes || 'N/A'}</p>
+                    </div>
+                )}
+
+                <div className="forms-container3">
+                    <div className="card3 diagnosis-form3"> {/* NEW: Diagnosis Summary */}
+                        <h3>Diagnosis</h3>
+                        <p>{diagnosisDetails || 'N/A'}</p>
+                    </div>
+                    <div className="card3 wound-care-form3">
+                        <h3>Wound Care</h3>
+                        <p>{woundCareDetails || 'N/A'}</p>
+                    </div>
+                    <div className="card3 dressing-form3">
+                        <h3>Dressing</h3>
+                        <p>{dressingDetails || 'N/A'}</p>
+                    </div>
+                    <div className="card3 medication-treatment-form3">
+                        <h3>Medication</h3>
+                        <p>{medicationTreatmentPlan || 'N/A'}</p>
+                    </div>
+                    <div className="card3 important-notes-form3">
+                        <h3>Important Notes</h3>
+                        <p>{importantNotes || 'N/A'}</p>
+                    </div>
+                    <div className="card3 follow-up-form3">
+                        <h3>Follow-up</h3>
+                        <p>{followUpDetails || 'N/A'}</p>
+                    </div>
+                </div>
+
+                <div className="treatment-plan-actions3">
+                    <button className="send-button3" onClick={handleSend}>Send</button>
+                    <button className="print-button3" onClick={handlePrint}>Print</button>
+                </div>
+            </div>
+        );
+    };
+
+
   const renderPatientProfile = () => {
     if (loading) return <div className="loading-message3">Loading patient details...</div>;
     if (error) return <div className="error-message3">{error}</div>;
 
     const latestMetric = patientMetrics.length > 0 ? patientMetrics[0] : null;
     const latestLab = patientLabs.length > 0 ? patientLabs[0] : null; // Get the latest lab result
-
-    const handleCreateTreatmentPlan = () => {
-        alert("Create Treatment Plan button clicked!");
-        // You can add logic here to navigate to a new page, open a modal, etc.
-    };
 
     return (
       <div className="patient-profile-wrapper3">
@@ -920,13 +1123,16 @@ const Dashboard = ({ user, onLogout }) => {
       </header>
 
       <main className="content-area-full-width3">
-        {activePage !== "patient-profile" && (
+        {activePage !== "patient-profile" && activePage !== "treatment-plan" && activePage !== "treatment-plan-next-step" && activePage !== "treatment-plan-summary" && (
           <h1>Welcome, Dr. {user.first_name} 👋</h1>
         )}
         {activePage === "dashboard" && renderDashboardContent()}
         {activePage === "patient-profile" && selectedPatient && renderPatientProfile()}
         {activePage === "patient-list" && renderPatientList()}
-        {activePage === "reports" && renderReportsContent()} {/* Changed to renderReportsContent */}
+        {activePage === "reports" && renderReportsContent()}
+        {activePage === "treatment-plan" && selectedPatient && renderTreatmentPlan()} {/* Render the first step of treatment plan */}
+        {activePage === "treatment-plan-next-step" && selectedPatient && renderNextStepForms()} {/* Render the next step of treatment plan */}
+        {activePage === "treatment-plan-summary" && selectedPatient && renderTreatmentPlanSummary()} {/* NEW: Render the summary page */}
       </main>
     </div>
   );
