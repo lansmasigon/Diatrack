@@ -296,6 +296,10 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [appointmentError, setAppointmentError] = useState(null);
   
+  // States for popup messages (NEW)
+  const [showUsersPopup, setShowUsersPopup] = useState(false);
+  const [showMessagePopup, setShowMessagePopup] = useState(false);
+
   // Helper function to get the start of the week (Monday)
   const getStartOfWeek = (date) => {
     const d = new Date(date);
@@ -1300,13 +1304,34 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             </div>
           </div>
           <div className="header-icons">
-            <i className="fas fa-bell"></i>
-            <i className="fas fa-envelope"></i>
-            <button className="signout-button" onClick={() => {
+          <button className="fas fa-bell notification-icon" onClick={() => setShowUsersPopup(true)}></button>
+          <button className="fas fa-envelope message-icon" onClick={() => setShowMessagePopup(true)}></button>
+            <button className="signout-button4" onClick={() => {
               if (window.confirm("Are you sure you want to sign out?")) onLogout();
             }}><i className="fas fa-sign-out-alt"></i></button>
           </div>
         </div>
+        {/* Pop-up for Notification Icon */}
+      {showUsersPopup && (
+        <div className="popup-overlay">
+          <div className="popup-content">
+            <h3>Notifications</h3>
+            <p>You have new notifications!</p>
+            <button onClick={() => setShowUsersPopup(false)}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* Pop-up for Message Icon */}
+      {showMessagePopup && (
+        <div className="popup-overlay">
+          <div className="popup-content">
+            <h3>Messages</h3>
+            <p>You have new messages!</p>
+            <button onClick={() => setShowMessagePopup(false)}>Close</button>
+          </div>
+        </div>
+      )}
       </div>
 
       <div className="main-content">

@@ -22,6 +22,8 @@ const AdminDashboard = ({ onLogout, user }) => {
   // New state to control the dropdown visibility
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
+  const [showUsersPopup, setShowUsersPopup] = useState(false);
+  const [showMessagePopup, setShowMessagePopup] = useState(false);
 
   const [doctorForm, setDoctorForm] = useState({
     firstName: "",
@@ -685,13 +687,34 @@ const AdminDashboard = ({ onLogout, user }) => {
             </div>
           </div>
           <div className="header-icons">
-            <i className="fas fa-bell"></i>
-            <i className="fas fa-envelope"></i>
+            <button className="fas fa-bell notification-icon1" onClick={() => setShowUsersPopup(true)}></button>
+            <button className="fas fa-envelope message-icon1" onClick={() => setShowMessagePopup(true)}></button>
             <button className="signout-button1" onClick={() => {
               if (window.confirm("Are you sure you want to sign out?")) onLogout();
             }}><i className="fas fa-sign-out-alt"></i></button>
           </div>
         </div>
+        {/* Pop-up for Notification Icon (AdminDashboard) */}
+      {showUsersPopup && (
+        <div className="popup-overlay3"> {/* Use popup-overlay3 from your shared CSS */}
+          <div className="popup-content3"> {/* Use popup-content3 from your shared CSS */}
+            <h3>Notifications</h3>
+            <p>You have new notifications!</p>
+            <button onClick={() => setShowUsersPopup(false)}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* Pop-up for Message Icon (AdminDashboard) */}
+      {showMessagePopup && (
+        <div className="popup-overlay1"> {/* Use popup-overlay3 from your shared CSS */}
+          <div className="popup-content1"> {/* Use popup-content3 from your shared CSS */}
+            <h3>Messages</h3>
+            <p>You have new messages!</p>
+            <button onClick={() => setShowMessagePopup(false)}>Close</button>
+          </div>
+        </div>
+      )}
       </div>
 
       <div className="main-content1">

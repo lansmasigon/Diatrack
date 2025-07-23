@@ -19,6 +19,10 @@ const Dashboard = ({ user, onLogout }) => {
   const [patientLabs, setPatientLabs] = useState([]); // New state for patient lab results
   const [woundPhotos, setWoundPhotos] = useState([]); // New state for wound photos
 
+  // NEW: States for popup messages
+  const [showUsersPopup, setShowUsersPopup] = useState(false);
+  const [showMessagePopup, setShowMessagePopup] = useState(false);
+
 
   // New states for medication management (from previous iterations, for patient profile)
   const [patientMedications, setPatientMedications] = useState([]); // State for medications
@@ -1368,8 +1372,8 @@ const renderReportsContent = () => {
                 </div>
             </div>
             <div className="header-icons3">
-                <i className="fas fa-bell notification-icon3"></i>
-                <i className="fas fa-envelope message-icon3"></i>
+                <button className="fas fa-bell notification-icon3" onClick={() => setShowUsersPopup(true)}></button>
+                <button className="fas fa-envelope message-icon3" onClick={() => setShowMessagePopup(true)}></button>
             </div>
             <button className="signout-button-header3" onClick={handleLogout}><i className="fas fa-sign-out-alt"></i> <span>Logout</span></button>
         </div>
@@ -1387,6 +1391,28 @@ const renderReportsContent = () => {
         {activePage === "treatment-plan-next-step" && selectedPatient && renderNextStepForms()} {/* Render the next step of treatment plan */}
         {activePage === "treatment-plan-summary" && selectedPatient && renderTreatmentPlanSummary()} {/* NEW: Render the summary page */}
       </main>
+
+      {/* Pop-up for Notification Icon */}
+      {showUsersPopup && (
+        <div className="popup-overlay3">
+          <div className="popup-content3">
+            <h3>Notifications</h3>
+            <p>You have new notifications!</p>
+            <button onClick={() => setShowUsersPopup(false)}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* Pop-up for Message Icon */}
+      {showMessagePopup && (
+        <div className="popup-overlay3">
+          <div className="popup-content3">
+            <h3>Messages</h3>
+            <p>You have new messages!</p>
+            <button onClick={() => setShowMessagePopup(false)}>Close</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
