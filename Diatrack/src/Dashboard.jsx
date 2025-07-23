@@ -514,64 +514,82 @@ const Dashboard = ({ user, onLogout }) => {
     });
     return counts;
   };
+// NEW: Helper function to get patient phase counts
+const getPatientPhaseCounts = () => {
+  const counts = { 'Pre-Operative': 0, 'Post-Operative': 0 };
+  patients.forEach(patient => {
+    if (counts.hasOwnProperty(patient.phase)) {
+      counts[patient.phase]++;
+    }
+  });
+  return counts;
+};
 
-  // NEW: Helper function to get patient phase counts
-  const getPatientPhaseCounts = () => {
-    const counts = { 'Pre-Operative': 0, 'Post-Operative': 0 };
-    patients.forEach(patient => {
-      if (counts.hasOwnProperty(patient.phase)) {
-        counts[patient.phase]++;
-      }
-    });
-    return counts;
-  };
 
-  const phaseCounts = getPatientPhaseCounts(); // NEW: Get phase counts
   
   // NEW: Render Reports Content
-  const renderReportsContent = () => {
-    const riskCounts = getPatientRiskCounts();
-    const maxCount = Math.max(riskCounts.Low, riskCounts.Medium, riskCounts.High);
+const renderReportsContent = () => {
+  const riskCounts = getPatientRiskCounts();
+  const maxRiskCount = Math.max(riskCounts.Low, riskCounts.Medium, riskCounts.High); // Renamed from maxCount for clarity
 
-    return (
-      <div className="reports-grid3">
-        <div className="card3 report-widget-card3">
-          <div className="summary-widget-icon3">
-            <i className="fas fa-users"></i>
-          </div>
-          <h3>Total Patients</h3>
-          <p className="report-value3">{patients.length}</p>
-        </div>
-        <div className="card3 report-widget-card3">
-          <div className="summary-widget-icon3">
-            <i className="fas fa-calendar-alt"></i>
-          </div>
-          <h3>Upcoming Appointments</h3>
-          <p className="report-value3">{appointments.length}</p>
-        </div>
+  const phaseCounts = getPatientPhaseCounts(); // Get phase counts inside the function
+  const maxPhaseCount = Math.max(phaseCounts['Pre-Operative'], phaseCounts['Post-Operative']); // Define maxPhaseCount here
 
-        {/* NEW: Risk Classification Bar Chart */}
-        <div className="card3 risk-chart-card3">
-          <h3>Patient Risk Classification</h3>
-          <div className="bar-chart-container3">
-            {Object.entries(riskCounts).map(([risk, count]) => (
-              <div className="bar-chart-item3" key={risk}>
-                <div className="bar-chart-label3">{risk}</div>
-                <div className="bar-chart-bar-wrapper3">
-                  <div
-                    className={`bar-chart-bar3 ${risk.toLowerCase()}-risk-bar3`}
-                    style={{ height: `${(count / (maxCount || 1)) * 100}%` }}
-                    title={`${risk}: ${count} patients`}
-                  ></div>
-                </div>
-                <div className="bar-chart-value3">{count}</div>
+  return (
+    <div className="reports-grid3">
+      <div className="card3 report-widget-card3">
+        <div className="summary-widget-icon3">
+          <i className="fas fa-users"></i>
+        </div>
+        <h3>Total Patients</h3>
+        <p className="report-value3">{patients.length}</p>
+      </div>
+      <div className="card3 report-widget-card3">
+        <div className="summary-widget-icon3">
+          <i className="fas fa-calendar-alt"></i>
+        </div>
+        <h3>Upcoming Appointments</h3>
+        <p className="report-value3">{appointments.length}</p>
+      </div>
+
+      {/* NEW: Risk Classification Bar Chart */}
+      <div className="card3 risk-chart-card3">
+        <h3>Patient Risk Classification</h3>
+        <div className="bar-chart-container3">
+          {Object.entries(riskCounts).map(([risk, count]) => (
+            <div className="bar-chart-item3" key={risk}>
+              <div className="bar-chart-label3">{risk}</div>
+              <div className="bar-chart-bar-wrapper3">
+                <div
+                  className={`bar-chart-bar3 ${risk.toLowerCase()}-risk-bar3`}
+                  style={{ height: `${(count / (maxRiskCount || 1)) * 100}%` }} // Use maxRiskCount
+                  title={`${risk}: ${count} patients`}
+                ></div>
               </div>
-            ))}
-          </div>
+              <div className="bar-chart-value3">{count}</div>
+            </div>
+          ))}
         </div>
       </div>
-    );
-  };
+
+       {/* NEW: Patient Phase Classification Bar Chart */}
+    <div className="card3 phase-chart-card3"> {/* Added new class for specific styling */}
+      <h3>Patient Phase Classification</h3>
+      <div className="bar-chart-container3">
+        {Object.entries(phaseCounts).map(([phase, count]) => (
+          <div className="bar-chart-item3" key={phase}>
+            <div className="bar-chart-label3">{phase}</div>
+            <div className="bar-chart-bar-wrapper3">
+              <div className={`bar-chart-bar3 ${phase.toLowerCase().replace('-', '')}-phase-bar3`} style={{ height: `${(count / (maxPhaseCount || 1)) * 100}%` }} title={`${phase}: ${count} patients`} ></div>
+            </div>
+            <div className="bar-chart-value3">{count}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+    </div>
+  );
+};
 
     // NEW: Function to handle "Create Treatment Plan" button click
     const handleCreateTreatmentPlan = () => {
@@ -664,96 +682,112 @@ const Dashboard = ({ user, onLogout }) => {
 
     // NEW: Render Treatment Plan Content (Step 1)
     const renderTreatmentPlan = () => {
-        const latestWoundPhoto = woundPhotos.length > 0 ? woundPhotos[0] : null;
+      const latestWoundPhoto = woundPhotos.length > 0 ? woundPhotos[0] : null;
 
-        if (!selectedPatient) return <p>No patient selected for treatment plan.</p>;
+      if (!selectedPatient) return <p>No patient selected for treatment plan.</p>;
 
-        return (
-            <div className="treatment-plan-wrapper3">
-                <h2>Treatment Plan for {selectedPatient.first_name} {selectedPatient.last_name}</h2>
-                  <div className="card3 patient-details-card3" style={{ marginBottom: '20px' }}>
-                    <h3>Patient Information</h3>
-                    <p><strong>Name:</strong> {selectedPatient.first_name} {selectedPatient.last_name}</p>
-                    <p><strong>Date of Birth:</strong> {selectedPatient.date_of_birth}</p>
-                    <p><strong>Contact Info:</strong> {selectedPatient.contact_info}</p>
+      return (
+          <div className="treatment-plan-wrapper3">
+              <h2>Treatment Plan for {selectedPatient.first_name} {selectedPatient.last_name}</h2>
+                {/* Overall 2-column flexbox layout for patient info block and wound photo */}
+                <div className="card3 patient-details-card3" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div className="patient-info-column"> {/* This is the main column for all patient info */}
+                    <h3 className="patientinfo3">Patient Information</h3>
+                    <div className="patient-info-two-column-layout"> {/* NEW: Inner div for 2-column patient details */}
+                      <div className="patient-details-col-1"> {/* First sub-column for patient details */}
+                        <p><strong>Name:</strong> {selectedPatient.first_name} {selectedPatient.last_name}</p>
+                        <p><strong>Date of Birth:</strong> {selectedPatient.date_of_birth}</p>
+                        <p><strong>Contact Info:</strong> {selectedPatient.contact_info}</p>
+                        <p><strong>Gender:</strong> {selectedPatient.gender}</p>
+                      </div>
+                      <div className="patient-details-col-2"> {/* Second sub-column for patient details */}
+                        <p><strong>Diabetes Type:</strong> {selectedPatient.diabetes_type}</p>
+                        <p><strong>Smoking Status:</strong> {selectedPatient.smoking_status}</p>
+                        <p><strong>Last Doctor Visit:</strong> {selectedPatient.last_doctor_visit}</p>
+                        <p><strong>Risk Classification:</strong> <span className={`risk-classification3 ${selectedPatient.risk_classification}`}>{selectedPatient.risk_classification}</span></p>
+                        <p><strong>Phase:</strong> <span className={`phase3 ${selectedPatient.phase}`}>{selectedPatient.phase}</span></p>
+                      </div>
+                    </div>
                   </div>
-                {latestWoundPhoto ? (
-                    <div className="card3 latest-wound-photo-card3">
-                        <h3>Latest Wound Photo</h3>
-                        <img src={latestWoundPhoto.url} alt="Latest Wound" className="latest-wound-image3" />
-                        <p><strong>Date:</strong> {new Date(latestWoundPhoto.date).toLocaleDateString()}</p>
-                        <p><strong>Notes:</strong> {latestWoundPhoto.notes || 'N/A'}</p>
-                    </div>
-                ) : (
-                    <div className="card3">
-                        <p>No wound photos available for this patient.</p>
-                    </div>
-                )}
 
-                <div className="forms-container3"> {/* New container for two-column forms */}
-                    <div className="card3 diagnosis-form3"> {/* NEW: Diagnosis Form */}
-                        <h3>Diagnosis</h3>
-                        {diagnosisDetails.map((entry, index) => (
-                          <div key={entry.id} className="dynamic-textarea-group3">
-                            <textarea
-                                placeholder="Enter diagnosis details..."
-                                rows="4" // Reduced rows to accommodate buttons
-                                value={entry.text}
-                                onChange={(e) => handleDiagnosisChange(entry.id, e.target.value)}
-                            ></textarea>
-                          </div>
-                        ))}
-                    </div>
-                    {/* NEW CONTAINER for Wound Care and Dressing to keep them side-by-side */}
-                    <div className="wound-dressing-section3">
-                        <div className="card3 wound-care-form3">
-                            <h3>Wound Care</h3>
-                            {woundCareDetails.map((entry, index) => (
-                              <div key={entry.id} className="dynamic-textarea-group3">
-                                <textarea
-                                    placeholder="Enter wound care details..."
-                                    rows="4"
-                                    value={entry.text}
-                                    onChange={(e) => handleWoundCareChange(entry.id, e.target.value)}
-                                ></textarea>
-                                <div className="dynamic-buttons3">
-                                  <button onClick={handleAddWoundCare} className="add-button3">+</button>
-                                  {woundCareDetails.length > 1 && (
-                                    <button onClick={() => handleRemoveWoundCare(entry.id)} className="remove-button3">-</button>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                        <div className="card3 dressing-form3">
-                            <h3>Dressing</h3>
-                            {dressingDetails.map((entry, index) => (
-                              <div key={entry.id} className="dynamic-textarea-group3">
-                                <textarea
-                                    placeholder="Enter dressing details..."
-                                    rows="4"
-                                    value={entry.text}
-                                    onChange={(e) => handleDressingChange(entry.id, e.target.value)}
-                                ></textarea>
-                                <div className="dynamic-buttons3">
-                                  <button onClick={handleAddDressing} className="add-button3">+</button>
-                                  {dressingDetails.length > 1 && (
-                                    <button onClick={() => handleRemoveDressing(entry.id)} className="remove-button3">-</button>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                    </div>
+                  {latestWoundPhoto ? (
+                      <div className="wound-photo-column" style={{ maxWidth: '300px', marginLeft: '20px', flexShrink: 0, textAlign: 'center' }}> {/* Wound photo column */}
+                          <h3 className="latestwound3">Latest Wound Photo</h3>
+                          <img src={latestWoundPhoto.url} alt="Latest Wound" className="latest-wound-image3" />
+                          <p><strong>Date:</strong> {new Date(latestWoundPhoto.date).toLocaleDateString()}</p>
+                          <p><strong>Notes:</strong> {latestWoundPhoto.notes || 'N/A'}</p>
+                      </div>
+                  ) : (
+                      <div className="wound-photo-column" style={{ maxWidth: '300px', marginLeft: '20px', flexShrink: 0 }}>
+                          <p>No wound photos available for this patient.</p>
+                      </div>
+                  )}
                 </div>
 
-                <div className="treatment-plan-actions3">
-                    <button className="cancel-button3" onClick={() => setActivePage("patient-profile")}>Cancel</button>
-                    <button className="next-step-button3" onClick={() => setActivePage("treatment-plan-next-step")}>Next Step</button>
-                </div>
-            </div>
-        );
-    };
+              <div className="forms-container3"> {/* New container for two-column forms */}
+                  <div className="card3 diagnosis-form3"> {/* NEW: Diagnosis Form */}
+                      <h3>Diagnosis</h3>
+                      {diagnosisDetails.map((entry, index) => (
+                        <div key={entry.id} className="dynamic-textarea-group3">
+                          <textarea
+                              placeholder="Enter diagnosis details..."
+                              rows="4" // Reduced rows to accommodate buttons
+                              value={entry.text}
+                              onChange={(e) => handleDiagnosisChange(entry.id, e.target.value)}
+                          ></textarea>
+                        </div>
+                      ))}
+                  </div>
+                  {/* NEW CONTAINER for Wound Care and Dressing to keep them side-by-side */}
+                  <div className="wound-dressing-section3">
+                      <div className="card3 wound-care-form3">
+                          <h3>Wound Care</h3>
+                          {woundCareDetails.map((entry, index) => (
+                            <div key={entry.id} className="dynamic-textarea-group3">
+                              <textarea
+                                  placeholder="Enter wound care details..."
+                                  rows="4"
+                                  value={entry.text}
+                                  onChange={(e) => handleWoundCareChange(entry.id, e.target.value)}
+                              ></textarea>
+                              <div className="dynamic-buttons3">
+                                <button onClick={handleAddWoundCare} className="add-button3">+</button>
+                                {woundCareDetails.length > 1 && (
+                                  <button onClick={() => handleRemoveWoundCare(entry.id)} className="remove-button3">-</button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                      <div className="card3 dressing-form3">
+                          <h3>Dressing</h3>
+                          {dressingDetails.map((entry, index) => (
+                            <div key={entry.id} className="dynamic-textarea-group3">
+                              <textarea
+                                  placeholder="Enter dressing details..."
+                                  rows="4"
+                                  value={entry.text}
+                                  onChange={(e) => handleDressingChange(entry.id, e.target.value)}
+                              ></textarea>
+                              <div className="dynamic-buttons3">
+                                <button onClick={handleAddDressing} className="add-button3">+</button>
+                                {dressingDetails.length > 1 && (
+                                  <button onClick={() => handleRemoveDressing(entry.id)} className="remove-button3">-</button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                  </div>
+              </div>
+
+              <div className="treatment-plan-actions3">
+                  <button className="cancel-button3" onClick={() => setActivePage("patient-profile")}>Cancel</button>
+                  <button className="next-step-button3" onClick={() => setActivePage("treatment-plan-next-step")}>Next Step</button>
+              </div>
+          </div>
+      );
+  };
 
     // NEW: Render Next Step Forms (Medication, Important Notes, Follow-up)
     const renderNextStepForms = () => {
