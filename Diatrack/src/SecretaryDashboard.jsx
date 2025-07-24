@@ -2203,7 +2203,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                 <>
                   <div className="lab-result-entry-section">
                     <h2>Enter Patient Lab Results</h2>
-                    <p style={{ marginBottom: "25px", color: "#666", fontSize: "15px" }}>
+                    <p>
                       Input the patient's baseline laboratory values to support risk classification and care planning. Once submitted, values will be locked for data integrity.
                     </p>
 
