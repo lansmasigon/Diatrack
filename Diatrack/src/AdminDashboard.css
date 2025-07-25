@@ -414,7 +414,7 @@ body {
 .master-list1 th,
 .master-list1 td {
   padding: 12px 15px;
-  text-align: left;
+  text-align: center;
   border-bottom: 1px solid #eee;
 }
 

@@ -269,6 +269,12 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
   const [upcomingAppointmentsCount, setUpcomingAppointmentsCount] = useState(0);
 
+  const [currentPagePatients, setCurrentPagePatients] = useState(1);
+  const PATIENTS_PER_PAGE = 10;
+
+  const [currentPageLabSearchPatients, setCurrentPageLabSearchPatients] = useState(1); // New state for this specific patient list
+  const LAB_SEARCH_PATIENTS_PER_PAGE = 10; // New: Define how many patients per page (you can adjust this number)
+  
   useEffect(() => {
     const fetchUpcomingAppointments = async () => {
       const doctorIds = linkedDoctors.map(d => d.doctor_id);
@@ -380,38 +386,41 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     return `${year}-${month}-${day}`;
   };
 
-  const renderPaginationButtons = (currentPage, totalPages, setCurrentPage) => {
-    const pageNumbers = [];
-    for (let i = 1; i <= totalPages; i++) {
-      pageNumbers.push(i);
-    }
-  
-    return (
-      <div className="pagination-controls"> {/* This class should be defined in SecretaryDashboard.css */}
+  // Helper function to render pagination buttons
+const renderPaginationButtons = (currentPage, totalPages, setCurrentPage) => {
+  const pageNumbers = [];
+  for (let i = 1; i <= totalPages; i++) {
+    pageNumbers.push(i);
+  }
+
+  return (
+    <div className="pagination-controls">
+      <button
+        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+        disabled={currentPage === 1}
+        className="pagination-button" // Added pagination-button class
+      >
+        Previous
+      </button>
+      {pageNumbers.map(number => (
         <button
-          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-          disabled={currentPage === 1}
+          key={number}
+          onClick={() => setCurrentPage(number)}
+          className={`pagination-button ${currentPage === number ? 'active-page' : ''}`} // Added pagination-button class
         >
-          Previous
+          {number}
         </button>
-        {pageNumbers.map(number => (
-          <button
-            key={number}
-            onClick={() => setCurrentPage(number)}
-            className={currentPage === number ? 'active-page' : ''}
-          >
-            {number}
-          </button>
-        ))}
-        <button
-          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-          disabled={currentPage === totalPages}
-        >
-          Next
-        </button>
-      </div>
-    );
-  };
+      ))}
+      <button
+        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+        disabled={currentPage === totalPages}
+        className="pagination-button" // Added pagination-button class
+      >
+        Next
+      </button>
+    </div>
+  );
+};
 
   // NEW STATE: Medications for selected patient
   const [patientMedications, setPatientMedications] = useState([]);
@@ -1251,6 +1260,19 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     `${pat.first_name} ${pat.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const indexOfLastPatient = currentPagePatients * PATIENTS_PER_PAGE;
+    const indexOfFirstPatient = indexOfLastPatient - PATIENTS_PER_PAGE;
+    const paginatedPatients = filteredPatients.slice(indexOfFirstPatient, indexOfLastPatient);
+    const totalPatientPages = Math.ceil(filteredPatients.length / PATIENTS_PER_PAGE);
+
+
+    const totalLabSearchPatients = filteredPatients.length;
+    const totalLabSearchPatientPages = Math.ceil(totalLabSearchPatients / LAB_SEARCH_PATIENTS_PER_PAGE);
+  
+    const startIndexLabSearchPatient = (currentPageLabSearchPatients - 1) * LAB_SEARCH_PATIENTS_PER_PAGE;
+    const endIndexLabSearchPatient = startIndexLabSearchPatient + LAB_SEARCH_PATIENTS_PER_PAGE;
+    const paginatedLabSearchPatients = filteredPatients.slice(startIndexLabSearchPatient, endIndexLabSearchPatient);
+    
   const handleLabInputChange = (field, value) => {
     setLabResults(prev => ({ ...prev, [field]: value }));
   };
@@ -1870,8 +1892,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredPatients.length > 0 ? (
-                        filteredPatients.map((pat) => (
+                      {paginatedPatients.map.length > 0 ? (
+                        paginatedPatients.map((pat) => (
                           <tr key={pat.patient_id}>
                             <td>{pat.first_name} {pat.last_name}</td>
                             <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
@@ -1904,6 +1926,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               <button className="delete-button" onClick={() => handleDeletePatient(pat.patient_id)}>Delete</button>
                             </td>
                           </tr>
+                          
                         ))
                       ) : (
                         <tr>
@@ -1916,7 +1939,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   {/* Message display for patient list */}
                   {message && <p className="form-message">{message}</p>}
 
-                   {/* PAGINATION CONTROLS GO HERE */}
+                  {renderPaginationButtons(currentPagePatients, totalPatientPages, setCurrentPagePatients)}
                 </div>
               )}
 
@@ -2355,25 +2378,27 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             </tr>
                           </thead>
                           <tbody>
-                            {filteredPatients.length > 0 ? (
-                              filteredPatients.map((pat) => (
+                            {/* Use paginatedLabSearchPatients here */}
+                            {paginatedLabSearchPatients.length > 0 ? (
+                              paginatedLabSearchPatients.map((pat) => (
                                 <tr key={pat.patient_id}>
                                   <td>{pat.first_name} {pat.last_name}</td>
                                   <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
                                   <td className={`risk-classification-${(pat.risk_classification || 'N/A').toLowerCase()}`}>
-                                      {pat.risk_classification || 'N/A'}
+                                    {pat.risk_classification || 'N/A'}
                                   </td>
                                   <td className={
                                     pat.lab_status === 'Submitted' ? 'lab-status-submitted' :
-                                    pat.lab_status === 'Pending' ? 'lab-status-pending' : // Add this if you want pending to have a specific style
-                                    pat.lab_status === 'N/A' ? 'lab-status-na' : // Add this if you want N/A to have a specific style
-                                    '' }> {pat.lab_status || 'N/A'}</td>
-                                    <td className={pat.profile_status === 'Complete' ? 'status-complete' : 'status-incomplete'}>
+                                    pat.lab_status === 'Pending' ? 'lab-status-pending' :
+                                    pat.lab_status === 'N/A' ? 'lab-status-na' :
+                                    '' }> {pat.lab_status || 'N/A'}
+                                  </td>
+                                  <td className={pat.profile_status === 'Complete' ? 'status-complete' : 'status-incomplete'}>
                                     {pat.profile_status}
                                   </td>
                                   <td>{pat.last_doctor_visit || 'N/A'}</td>
                                   <td>
-                                    <div className="lab-actions-buttons"> {/* New container for buttons */}
+                                    <div className="lab-actions-buttons">
                                       <button className="enter-labs-button" onClick={() => handleSelectPatientForLab(pat)}>
                                         Enter Labs
                                       </button>
@@ -2386,11 +2411,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               ))
                             ) : (
                               <tr>
-                                <td colSpan="7">No patients found.</td> {/* Updated colspan */}
+                                <td colSpan="7">No patients found.</td>
                               </tr>
                             )}
                           </tbody>
                         </table>
+
+                        {/* Add Pagination Controls for this patient search table */}
+                        {totalLabSearchPatients > LAB_SEARCH_PATIENTS_PER_PAGE && (
+                          <div className="pagination-container">
+                            {renderPaginationButtons(currentPageLabSearchPatients, totalLabSearchPatientPages, setCurrentPageLabSearchPatients)}
+                          </div>
+                        )}
                       </div>
                     )}
 
