@@ -56,6 +56,27 @@ const getLabStatus = (latestLabResult) => {
   return status;
 };
 
+// Helper function to determine profile status
+const getProfileStatus = (patient) => {
+  if (
+    patient &&
+    patient.first_name && patient.first_name.trim() !== '' &&
+    patient.last_name && patient.last_name.trim() !== '' &&
+    patient.email && patient.email.trim() !== '' &&
+    patient.date_of_birth && patient.date_of_birth.trim() !== '' &&
+    patient.contact_info && patient.contact_info.trim() !== '' && // Using contact_number based on previous context
+    patient.gender && patient.gender.trim() !== '' &&
+    patient.address && patient.address.trim() !== '' &&
+    patient.allergies && patient.allergies.trim() !== '' &&
+    patient.diabetes_type && patient.diabetes_type.trim() !== '' &&
+    patient.smoking_status && patient.smoking_status.trim() !== ''
+  ) {
+    return 'Complete';
+  } else {
+    return 'Incomplete';
+  }
+};
+
 const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp, lowRisk, moderateRisk, highRisk }) => {
 
   // Calculate percentages for Patient Categories
@@ -68,6 +89,9 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
   const lowRiskPercentage = totalRiskClasses > 0 ? (lowRisk / totalRiskClasses) * 100 : 0;
   const moderateRiskPercentage = totalRiskClasses > 0 ? (moderateRisk / totalRiskClasses) * 100 : 0;
   const highRiskPercentage = totalRiskClasses > 0 ? (highRisk / totalRiskClasses) * 100 : 0;
+// Helper function to render pagination buttons
+
+
 
 
   return (
@@ -243,6 +267,45 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [currentPageAppointments, setCurrentPageAppointments] = useState(1);
   const APPOINTMENTS_PER_PAGE = 6; // Define how many appointments per page
 
+  const [upcomingAppointmentsCount, setUpcomingAppointmentsCount] = useState(0);
+
+  useEffect(() => {
+    const fetchUpcomingAppointments = async () => {
+      const doctorIds = linkedDoctors.map(d => d.doctor_id);
+      if (doctorIds.length === 0) {
+        setUpcomingAppointmentsCount(0);
+        return;
+      }
+  
+      const today = new Date();
+      const nowISO = today.toISOString(); // Get current datetime in ISO format
+  
+      try {
+        const { data: upcomingAppointmentsData, error } = await supabase
+          .from('appointments')
+          .select('appointment_id')
+          .in('doctor_id', doctorIds)
+          .gte('appointment_datetime', nowISO); // Filter for appointments in the future or today (from current time)
+  
+        if (error) {
+          console.error("Error fetching upcoming appointments:", error.message);
+          setUpcomingAppointmentsCount(0);
+          return;
+        }
+  
+        setUpcomingAppointmentsCount(upcomingAppointmentsData.length);
+  
+      } catch (error) {
+        console.error("Error fetching upcoming appointments:", error.message);
+        setUpcomingAppointmentsCount(0);
+      }
+    };
+  
+    if (supabase && linkedDoctors.length > 0) {
+      fetchUpcomingAppointments();
+    }
+  }, [supabase, linkedDoctors]); // Re-run when supabase or linkedDoctors change
+
   // New state for lab result inputs
   const [labResults, setLabResults] = useState({
     selectedPatientForLab: null, // To store the patient object selected for lab entry
@@ -315,6 +378,39 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  };
+
+  const renderPaginationButtons = (currentPage, totalPages, setCurrentPage) => {
+    const pageNumbers = [];
+    for (let i = 1; i <= totalPages; i++) {
+      pageNumbers.push(i);
+    }
+  
+    return (
+      <div className="pagination-controls"> {/* This class should be defined in SecretaryDashboard.css */}
+        <button
+          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+          disabled={currentPage === 1}
+        >
+          Previous
+        </button>
+        {pageNumbers.map(number => (
+          <button
+            key={number}
+            onClick={() => setCurrentPage(number)}
+            className={currentPage === number ? 'active-page' : ''}
+          >
+            {number}
+          </button>
+        ))}
+        <button
+          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+          disabled={currentPage === totalPages}
+        >
+          Next
+        </button>
+      </div>
+    );
   };
 
   // NEW STATE: Medications for selected patient
@@ -779,6 +875,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             ...patient,
             lab_status: labStatus,
             latest_lab_date: latestLabDate,
+            profile_status: getProfileStatus(patient), // Add this line
           };
           console.log(`Patient ${patient.patient_id} - Processed Patient Object:`, processedPatient); // Debug log
           return processedPatient;
@@ -1170,6 +1267,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setSelectedPatientForDetail(patient);
     setActivePage("patient-detail-view"); // Change to new page state
   };
+
+// ... rest of the component's functions and return statement ...
 
   // New function to handle viewing lab details
   const handleViewPatientLabDetails = (patient) => {
@@ -1794,7 +1893,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           }>
                             {pat.lab_status || 'N/A'}
                           </td>
-                            <td>{pat.profile_status || 'N/A'}</td> {/* Display actual profile status */}
+                          <td className={pat.profile_status === 'Complete' ? 'status-complete' : 'status-incomplete'}>
+                            {pat.profile_status}
+                          </td>
                             <td>{pat.last_doctor_visit || 'N/A'}</td> {/* Corrected line */}
                             <td className="patient-actions-cell">
                               {/* Updated View button to use the new handler */}
@@ -1814,6 +1915,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
                   {/* Message display for patient list */}
                   {message && <p className="form-message">{message}</p>}
+
+                   {/* PAGINATION CONTROLS GO HERE */}
                 </div>
               )}
 
@@ -2260,8 +2363,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   <td className={`risk-classification-${(pat.risk_classification || 'N/A').toLowerCase()}`}>
                                       {pat.risk_classification || 'N/A'}
                                   </td>
-                                  <td>{pat.lab_status || 'N/A'}</td>
-                                  <td>{pat.profile_status || 'N/A'}</td>
+                                  <td className={
+                                    pat.lab_status === 'Submitted' ? 'lab-status-submitted' :
+                                    pat.lab_status === 'Pending' ? 'lab-status-pending' : // Add this if you want pending to have a specific style
+                                    pat.lab_status === 'N/A' ? 'lab-status-na' : // Add this if you want N/A to have a specific style
+                                    '' }> {pat.lab_status || 'N/A'}</td>
+                                    <td className={pat.profile_status === 'Complete' ? 'status-complete' : 'status-incomplete'}>
+                                    {pat.profile_status}
+                                  </td>
                                   <td>{pat.last_doctor_visit || 'N/A'}</td>
                                   <td>
                                     <div className="lab-actions-buttons"> {/* New container for buttons */}
@@ -2538,6 +2647,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
           <p className="summary-subtitle">Patients needing complete lab work</p>
         </div>
       </div>
+    
+
+     <div className="summary-widget upcoming-appointments">
+        <div className="summary-widget-icon">
+          <i className="fas fa-calendar-alt"></i> {/* You can choose an appropriate icon */}
+        </div>
+      <div className="summary-widget-content">
+        <h3>Upcoming Appointments</h3>
+          <p className="summary-number">{upcomingAppointmentsCount}</p>
+          <p className="summary-subtitle">Appointments scheduled for the future</p>
+      </div>
+    </div>
     </div>
 
     {/* New container for side-by-side layout */}
