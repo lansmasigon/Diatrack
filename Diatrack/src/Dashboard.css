@@ -220,7 +220,7 @@ body {
   background-color: var(--card-bg);
   border-radius: 12px;
   box-shadow: 0 4px 15px var(--shadow-light);
-  padding: 25px;
+  padding: 15px;
   transition: transform 0.2s ease-in-out;
 }
 
@@ -236,7 +236,7 @@ body {
 .dashboard-grid3 {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 25px;
+  gap: 15px;
 }
 
 @media (min-width: 992px) {
@@ -493,13 +493,6 @@ body {
   height: auto; /* Maintains the image's aspect ratio */
   display: block; /* Removes extra space below the image */
   margin: 0 auto 10px auto; /* Centers the image horizontally and adds bottom margin */
-}
-
-.patient-details-card3 p {
-  color: black;
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
 }
 
 
