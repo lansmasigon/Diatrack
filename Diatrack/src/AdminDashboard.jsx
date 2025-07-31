@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
 import "./AdminDashboard.css";
 import logo from "../picture/logo.png"; // Import the logo image
+import AuditLogs from "./AuditLogs"; // Import the AuditLogs component
 
 const AdminDashboard = ({ onLogout, user }) => {
   const [secretaries, setSecretaries] = useState([]);
@@ -675,6 +676,9 @@ const AdminDashboard = ({ onLogout, user }) => {
                 <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab("list"); setSelectedListType("secretaries"); setIsDropdownOpen(false); }}>Secretaries</a>
               </div>
             </li>
+            <li className={activeTab === "audit" ? "active1" : ""} onClick={() => setActiveTab("audit")}>
+              Audit Logs
+            </li>
           </ul>
         </nav>
         {/* ✅ RE-ADDED NAVBAR-RIGHT SECTION */}
@@ -1229,6 +1233,11 @@ const AdminDashboard = ({ onLogout, user }) => {
                 </>
               )}
             </>
+          )}
+
+          {/* Audit Logs Tab Content */}
+          {activeTab === "audit" && (
+            <AuditLogs onLogout={onLogout} user={user} />
           )}
 
           {message && <p className="message1">{message}</p>}
