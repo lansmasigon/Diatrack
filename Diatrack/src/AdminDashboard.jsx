@@ -880,7 +880,13 @@ const AdminDashboard = ({ onLogout, user }) => {
       {/* Global Header */}
       <div className="global-header">
         <div className="header-left">
-  
+          <div className="header-logo-section">
+            <img src={logo} alt="DiaTrack Logo" className="header-logo" />
+            <h1 className="header-title">
+              <span style={{ color: "#00aaff" }}>Dia</span>
+              <span style={{ color: "#ff9800" }}>Track</span>
+            </h1>
+          </div>
         </div>
         <div className="header-right">
           <button className="header-icon">
@@ -907,13 +913,6 @@ const AdminDashboard = ({ onLogout, user }) => {
       <div className="dashboard-layout">
         {/* Sidebar Navigation */}
         <div className="sidebar">
-          <div className="sidebar-header">
-            <img src={logo} alt="DiaTrack Logo" className="sidebar-logo" />
-            <h1 className="sidebar-title">
-              <span style={{ color: "#00aaff" }}>Dia</span>
-              <span style={{ color: "#ff9800" }}>Track</span>
-            </h1>
-          </div>
           
           <nav className="sidebar-nav">
             <ul className="nav-menu">
