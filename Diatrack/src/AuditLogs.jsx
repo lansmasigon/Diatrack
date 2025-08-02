@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
 import "./AuditLogs.css";
-import logo from "../picture/logo.png";
 
 const AuditLogs = ({ onLogout, user }) => {
   const [auditLogs, setAuditLogs] = useState([]);
   const [filteredLogs, setFilteredLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [adminName, setAdminName] = useState("Admin");
   const [message, setMessage] = useState("");
   
   // Filter states
@@ -21,12 +19,6 @@ const AuditLogs = ({ onLogout, user }) => {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [logsPerPage] = useState(10);
-
-  useEffect(() => {
-    if (user && user.first_name && user.last_name) {
-      setAdminName(`${user.first_name} ${user.last_name}`);
-    }
-  }, [user]);
 
   useEffect(() => {
     fetchAuditLogs();
@@ -208,62 +200,8 @@ const AuditLogs = ({ onLogout, user }) => {
 
   return (
     <div className="audit-logs-container">
-      {/* Header */}
-      <div className="audit-header">
-        <div className="header-left">
-          <img src={logo} alt="DiaTrack Logo" className="app-logo" />
-          <h1 className="app-title">DiaTrack</h1>
-        </div>
-        <div className="header-center">
-          <h2 className="page-title">🔍 Audit Monitoring Page</h2>
-        </div>
-        <div className="header-right">
-          <div className="user-info">
-            <span className="user-name">{adminName}</span>
-            <span className="user-role">Admin</span>
-          </div>
-          <button className="logout-btn" onClick={onLogout}>
-            ↗
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="audit-main">
-        {/* Sidebar Navigation */}
-        <div className="audit-sidebar">
-          <div className="nav-item active">
-            <span className="nav-icon">📊</span>
-            Dashboard
-          </div>
-          <div className="nav-item">
-            <span className="nav-icon">👥</span>
-            User Management
-          </div>
-          <div className="nav-item">
-            <span className="nav-icon">📋</span>
-            Classification
-          </div>
-          <div className="nav-item">
-            <span className="nav-icon">👤</span>
-            Accounts
-          </div>
-          <div className="nav-item current">
-            <span className="nav-icon">📝</span>
-            Audit Logs
-          </div>
-          <div className="nav-item">
-            <span className="nav-icon">⚙️</span>
-            Compliance
-          </div>
-          <div className="nav-item">
-            <span className="nav-icon">🤖</span>
-            ML Settings
-          </div>
-        </div>
-
-        {/* Content Area */}
-        <div className="audit-content">
+      {/* Content Area */}
+      <div className="audit-content">
           <div className="content-header">
             <h1 className="content-title">Audit Logs</h1>
             <div className="header-actions">
@@ -275,7 +213,6 @@ const AuditLogs = ({ onLogout, user }) => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="search-input"
                 />
-                <span className="search-icon">🔍</span>
               </div>
               <button 
                 className="filter-btn"
@@ -475,7 +412,6 @@ const AuditLogs = ({ onLogout, user }) => {
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 };
