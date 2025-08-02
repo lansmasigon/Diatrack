@@ -880,10 +880,7 @@ const AdminDashboard = ({ onLogout, user }) => {
       {/* Global Header */}
       <div className="global-header">
         <div className="header-left">
-          <div className="search-container">
-            <i className="fas fa-search search-icon"></i>
-            <span className="search-text">Audit Monitoring Page</span>
-          </div>
+  
         </div>
         <div className="header-right">
           <button className="header-icon">
