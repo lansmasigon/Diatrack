@@ -6,6 +6,7 @@ import Dashboard from "./Dashboard";
 import AdminDashboard from "./AdminDashboard";
 import SecretaryDashboard from "./SecretaryDashboard";
 import supabase from "./supabaseClient";
+import { logAuthEvent, logCredentialEvent } from "./auditLogger";
 import "./index.css";
 
 const App = () => {
@@ -91,6 +92,18 @@ const App = () => {
 
       if (error || !data) {
         console.error("Login error:", error);
+        
+        // Log failed login attempt
+        await logCredentialEvent(
+          'system',
+          'system',
+          'System',
+          null,
+          'login',
+          `Failed login attempt for email: ${email} as ${role} - ${error?.message || 'Invalid credentials'}`,
+          'Login Page'
+        );
+        
         alert("Login failed: Check credentials");
         return;
       }
@@ -98,11 +111,32 @@ const App = () => {
       // Verify that the ID field exists in the returned data
       if (!data[idField]) {
         console.error(`Missing ${idField} in login response:`, data);
+        
+        // Log failed login attempt
+        await logCredentialEvent(
+          'system',
+          'system',
+          'System',
+          null,
+          'login',
+          `Failed login attempt for email: ${email} as ${role} - User ID not found`,
+          'Login Page'
+        );
+        
         alert("Login failed: User ID not found");
         return;
       }
 
       console.log(`Login successful for ${role}:`, data); // Debug log
+
+      // Log successful login
+      await logAuthEvent(
+        role,
+        data[idField],
+        `${data.first_name} ${data.last_name}`,
+        'login',
+        'Login Page'
+      );
 
       setUser(data);
       setRole(role);
@@ -117,11 +151,37 @@ const App = () => {
       }
     } catch (err) {
       console.error("Login exception:", err);
+      
+      // Log failed login attempt
+      await logCredentialEvent(
+        'system',
+        'system',
+        'System',
+        null,
+        'login',
+        `Failed login attempt for email: ${email} as ${role} - ${err.message}`,
+        'Login Page'
+      );
+      
       alert("Login failed: An error occurred");
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Log logout if user is logged in
+    if (user && role) {
+      const idField = role === 'admin' ? 'admin_id' : 
+                     role === 'doctor' ? 'doctor_id' : 'secretary_id';
+      
+      await logAuthEvent(
+        role,
+        user[idField],
+        `${user.first_name} ${user.last_name}`,
+        'logout',
+        'Dashboard'
+      );
+    }
+    
     // Clear session storage on logout
     sessionStorage.removeItem('diatrack_user');
     sessionStorage.removeItem('diatrack_role');

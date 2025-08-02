@@ -117,10 +117,66 @@ const AuditLogs = ({ onLogout, user }) => {
   };
 
   const formatChangeValue = (oldValue, newValue) => {
-    if (!oldValue && !newValue) return 'N/A';
-    if (!oldValue) return newValue;
-    if (!newValue) return `${oldValue} → Deleted`;
-    return `${oldValue} → ${newValue}`;
+    if (!oldValue && !newValue) return <span>N/A</span>;
+    
+    // Handle simple text values
+    if (!oldValue) return <span className="added">Added: {newValue}</span>;
+    if (!newValue) return <span className="removed">Removed: {oldValue}</span>;
+    
+    // Try to parse JSON values for object comparison
+    try {
+      const oldObj = JSON.parse(oldValue);
+      const newObj = JSON.parse(newValue);
+      
+      // Handle different types of changes
+      if (Array.isArray(oldObj) || Array.isArray(newObj)) {
+        return <span className="changed">{oldValue} → {newValue}</span>;
+      }
+      
+      // Compare objects and show only changed fields
+      const changes = [];
+      const allKeys = new Set([...Object.keys(oldObj || {}), ...Object.keys(newObj || {})]);
+      
+      for (const key of allKeys) {
+        const oldVal = oldObj?.[key];
+        const newVal = newObj?.[key];
+        
+        if (oldVal !== newVal) {
+          if (oldVal === undefined) {
+            changes.push(<div key={`add-${key}`} className="added">{key}: Added "{newVal}"</div>);
+          } else if (newVal === undefined) {
+            changes.push(<div key={`rem-${key}`} className="removed">{key}: Removed "{oldVal}"</div>);
+          } else {
+            // Format specific fields for better readability
+            if (key === 'password') {
+              changes.push(<div key={key} className="changed">{key}: Changed</div>);
+            } else if (typeof oldVal === 'string' && typeof newVal === 'string' && 
+                      (oldVal.length > 50 || newVal.length > 50)) {
+              changes.push(<div key={key} className="changed">{key}: Updated (long text)</div>);
+            } else {
+              changes.push(<div key={key} className="changed">{key}: "{oldVal}" → "{newVal}"</div>);
+            }
+          }
+        }
+      }
+      
+      return changes.length > 0 ? <div>{changes}</div> : <span>No changes detected</span>;
+      
+    } catch (e) {
+      // If not JSON, handle as simple text
+      if (oldValue === newValue) return <span>No changes</span>;
+      
+      // Truncate long values
+      const maxLength = 100;
+      const truncateValue = (val) => {
+        if (typeof val === 'string' && val.length > maxLength) {
+          return val.substring(0, maxLength) + '...';
+        }
+        return val;
+      };
+      
+      return <span className="changed">"{truncateValue(oldValue)}" → "{truncateValue(newValue)}"</span>;
+    }
   };
 
   const getActorDisplayName = (log) => {
@@ -352,7 +408,7 @@ const AuditLogs = ({ onLogout, user }) => {
                             {log.action_type}
                           </span>
                         </td>
-                        <td className="value-cell">
+                        <td className="value-cell change-value-cell">
                           {formatChangeValue(log.old_value, log.new_value)}
                         </td>
                         <td className="source-cell">

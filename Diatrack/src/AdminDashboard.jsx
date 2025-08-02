@@ -5,6 +5,7 @@ import supabase from "./supabaseClient";
 import "./AdminDashboard.css";
 import logo from "../picture/logo.png"; // Import the logo image
 import AuditLogs from "./AuditLogs"; // Import the AuditLogs component
+import { logSystemAction, logPatientDataChange } from "./auditLogger"; // Import audit logging functions
 
 const AdminDashboard = ({ onLogout, user }) => {
   const [secretaries, setSecretaries] = useState([]);
@@ -196,7 +197,29 @@ const AdminDashboard = ({ onLogout, user }) => {
         secretary_id: doctorForm.secretaryId, // Corrected this to use doctorForm.secretaryId
         doctor_id: data.doctor_id,
       });
+      
+      // Log the linking action
+      await logSystemAction(
+        'admin',
+        user?.admin_id || 'unknown-admin',
+        adminName,
+        'user_management',
+        'create',
+        `Linked doctor ${doctorForm.firstName} ${doctorForm.lastName} to secretary`,
+        'Admin Dashboard'
+      );
     }
+
+    // Log doctor creation
+    await logSystemAction(
+      'admin',
+      user?.admin_id || 'unknown-admin',
+      adminName,
+      'user_management',
+      'create',
+      `Created doctor account: ${doctorForm.firstName} ${doctorForm.lastName} (${doctorForm.email})`,
+      'Admin Dashboard'
+    );
 
     setMessage("Doctor created and linked successfully!");
     fetchDoctors();
@@ -233,7 +256,29 @@ const AdminDashboard = ({ onLogout, user }) => {
         secretary_id: data.secretary_id,
         doctor_id: secretaryForm.doctorId,
       });
+      
+      // Log the linking action
+      await logSystemAction(
+        'admin',
+        user?.admin_id || 'unknown-admin',
+        adminName,
+        'user_management',
+        'create',
+        `Linked secretary ${secretaryForm.firstName} ${secretaryForm.lastName} to doctor`,
+        'Admin Dashboard'
+      );
     }
+
+    // Log secretary creation
+    await logSystemAction(
+      'admin',
+      user?.admin_id || 'unknown-admin',
+      adminName,
+      'user_management',
+      'create',
+      `Created secretary account: ${secretaryForm.firstName} ${secretaryForm.lastName} (${secretaryForm.email})`,
+      'Admin Dashboard'
+    );
 
     setMessage("Secretary created and linked successfully!");
     fetchSecretaries();
@@ -248,9 +293,29 @@ const AdminDashboard = ({ onLogout, user }) => {
       return;
     }
 
+    // Get the link details before deleting for audit log
+    const { data: linkData } = await supabase
+      .from("secretary_doctor_links")
+      .select("*, secretaries(first_name, last_name), doctors(first_name, last_name)")
+      .eq("link_id", linkId)
+      .single();
+
     const { error } = await supabase.from("secretary_doctor_links").delete().eq("link_id", linkId);
     if (error) setMessage(`Error unlinking: ${error.message}`);
     else {
+      // Log the unlinking action
+      if (linkData) {
+        await logSystemAction(
+          'admin',
+          user?.admin_id || 'unknown-admin',
+          adminName,
+          'user_management',
+          'delete',
+          `Unlinked secretary ${linkData.secretaries?.first_name} ${linkData.secretaries?.last_name} from doctor ${linkData.doctors?.first_name} ${linkData.doctors?.last_name}`,
+          'Admin Dashboard'
+        );
+      }
+      
       setMessage("Link removed successfully!");
       fetchLinks();
       fetchDoctorsWithSecretaryInfo(); // Re-fetch doctors with secretary info to update the list
@@ -276,6 +341,30 @@ const AdminDashboard = ({ onLogout, user }) => {
 
     if (error) setMessage(`Error linking: ${error.message}`);
     else {
+      // Get secretary and doctor names for audit log
+      const { data: secretaryData } = await supabase
+        .from("secretaries")
+        .select("first_name, last_name")
+        .eq("secretary_id", secretaryId)
+        .single();
+      
+      const { data: doctorData } = await supabase
+        .from("doctors")
+        .select("first_name, last_name")
+        .eq("doctor_id", doctorId)
+        .single();
+
+      // Log the linking action
+      await logSystemAction(
+        'admin',
+        user?.admin_id || 'unknown-admin',
+        adminName,
+        'user_management',
+        'create',
+        `Linked secretary ${secretaryData?.first_name} ${secretaryData?.last_name} to doctor ${doctorData?.first_name} ${doctorData?.last_name}`,
+        'Admin Dashboard'
+      );
+
       setMessage("Link added successfully!");
       setNewLinkSecretary(""); // Clear selection
       setNewLinkDoctor(""); // Clear selection
@@ -314,6 +403,13 @@ const AdminDashboard = ({ onLogout, user }) => {
       return;
     }
 
+    // Get the original patient data for audit log
+    const { data: originalPatient } = await supabase
+      .from("patients")
+      .select("*")
+      .eq("patient_id", editingPatientId)
+      .single();
+
     const updates = {
       first_name: editPatientForm.first_name,
       last_name: editPatientForm.last_name,
@@ -334,6 +430,38 @@ const AdminDashboard = ({ onLogout, user }) => {
     if (error) {
       setMessage(`Error updating patient: ${error.message}`);
     } else {
+      // Log the patient update
+      const changes = [];
+      if (originalPatient?.first_name !== editPatientForm.first_name) {
+        changes.push(`Name: ${originalPatient?.first_name} → ${editPatientForm.first_name}`);
+      }
+      if (originalPatient?.last_name !== editPatientForm.last_name) {
+        changes.push(`Last Name: ${originalPatient?.last_name} → ${editPatientForm.last_name}`);
+      }
+      if (originalPatient?.date_of_birth !== editPatientForm.date_of_birth) {
+        changes.push(`DOB: ${originalPatient?.date_of_birth} → ${editPatientForm.date_of_birth}`);
+      }
+      if (originalPatient?.contact_info !== editPatientForm.contact_info) {
+        changes.push(`Contact: ${originalPatient?.contact_info} → ${editPatientForm.contact_info}`);
+      }
+      if (editPatientForm.password) {
+        changes.push("Password updated");
+      }
+
+      if (changes.length > 0) {
+        await logPatientDataChange(
+          'admin',
+          user?.admin_id || 'unknown-admin',
+          adminName,
+          editingPatientId,
+          'profile',
+          'edit',
+          changes.join(', '),
+          `Updated patient: ${editPatientForm.first_name} ${editPatientForm.last_name}`,
+          'Admin Dashboard'
+        );
+      }
+
       setMessage("Patient updated successfully!");
       setEditingPatientId(null);
       setEditPatientForm({
@@ -373,6 +501,13 @@ const AdminDashboard = ({ onLogout, user }) => {
       return;
     }
 
+    // Get patient details before deletion for audit log
+    const { data: patientData } = await supabase
+      .from("patients")
+      .select("first_name, last_name, email")
+      .eq("patient_id", patientId)
+      .single();
+
     const { error } = await supabase
       .from("patients")
       .delete()
@@ -381,6 +516,19 @@ const AdminDashboard = ({ onLogout, user }) => {
     if (error) {
       setMessage(`Error deleting patient: ${error.message}`);
     } else {
+      // Log the patient deletion
+      await logPatientDataChange(
+        'admin',
+        user?.admin_id || 'unknown-admin',
+        adminName,
+        patientId,
+        'profile',
+        'delete',
+        `Patient: ${patientData?.first_name} ${patientData?.last_name} (${patientData?.email})`,
+        'Account deleted',
+        'Admin Dashboard'
+      );
+
       setMessage("Patient deleted successfully!");
       fetchPatients(); // Re-fetch patients to show updated data
     }
@@ -415,6 +563,13 @@ const AdminDashboard = ({ onLogout, user }) => {
       return;
     }
 
+    // Get the original doctor data for audit log
+    const { data: originalDoctor } = await supabase
+      .from("doctors")
+      .select("*")
+      .eq("doctor_id", editingDoctorId)
+      .single();
+
     const updates = {
       first_name: editDoctorForm.first_name,
       last_name: editDoctorForm.last_name,
@@ -434,6 +589,36 @@ const AdminDashboard = ({ onLogout, user }) => {
     if (error) {
       setMessage(`Error updating doctor: ${error.message}`);
     } else {
+      // Log the doctor update
+      const changes = [];
+      if (originalDoctor?.first_name !== editDoctorForm.first_name) {
+        changes.push(`Name: ${originalDoctor?.first_name} → ${editDoctorForm.first_name}`);
+      }
+      if (originalDoctor?.last_name !== editDoctorForm.last_name) {
+        changes.push(`Last Name: ${originalDoctor?.last_name} → ${editDoctorForm.last_name}`);
+      }
+      if (originalDoctor?.email !== editDoctorForm.email) {
+        changes.push(`Email: ${originalDoctor?.email} → ${editDoctorForm.email}`);
+      }
+      if (originalDoctor?.specialization !== editDoctorForm.specialization) {
+        changes.push(`Specialization: ${originalDoctor?.specialization} → ${editDoctorForm.specialization}`);
+      }
+      if (editDoctorForm.password) {
+        changes.push("Password updated");
+      }
+
+      if (changes.length > 0) {
+        await logSystemAction(
+          'admin',
+          user?.admin_id || 'unknown-admin',
+          adminName,
+          'user_management',
+          'edit',
+          `Updated doctor: ${editDoctorForm.first_name} ${editDoctorForm.last_name} - ${changes.join(', ')}`,
+          'Admin Dashboard'
+        );
+      }
+
       setMessage("Doctor updated successfully!");
       setEditingDoctorId(null);
       setEditDoctorForm({
@@ -474,6 +659,13 @@ const AdminDashboard = ({ onLogout, user }) => {
       return;
     }
 
+    // Get doctor details before deletion for audit log
+    const { data: doctorData } = await supabase
+      .from("doctors")
+      .select("first_name, last_name, email, specialization")
+      .eq("doctor_id", doctorId)
+      .single();
+
     const { error } = await supabase
       .from("doctors")
       .delete()
@@ -482,6 +674,17 @@ const AdminDashboard = ({ onLogout, user }) => {
     if (error) {
       setMessage(`Error deleting doctor: ${error.message}`);
     } else {
+      // Log the doctor deletion
+      await logSystemAction(
+        'admin',
+        user?.admin_id || 'unknown-admin',
+        adminName,
+        'user_management',
+        'delete',
+        `Deleted doctor: ${doctorData?.first_name} ${doctorData?.last_name} (${doctorData?.email}) - ${doctorData?.specialization}`,
+        'Admin Dashboard'
+      );
+
       setMessage("Doctor deleted successfully!");
       fetchDoctorsWithSecretaryInfo(); // Re-fetch filtered doctors
       fetchDoctors(); // Re-fetch all doctors to update other lists
@@ -517,6 +720,13 @@ const AdminDashboard = ({ onLogout, user }) => {
       return;
     }
 
+    // Get the original secretary data for audit log
+    const { data: originalSecretary } = await supabase
+      .from("secretaries")
+      .select("*")
+      .eq("secretary_id", editingSecretaryId)
+      .single();
+
     const updates = {
       first_name: editSecretaryForm.first_name,
       last_name: editSecretaryForm.last_name,
@@ -535,6 +745,33 @@ const AdminDashboard = ({ onLogout, user }) => {
     if (error) {
       setMessage(`Error updating secretary: ${error.message}`);
     } else {
+      // Log the secretary update
+      const changes = [];
+      if (originalSecretary?.first_name !== editSecretaryForm.first_name) {
+        changes.push(`Name: ${originalSecretary?.first_name} → ${editSecretaryForm.first_name}`);
+      }
+      if (originalSecretary?.last_name !== editSecretaryForm.last_name) {
+        changes.push(`Last Name: ${originalSecretary?.last_name} → ${editSecretaryForm.last_name}`);
+      }
+      if (originalSecretary?.email !== editSecretaryForm.email) {
+        changes.push(`Email: ${originalSecretary?.email} → ${editSecretaryForm.email}`);
+      }
+      if (editSecretaryForm.password) {
+        changes.push("Password updated");
+      }
+
+      if (changes.length > 0) {
+        await logSystemAction(
+          'admin',
+          user?.admin_id || 'unknown-admin',
+          adminName,
+          'user_management',
+          'edit',
+          `Updated secretary: ${editSecretaryForm.first_name} ${editSecretaryForm.last_name} - ${changes.join(', ')}`,
+          'Admin Dashboard'
+        );
+      }
+
       setMessage("Secretary updated successfully!");
       setEditingSecretaryId(null);
       setEditSecretaryForm({
@@ -573,6 +810,13 @@ const AdminDashboard = ({ onLogout, user }) => {
       return;
     }
 
+    // Get secretary details before deletion for audit log
+    const { data: secretaryData } = await supabase
+      .from("secretaries")
+      .select("first_name, last_name, email")
+      .eq("secretary_id", secretaryId)
+      .single();
+
     const { error } = await supabase
       .from("secretaries")
       .delete()
@@ -581,6 +825,17 @@ const AdminDashboard = ({ onLogout, user }) => {
     if (error) {
       setMessage(`Error deleting secretary: ${error.message}`);
     } else {
+      // Log the secretary deletion
+      await logSystemAction(
+        'admin',
+        user?.admin_id || 'unknown-admin',
+        adminName,
+        'user_management',
+        'delete',
+        `Deleted secretary: ${secretaryData?.first_name} ${secretaryData?.last_name} (${secretaryData?.email})`,
+        'Admin Dashboard'
+      );
+
       setMessage("Secretary deleted successfully!");
       fetchSecretaries(); // Re-fetch secretaries to update the list
       fetchLinks(); // Links might be affected if a linked secretary is deleted

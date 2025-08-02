@@ -124,6 +124,70 @@ export const logMetricsSubmission = async (actorType, actorId, actorName, patien
   });
 };
 
+/**
+ * Helper function to log appointment events
+ */
+export const logAppointmentEvent = async (actorType, actorId, actorName, patientId, actionType, appointmentDetails, sourcePage = 'Appointment Manager') => {
+  await logAuditEvent({
+    actorType,
+    actorId,
+    actorName,
+    userId: patientId,
+    module: 'appointments',
+    actionType,
+    newValue: appointmentDetails,
+    sourcePage,
+  });
+};
+
+/**
+ * Helper function to log lab result events
+ */
+export const logLabResultEvent = async (actorType, actorId, actorName, patientId, actionType, labData, sourcePage = 'Lab Results Portal') => {
+  await logAuditEvent({
+    actorType,
+    actorId,
+    actorName,
+    userId: patientId,
+    module: 'lab_results',
+    actionType,
+    newValue: JSON.stringify(labData),
+    sourcePage,
+  });
+};
+
+/**
+ * Helper function to log ML settings changes
+ */
+export const logMLSettingsChange = async (actorType, actorId, actorName, actionType, oldSettings, newSettings, sourcePage = 'ML Model Config') => {
+  await logAuditEvent({
+    actorType,
+    actorId,
+    actorName,
+    module: 'ml_settings',
+    actionType,
+    oldValue: oldSettings,
+    newValue: newSettings,
+    sourcePage,
+  });
+};
+
+/**
+ * Helper function to log credential events (password resets, etc.)
+ */
+export const logCredentialEvent = async (actorType, actorId, actorName, userId, actionType, description, sourcePage = 'Credential Manager') => {
+  await logAuditEvent({
+    actorType,
+    actorId,
+    actorName,
+    userId,
+    module: 'credentials',
+    actionType,
+    newValue: description,
+    sourcePage,
+  });
+};
+
 export default {
   logAuditEvent,
   logAuthEvent,
@@ -131,4 +195,8 @@ export default {
   logSystemAction,
   logMedicationChange,
   logMetricsSubmission,
+  logAppointmentEvent,
+  logLabResultEvent,
+  logMLSettingsChange,
+  logCredentialEvent,
 };

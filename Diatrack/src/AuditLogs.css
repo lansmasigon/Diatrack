@@ -287,6 +287,34 @@
   vertical-align: top;
 }
 
+/* Change Value Cell Specific Styling */
+.change-value-cell {
+  max-width: 300px;
+  word-wrap: break-word;
+  word-break: break-word;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  padding: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.change-value-cell .added {
+  color: #28a745;
+  font-weight: 500;
+}
+
+.change-value-cell .removed {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+.change-value-cell .changed {
+  color: #007bff;
+}
+
 .audit-table tr:hover {
   background-color: #f7fafc;
 }
