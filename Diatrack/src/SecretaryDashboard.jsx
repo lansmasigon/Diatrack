@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
+import { logAppointmentEvent, logPatientDataChange, logSystemAction } from "./auditLogger";
 import "./SecretaryDashboard.css";
 import logo from "../picture/logo.png"; // Import the logo image
 
@@ -1032,18 +1033,59 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
       let error;
       if (editingPatientId) {
+        // Get current patient data for audit log
+        const { data: currentPatientData } = await supabase
+          .from("patients")
+          .select('*')
+          .eq("patient_id", editingPatientId)
+          .single();
+
         // Update existing patient
-        const { error: updateError } = await supabase
+        const { data: updatedData, error: updateError } = await supabase
           .from("patients")
           .update(patientData)
-          .eq("patient_id", editingPatientId);
+          .eq("patient_id", editingPatientId)
+          .select()
+          .single();
+        
         error = updateError;
+
+        // Log patient update
+        if (!error) {
+          await logPatientDataChange(
+            'secretary',
+            user.secretary_id,
+            `${user.first_name} ${user.last_name}`,
+            editingPatientId,
+            'user_management',
+            'edit',
+            JSON.stringify(currentPatientData),
+            JSON.stringify(updatedData),
+            'Secretary Dashboard - Patient Management'
+          );
+        }
       } else {
         // Create new patient
-        const { error: insertError } = await supabase
+        const { data: newPatientData, error: insertError } = await supabase
           .from("patients")
-          .insert([patientData]);
+          .insert([patientData])
+          .select()
+          .single();
+        
         error = insertError;
+
+        // Log patient creation
+        if (!error) {
+          await logSystemAction(
+            'secretary',
+            user.secretary_id,
+            `${user.first_name} ${user.last_name}`,
+            'user_management',
+            'create',
+            `Created new patient: ${patientData.first_name} ${patientData.last_name}`,
+            'Secretary Dashboard - Patient Management'
+          );
+        }
       }
 
       if (error) {
@@ -1132,14 +1174,74 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
   };
 
   const handleDeletePatient = async (patientId) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this patient?");
+    const confirmDelete = window.confirm("Are you sure you want to delete this patient? This will also delete all associated lab results, appointments, and other data.");
     if (!confirmDelete) return;
 
-    const { error } = await supabase.from("patients").delete().eq("patient_id", patientId);
-    if (error) setMessage(`Error deleting patient: ${error.message}`);
-    else {
-      setMessage("Patient deleted successfully!");
+    try {
+      // Get patient data before deletion for audit log
+      const { data: patientData } = await supabase
+        .from("patients")
+        .select('*')
+        .eq("patient_id", patientId)
+        .single();
+
+      // Delete related records first to avoid foreign key constraint violations
+      // Delete patient lab results
+      const { error: labError } = await supabase
+        .from("patient_labs")
+        .delete()
+        .eq("patient_id", patientId);
+
+      if (labError) {
+        console.error("Error deleting patient labs:", labError);
+        setMessage(`Error deleting patient lab data: ${labError.message}`);
+        return;
+      }
+
+      // Delete appointments
+      const { error: appointmentError } = await supabase
+        .from("appointments")
+        .delete()
+        .eq("patient_id", patientId);
+
+      if (appointmentError) {
+        console.error("Error deleting appointments:", appointmentError);
+        setMessage(`Error deleting patient appointments: ${appointmentError.message}`);
+        return;
+      }
+
+      // Delete any other related records (add more as needed based on your schema)
+      // For example, if you have patient medications, medical history, etc.
+
+      // Finally, delete the patient record
+      const { error: patientError } = await supabase
+        .from("patients")
+        .delete()
+        .eq("patient_id", patientId);
+      
+      if (patientError) {
+        console.error("Error deleting patient:", patientError);
+        setMessage(`Error deleting patient: ${patientError.message}`);
+        return;
+      }
+
+      // Log patient deletion
+      await logSystemAction(
+        'secretary',
+        user.secretary_id,
+        `${user.first_name} ${user.last_name}`,
+        'user_management',
+        'delete',
+        `Deleted patient: ${patientData?.first_name} ${patientData?.last_name} (ID: ${patientId}) including all associated data`,
+        'Secretary Dashboard - Patient Management'
+      );
+
+      setMessage("Patient and all associated data deleted successfully!");
       fetchPatients(); // Refresh patient list and chart data
+      
+    } catch (error) {
+      console.error("Unexpected error during patient deletion:", error);
+      setMessage(`Unexpected error deleting patient: ${error.message}`);
     }
   };
 
@@ -1177,9 +1279,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     const appointmentDateTime = new Date(`${appointmentForm.date}T${appointmentForm.time}:00.000Z`);
 
     let error;
+    let appointmentData;
+    
     if (editingAppointmentId) {
+      // Get current appointment data for audit log
+      const { data: currentData } = await supabase
+        .from("appointments")
+        .select('*')
+        .eq("appointment_id", editingAppointmentId)
+        .single();
+
       // Update existing appointment
-      const { error: updateError } = await supabase
+      const { data: updatedData, error: updateError } = await supabase
         .from("appointments")
         .update({
           doctor_id: appointmentForm.doctorId,
@@ -1187,8 +1298,26 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
           appointment_datetime: appointmentDateTime.toISOString(),
           notes: appointmentForm.notes,
         })
-        .eq("appointment_id", editingAppointmentId);
+        .eq("appointment_id", editingAppointmentId)
+        .select()
+        .single();
+      
       error = updateError;
+      appointmentData = updatedData;
+
+      // Log appointment update
+      if (!error) {
+        await logAppointmentEvent(
+          'secretary',
+          user.secretary_id,
+          `${user.first_name} ${user.last_name}`,
+          appointmentForm.patientId,
+          'reschedule',
+          JSON.stringify(currentData),
+          JSON.stringify(appointmentData),
+          'Secretary Dashboard - Appointment Management'
+        );
+      }
     } else {
       // Create new appointment
       const { data, error: insertError } = await supabase
@@ -1201,8 +1330,26 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             appointment_datetime: appointmentDateTime.toISOString(),
             notes: appointmentForm.notes,
           },
-        ]);
+        ])
+        .select()
+        .single();
+      
       error = insertError;
+      appointmentData = data;
+
+      // Log new appointment creation
+      if (!error) {
+        await logAppointmentEvent(
+          'secretary',
+          user.secretary_id,
+          `${user.first_name} ${user.last_name}`,
+          appointmentForm.patientId,
+          'schedule',
+          '',
+          JSON.stringify(appointmentData),
+          'Secretary Dashboard - Appointment Management'
+        );
+      }
     }
 
     if (error) {
@@ -1221,6 +1368,13 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
   const handleDeleteAppointment = async (appointmentId, actionType) => {
     const confirmMessage = `Are you sure you want to ${actionType} this appointment? This action cannot be undone.`;
     if (window.confirm(confirmMessage)) {
+      // Get appointment data before deletion for audit log
+      const { data: appointmentData } = await supabase
+        .from("appointments")
+        .select('*')
+        .eq("appointment_id", appointmentId)
+        .single();
+
       const { error } = await supabase
         .from("appointments")
         .delete()
@@ -1230,6 +1384,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         console.error(`Error ${actionType}ing appointment:`, error);
         setMessage(`Error ${actionType}ing appointment: ${error.message}`);
       } else {
+        // Log appointment cancellation/completion
+        await logAppointmentEvent(
+          'secretary',
+          user.secretary_id,
+          `${user.first_name} ${user.last_name}`,
+          appointmentData?.patient_id,
+          actionType === 'cancel' ? 'cancel' : 'delete',
+          JSON.stringify(appointmentData),
+          `Appointment ${actionType}ed`,
+          'Secretary Dashboard - Appointment Management'
+        );
+
         setMessage(`Appointment ${actionType} successfully!`);
         fetchAllAppointments(); // Refresh the list of appointments
       }

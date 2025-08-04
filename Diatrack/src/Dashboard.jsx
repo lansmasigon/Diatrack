@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
+import { logMedicationChange, logPatientDataChange, logSystemAction } from "./auditLogger";
 import "./Dashboard.css";
 import logo from '../picture/logo.png'; // Make sure this path is correct
 
@@ -283,6 +284,24 @@ const Dashboard = ({ user, onLogout }) => {
 
       if (freqError) throw freqError;
 
+      // Log medication addition
+      await logMedicationChange(
+        'doctor',
+        user.doctor_id,
+        `${user.first_name} ${user.last_name}`,
+        selectedPatient.patient_id,
+        'create',
+        '',
+        JSON.stringify({
+          medication: medication,
+          frequency: {
+            time_of_day: newMedicationFrequency.timeOfDay,
+            start_date: newMedicationFrequency.startDate
+          }
+        }),
+        'Patient Profile - Doctor Dashboard'
+      );
+
       // Re-fetch patient details to get the newly added medication and its frequency details
       await fetchPatientDetails(selectedPatient.patient_id);
       setNewMedication({ name: '', dosage: '' }); // Clear medication input fields
@@ -301,6 +320,16 @@ const Dashboard = ({ user, onLogout }) => {
       setLoading(true);
       setError("");
       try {
+        // Get medication data before deletion for audit log
+        const { data: medicationData } = await supabase
+          .from("medications")
+          .select(`
+            *,
+            medication_frequencies (*)
+          `)
+          .eq("id", medId)
+          .single();
+
         // First, remove associated frequencies
         const { error: freqError } = await supabase
           .from("medication_frequencies")
@@ -316,6 +345,18 @@ const Dashboard = ({ user, onLogout }) => {
           .eq("id", medId); // 'id' is the primary key for medications table
 
         if (medError) throw medError;
+
+        // Log medication removal
+        await logMedicationChange(
+          'doctor',
+          user.doctor_id,
+          `${user.first_name} ${user.last_name}`,
+          selectedPatient.patient_id,
+          'delete',
+          JSON.stringify(medicationData),
+          'Medication removed',
+          'Patient Profile - Doctor Dashboard'
+        );
 
         // Re-fetch to update the UI
         await fetchPatientDetails(selectedPatient.patient_id);
@@ -373,6 +414,16 @@ const Dashboard = ({ user, onLogout }) => {
     setLoading(true);
     setError("");
     try {
+      // Get current medication data for audit log
+      const { data: currentData } = await supabase
+        .from("medications")
+        .select(`
+          *,
+          medication_frequencies (*)
+        `)
+        .eq("id", medId)
+        .single();
+
       // Update medications table
       const { error: medError } = await supabase
         .from("medications")
@@ -395,6 +446,28 @@ const Dashboard = ({ user, onLogout }) => {
         .eq("medication_id", medId); // Ensure you update the correct frequency entry
 
       if (freqError) throw freqError;
+
+      // Get updated data for audit log
+      const { data: updatedData } = await supabase
+        .from("medications")
+        .select(`
+          *,
+          medication_frequencies (*)
+        `)
+        .eq("id", medId)
+        .single();
+
+      // Log medication update
+      await logMedicationChange(
+        'doctor',
+        user.doctor_id,
+        `${user.first_name} ${user.last_name}`,
+        selectedPatient.patient_id,
+        'edit',
+        JSON.stringify(currentData),
+        JSON.stringify(updatedData),
+        'Patient Profile - Doctor Dashboard'
+      );
 
       await fetchPatientDetails(selectedPatient.patient_id); // Re-fetch to update the UI
       setEditingMedicationId(null); // Exit edit mode
