@@ -14,9 +14,9 @@ body, html {
 .login-page {
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center; /* Changed back to center for vertical alignment */
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 2rem;
   padding: 2rem;
   min-height: 100vh;
 }
@@ -26,9 +26,8 @@ body, html {
   border-radius: 24px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   width: 100%;
-  height: auto;
   max-width: 500px;
-  padding: 1rem 2rem;
+  padding: 1rem; /* Reduced padding to make the form smaller */
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -44,16 +43,16 @@ body, html {
 .dia-track-logo {
   display: flex;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem; /* Reduced margin */
 }
 
 .dia-track-logo img {
-  height: 50px;
+  height: clamp(40px, 10vw, 50px);
   margin-right: 0.5rem;
 }
 
 .logo-text {
-  font-size: 1.8rem;
+  font-size: clamp(1.5rem, 5vw, 1.8rem);
   font-weight: 750;
   display: flex;
   align-items: center;
@@ -68,21 +67,21 @@ body, html {
 }
 
 .login-heading {
-  font-size: 1.50rem;
+  font-size: clamp(1.25rem, 4vw, 1.50rem);
   color: #1e3a8a;
   font-weight: bold;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem; /* Reduced margin */
 }
 
 .login-description {
-  font-size: 1rem;
+  font-size: clamp(0.9rem, 3vw, 1rem);
   color: #6b7280;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem; /* Reduced margin */
   display: flex;
 }
 
 .input-group {
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.5rem; /* Reduced margin */
   display: flex;
   flex-direction: column;
 }
@@ -95,7 +94,7 @@ body, html {
 
 .input-group input,
 .input-group select {
-  padding: 0.50rem 0.75rem;
+  padding: 0.5rem 0.75rem; /* Reduced padding */
   border: 2px solid #93c5fd;
   border-radius: 999px;
   font-size: 1rem;
@@ -112,7 +111,9 @@ body, html {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem; /* Reduced margin */
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .forgot-password {
@@ -125,27 +126,30 @@ body, html {
   display: flex;
   font-size: 0.80rem;
   color: #374151;
+  align-items: center;
 }
 
 .remember-me input {
-  margin-right: 0.1rem;
+  margin-right: 0.25rem;
 }
 
 .forgot-password-note {
   font-size: 0.8rem;
   color: #9ca3af;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.5rem; /* Reduced margin */
   display: flex;
 }
 
 .error-message {
   color: red;
   font-size: 0.9rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem; /* Reduced margin */
 }
 
 .login-btn {
-  width: 300px;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
   padding: 0.75rem;
   background-color: #3b82f6;
   color: white;
@@ -169,7 +173,7 @@ body, html {
   align-items: center;
   border-radius: 24px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  max-width: 485px;
+  max-width: 500px;
   width: 100%;
 }
 
@@ -177,7 +181,7 @@ body, html {
   max-width: 100%;
   height: auto;
   border-radius: 16px;
-  
+  display: block;
 }
 
 /* Responsive Design */
@@ -185,12 +189,14 @@ body, html {
   .login-page {
     flex-direction: column;
     align-items: center;
+    gap: 1.5rem;
+    padding: 1rem;
   }
   .login-page-wrapper,
   .illustration-section {
     max-width: 100%;
   }
-  .login-form-section {
-    padding: 2rem 1.5rem;
+  .login-page-wrapper {
+    padding: 1rem; /* Reduced padding for mobile view */
   }
 }

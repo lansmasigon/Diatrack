@@ -1883,8 +1883,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             <input className="patient-input" placeholder="Allergies" value={patientForm.allergies} onChange={(e) => handleInputChange("allergies", e.target.value)} />
                           </div>
                         </div>
-
-                        <div className="medications-table-container">
+                         <div className="medications-table-container">
                           <label>Current Medications:</label>
                           <table className="medications-table">
                             <thead>
@@ -2219,7 +2218,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         }}
                                     />
                                 </div>
-
                                 {/* Blood Pressure Chart */}
                                 <div className="chart-container">
                                     <h4>Blood Pressure History</h4>
