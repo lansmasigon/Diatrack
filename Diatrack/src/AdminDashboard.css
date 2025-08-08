@@ -697,3 +697,90 @@ body {
   width: auto;
   white-space: nowrap;
 }
+
+/* Styles for the Account Management section */
+
+/* General heading styles */
+h2 {
+  font-size: 2rem;
+  color: #1e293b;
+  margin-bottom: 24px;
+}
+
+h3 {
+  font-size: 1.5rem;
+  color: #334155;
+  margin-top: 24px;
+  margin-bottom: 16px;
+}
+
+/* Container for the two "Create" buttons */
+.account-creation-buttons {
+  display: flex;
+  gap: 16px; /* Space between the two buttons */
+  margin-bottom: 24px;
+}
+
+.account-creation-buttons .action-button {
+  flex: 1; /* Make buttons take equal space */
+}
+
+/* Shared styles for the forms */
+.form-section {
+  background: #f1f5f9;
+  padding: 24px;
+  border-radius: 10px;
+  margin-top: 24px;
+}
+
+.form-container {
+  display: grid;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #475569;
+}
+
+/* Styles for the input and select fields */
+.form-group input,
+.form-group select {
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+/* Style for the "Create" buttons */
+.action-button {
+  padding: 12px 24px;
+  background: linear-gradient(45deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+}
+
+.action-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+}

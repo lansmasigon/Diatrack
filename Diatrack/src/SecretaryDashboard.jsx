@@ -350,6 +350,61 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   });
   const [patientAppointments, setPatientAppointments] = useState([]);
   
+  // Handle appointment cancellation with improved logging
+  const handleCancelAppointment = async (appointmentId) => {
+  const isConfirmed = window.confirm("Are you sure you want to cancel this appointment?");
+  if (!isConfirmed) {
+    return;
+  }
+  
+  console.log("Attempting to cancel appointment with ID:", appointmentId);
+  try {
+    const { error } = await supabase
+      .from('appointments')
+      .update({ appointment_state: 'cancelled' })
+      .eq('appointment_id', appointmentId);
+
+    if (error) {
+      console.error("Supabase error cancelling appointment:", error);
+      throw error;
+    }
+    
+    console.log("Appointment cancelled successfully:", appointmentId);
+    setMessage("Appointment cancelled successfully.");
+    fetchAllAppointments(); // Refresh the list
+  } catch (error) {
+    console.error("Error cancelling appointment:", error.message);
+    setMessage(`Error: ${error.message}`);
+  }
+  };
+
+// Handle appointment 'in queue' status with improved logging
+  const handleInQueueAppointment = async (appointmentId) => {
+  const isConfirmed = window.confirm("Are you sure you want to set this appointment to 'In Queue'?");
+  if (!isConfirmed) {
+    return;
+  }
+  
+  console.log("Attempting to set appointment to 'in queue' with ID:", appointmentId);
+  try {
+    const { error } = await supabase
+      .from('appointments')
+      .update({ appointment_state: 'in queue' })
+      .eq('appointment_id', appointmentId);
+
+    if (error) {
+      console.error("Supabase error setting appointment to 'in queue':", error);
+      throw error;
+    }
+    
+    console.log("Appointment status updated to 'In Queue':", appointmentId);
+    setMessage("Appointment status updated to 'In Queue'.");
+    fetchAllAppointments(); // Refresh the list
+  } catch (error) {
+    console.error("Error setting appointment to 'in queue':", error.message);
+    setMessage(`Error: ${error.message}`);
+  }
+  };
 
   const steps = [
     "Demographics",
@@ -938,6 +993,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
   // Renamed to fetchAllAppointments and removed date filtering
   const fetchAllAppointments = async () => {
+    const now = new Date().toISOString();
     const { data, error } = await supabase
       .from("appointments")
       .select(`
@@ -950,6 +1006,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         doctors (first_name, last_name)
       `)
       .eq("secretary_id", user.secretary_id)
+      .gte('appointment_datetime', now) // Filter to show only upcoming appointments
       .order("appointment_datetime", { ascending: true }); // Order by datetime
 
     if (error) {
@@ -1689,7 +1746,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
               <div className="dashboard-right-column">
                 <div className="appointments-today">
-                  <h3>All Appointments</h3> {/* Changed heading */}
+                  <h3>Upcoming Appointments</h3> {/* Changed heading */}
                   <div className="appointment-list-container"> {/* Added container for table + pagination */}
                     <table className="appointment-list-table"> {/* Class added for potential styling */}
                       <thead>
@@ -1711,24 +1768,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               <td>{appointment.dateTimeDisplay}</td> {/* Use the new dateTimeDisplay */}
                               <td>{appointment.patient_name}</td>
                               <td className="appointment-actions">
-                                {/* Added Edit, Cancel, Done buttons with handlers */}
                                 <button
-                                  className="edit-button"
-                                  onClick={() => handleEditAppointment(appointment)}
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  className="cancel-button"
-                                  onClick={() => handleDeleteAppointment(appointment.appointment_id, 'cancel')}
+                                  onClick={() => handleCancelAppointment(appointment.appointment_id)}
+                                  className="action-btn cancel-btn"
                                 >
                                   Cancel
                                 </button>
                                 <button
-                                  className="done-button"
-                                  onClick={() => handleDeleteAppointment(appointment.appointment_id, 'done')}
+                                  onClick={() => handleInQueueAppointment(appointment.appointment_id)}
+                                  className="action-btn queue-btn"
                                 >
-                                  Done
+                                  In Queue
                                 </button>
                               </td>
                             </tr>

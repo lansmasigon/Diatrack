@@ -21,6 +21,9 @@ const AdminDashboard = ({ onLogout, user }) => {
   // New state for selected list type in the "List" dropdown
   const [selectedListType, setSelectedListType] = useState("patients"); // Default to showing patients
 
+  // New state for account creation type in the accounts tab
+  const [accountCreationType, setAccountCreationType] = useState(null);
+
   // New state to control the dropdown visibility
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
@@ -53,6 +56,31 @@ const AdminDashboard = ({ onLogout, user }) => {
 
   const [currentPageDoctors, setCurrentPageDoctors] = useState(1);
   const [doctorsPerPage] = useState(6); // Max 6 items per page
+
+  const [healthMetrics, setHealthMetrics] = useState([]);
+
+  const fetchLastSubmissions = async () => {
+  const { data, error } = await supabase
+    .from("health_metrics")
+    .select("patient_id, updated_at")
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    setMessage(`Error fetching health metrics: ${error.message}`);
+    return;
+  }
+
+  // Create a map to store the most recent updated_at timestamp for each patient
+  const lastSubmissions = new Map();
+  data.forEach((metric) => {
+    if (!lastSubmissions.has(metric.patient_id)) {
+      lastSubmissions.set(metric.patient_id, metric.updated_at);
+    }
+  });
+
+  // Convert the Map to an object for state
+  setHealthMetrics(Object.fromEntries(lastSubmissions));
+};
 
   // New states for secretary pagination
   const [currentPageSecretaries, setCurrentPageSecretaries] = useState(1);
@@ -97,6 +125,7 @@ const AdminDashboard = ({ onLogout, user }) => {
     fetchSecretaries();
     fetchDoctors();
     fetchLinks();
+    fetchLastSubmissions();
   }, []);
 
   // Effect to update adminName when the user prop changes
@@ -1037,44 +1066,6 @@ const AdminDashboard = ({ onLogout, user }) => {
 
             {activeTab === "manage" && (
               <>
-                <h2>Create Accounts</h2>
-                <div className="panels-container">
-                  <div className="left-panel">
-                    <h3>Add Doctor</h3>
-                    <input placeholder="First Name" value={doctorForm.firstName} onChange={(e) => setDoctorForm({ ...doctorForm, firstName: e.target.value })} />
-                    <input placeholder="Last Name" value={doctorForm.lastName} onChange={(e) => setDoctorForm({ ...doctorForm, lastName: e.target.value })} />
-                    <input placeholder="Email" value={doctorForm.email} onChange={(e) => setDoctorForm({ ...doctorForm, email: e.target.value })} />
-                    <input placeholder="Password" type="password" value={doctorForm.password} onChange={(e) => setDoctorForm({ ...doctorForm, password: e.target.value })} />
-                    <input placeholder="Specialization" value={doctorForm.specialization} onChange={(e) => setDoctorForm({ ...doctorForm, specialization: e.target.value })} />
-                    <select value={doctorForm.secretaryId} onChange={(e) => setDoctorForm({ ...doctorForm, secretaryId: e.target.value })}>
-                      <option value="">Assign to Secretary (optional)</option>
-                      {secretaries.map((sec) => (
-                        <option key={sec.secretary_id} value={sec.secretary_id}>
-                          {sec.first_name} {sec.last_name}
-                        </option>
-                      ))}
-                    </select>
-                    <button className="action-button" onClick={createDoctor}>Create Doctor</button>
-                  </div>
-
-                  <div className="right-panel">
-                    <h3>Add Secretary</h3>
-                    <input placeholder="First Name" value={secretaryForm.firstName} onChange={(e) => setSecretaryForm({ ...secretaryForm, firstName: e.target.value })} />
-                    <input placeholder="Last Name" value={secretaryForm.lastName} onChange={(e) => setSecretaryForm({ ...secretaryForm, lastName: e.target.value })} />
-                    <input placeholder="Email" value={secretaryForm.email} onChange={(e) => setSecretaryForm({ ...secretaryForm, email: e.target.value })} />
-                    <input placeholder="Password" type="password" value={secretaryForm.password} onChange={(e) => setSecretaryForm({ ...secretaryForm, password: e.target.value })} />
-                    <select value={secretaryForm.doctorId} onChange={(e) => setSecretaryForm({ ...secretaryForm, doctorId: e.target.value })}>
-                      <option value="">Assign to Doctor (optional)</option>
-                      {doctors.map((doc) => (
-                        <option key={doc.doctor_id} value={doc.doctor_id}>
-                          {doc.first_name} {doc.last_name}
-                        </option>
-                      ))}
-                    </select>
-                    <button className="action-button" onClick={createSecretary}>Create Secretary</button>
-                  </div>
-                </div>
-
                 <h2>Existing Secretary-Doctor Links</h2>
                 <table className="master-list">
                   <thead>
@@ -1279,15 +1270,187 @@ const AdminDashboard = ({ onLogout, user }) => {
 
             {activeTab === "accounts" && (
               <div>
-                <p>User Accounts management coming soon...</p>
+                <h3>Create New Account</h3>
+                {accountCreationType ? (
+                  <button className="action-button" onClick={() => setAccountCreationType(null)}>
+                    Back
+                  </button>
+                ) : (
+                  <div className="account-creation-buttons">
+                    <button className="action-button" onClick={() => setAccountCreationType('doctor')}>Create Doctor</button>
+                    <button className="action-button" onClick={() => setAccountCreationType('secretary')}>Create Secretary</button>
+                  </div>
+                )}
+
+                {accountCreationType === 'doctor' && (
+                  <div className="form-section">
+                    <h4>Create Doctor Account</h4>
+                    <div className="form-container">
+                      <div className="form-group">
+                        <label>First Name</label>
+                        <input
+                          type="text"
+                          value={doctorForm.firstName}
+                          onChange={(e) => setDoctorForm({ ...doctorForm, firstName: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Last Name</label>
+                        <input
+                          type="text"
+                          value={doctorForm.lastName}
+                          onChange={(e) => setDoctorForm({ ...doctorForm, lastName: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Email</label>
+                        <input
+                          type="email"
+                          value={doctorForm.email}
+                          onChange={(e) => setDoctorForm({ ...doctorForm, email: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Password</label>
+                        <input
+                          type="password"
+                          value={doctorForm.password}
+                          onChange={(e) => setDoctorForm({ ...doctorForm, password: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Specialization</label>
+                        <input
+                          type="text"
+                          value={doctorForm.specialization}
+                          onChange={(e) => setDoctorForm({ ...doctorForm, specialization: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Link to Secretary (Optional)</label>
+                        <select
+                          value={doctorForm.secretaryId}
+                          onChange={(e) => setDoctorForm({ ...doctorForm, secretaryId: e.target.value })}
+                        >
+                          <option value="">-- Select a Secretary --</option>
+                          {secretaries.map((sec) => (
+                            <option key={sec.secretary_id} value={sec.secretary_id}>
+                              {sec.first_name} {sec.last_name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button className="action-button" onClick={createDoctor}>Create Doctor</button>
+                    </div>
+                  </div>
+                )}
+
+                {accountCreationType === 'secretary' && (
+                  <div className="form-section">
+                    <h4>Create Secretary Account</h4>
+                    <div className="form-container">
+                      <div className="form-group">
+                        <label>First Name</label>
+                        <input
+                          type="text"
+                          value={secretaryForm.firstName}
+                          onChange={(e) => setSecretaryForm({ ...secretaryForm, firstName: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Last Name</label>
+                        <input
+                          type="text"
+                          value={secretaryForm.lastName}
+                          onChange={(e) => setSecretaryForm({ ...secretaryForm, lastName: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Email</label>
+                        <input
+                          type="email"
+                          value={secretaryForm.email}
+                          onChange={(e) => setSecretaryForm({ ...secretaryForm, email: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Password</label>
+                        <input
+                          type="password"
+                          value={secretaryForm.password}
+                          onChange={(e) => setSecretaryForm({ ...secretaryForm, password: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Link to Doctor (Optional)</label>
+                        <select
+                          value={secretaryForm.doctorId}
+                          onChange={(e) => setSecretaryForm({ ...secretaryForm, doctorId: e.target.value })}
+                        >
+                          <option value="">-- Select a Doctor --</option>
+                          {doctors.map((doc) => (
+                            <option key={doc.doctor_id} value={doc.doctor_id}>
+                              {doc.first_name} {doc.last_name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button className="action-button" onClick={createSecretary}>Create Secretary</button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
+
             {activeTab === "compliance" && (
-              <div>
-                <p>Compliance management features coming soon...</p>
-              </div>
-            )}
+                <div>
+                  <h2>Compliance</h2>
+                  <table className="master-list">
+                    <thead>
+                      <tr>
+                        <th>Patient Name</th>
+                        <th>Assigned Doctor</th>
+                        <th>Days Since Last Submission</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {patients.length > 0 ? (
+                        patients.map((patient) => {
+                          const lastSubmissionDate = healthMetrics[patient.patient_id];
+                          
+                          // Calculate days passed, handling cases where there is no submission or it's today
+                          const daysPassed = lastSubmissionDate
+                            ? Math.max(0, Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(lastSubmissionDate).setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24)))
+                            : "No Submission";
+                            
+                          return (
+                            <tr key={patient.patient_id}>
+                              <td>{patient.first_name} {patient.last_name}</td>
+                              <td>
+                                {patient.preferred_doctor_id
+                                  ? `${patient.preferred_doctor_id.first_name} ${patient.preferred_doctor_id.last_name}`
+                                  : "N/A"}
+                              </td>
+                              <td>{daysPassed}</td>
+                              <td>  
+                                <button>Reviewed</button>
+                                <button>Notify</button>
+                                <button>Flag</button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan="3">No patients found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
             {activeTab === "ml" && (
               <div>

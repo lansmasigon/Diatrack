@@ -542,6 +542,60 @@ const Dashboard = ({ user, onLogout }) => {
       </div>
   );
 
+
+const handleCancel = async (appointmentId) => {
+    try {
+        const { error } = await supabase
+            .from('appointments')
+            .update({ appointment_state: 'cancelled' })
+            .eq('appointment_id', appointmentId);
+        
+        if (error) throw error;
+
+        // Optionally, you can refetch the appointments or update the state here
+        // to reflect the change on the UI immediately without a full page refresh.
+
+    } catch (error) {
+        console.error('Error cancelling appointment:', error.message);
+    }
+};
+
+const handleDone = async (appointmentId, patientId) => {
+    try {
+        // Step 1: Update the appointment state to 'Done'
+        const { error: apptError } = await supabase
+            .from('appointments')
+            .update({ appointment_state: 'Done' })
+            .eq('appointment_id', appointmentId);
+        
+        if (apptError) throw apptError;
+
+        // Step 2: Increment patient_visits in the patients table
+        // First, fetch the current patient_visits count
+        const { data: patientData, error: patientFetchError } = await supabase
+            .from('patients')
+            .select('patient_visits')
+            .eq('patient_id', patientId)
+            .single();
+
+        if (patientFetchError) throw patientFetchError;
+        
+        // Then, update the patient_visits count
+        const newVisits = patientData.patient_visits + 1;
+        const { error: patientUpdateError } = await supabase
+            .from('patients')
+            .update({ patient_visits: newVisits })
+            .eq('patient_id', patientId);
+
+        if (patientUpdateError) throw patientUpdateError;
+
+        // Optionally, refetch the appointments to remove the "Done" one from the list.
+        
+    } catch (error) {
+        console.error('Error completing appointment:', error.message);
+    }
+};
+
   const renderAppointments = () => (
     <div className="card3 appointments-card3">
         <h2>Upcoming Appointments</h2>
@@ -553,18 +607,27 @@ const Dashboard = ({ user, onLogout }) => {
                   <th>Date</th>
                   <th>Time</th>
                   <th>Notes</th>
+                  <th>State</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {appointments.length === 0 ? (
                   <tr><td colSpan="4">No upcoming appointments.</td></tr>
                 ) : (
-                  appointments.map((appt) => (
+                  appointments
+                    .filter(appt => appt.appointment_state !== 'Done' && appt.appointment_state !== 'cancelled')
+                    .map((appt) => (
                     <tr key={appt.appointment_id}>
                       <td>{appt.patients ? `${appt.patients.first_name} ${appt.patients.last_name}` : "Unknown"}</td>
                       <td>{new Date(appt.appointment_datetime).toLocaleDateString()}</td>
                       <td>{new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
                       <td>{appt.notes || "N/A"}</td>
+                      <td>{appt.appointment_state || "N/A"}</td> {/* NEW: Added appointment state data */}
+                      <td>
+                          <button onClick={() => handleCancel(appt.appointment_id)}>Cancel</button>
+                          <button onClick={() => handleDone(appt.appointment_id, appt.patient_id)}>Done</button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -573,6 +636,7 @@ const Dashboard = ({ user, onLogout }) => {
           </div>
       </div>
   );
+
 
   const renderDashboardContent = () => (
     <div className="dashboard-grid3">
@@ -1168,6 +1232,7 @@ const renderReportsContent = () => {
                       <th>Date</th>
                       <th>Time</th>
                       <th>Notes</th>
+                      <th>State</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1176,6 +1241,7 @@ const renderReportsContent = () => {
                         <td>{new Date(appt.appointment_datetime).toLocaleDateString()}</td>
                         <td>{new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
                         <td>{appt.notes || "N/A"}</td>
+                        <td>{appt.appointment_state || "N/A"}</td>
                       </tr>
                     ))}
                   </tbody>
