@@ -24,28 +24,55 @@ const AdminDashboard = ({ onLogout, user }) => {
   // New state for account creation type in the accounts tab
   const [accountCreationType, setAccountCreationType] = useState(null);
 
+   // New state to manage the multi-step form for doctor creation
+  const [currentStep, setCurrentStep] = useState(1);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [modalContent, setModalContent] = useState({}); // New state for modal content
+
+  
   // New state to control the dropdown visibility
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const [showUsersPopup, setShowUsersPopup] = useState(false);
   const [showMessagePopup, setShowMessagePopup] = useState(false);
 
+   // Updated doctorForm state to include new fields for the multi-step form
   const [doctorForm, setDoctorForm] = useState({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
     specialization: "",
+    medicalLicense: "", // New field for step 2
+    licenseExpiration: "", // New field for step 2
+    affiliation: "", // New field for step 3
+    clinicHours: "", // New field for step 3
+    clinicAddress: "", // New field for step 3
     secretaryId: "",
   });
 
+  const [currentSecretaryStep, setCurrentSecretaryStep] = useState(1);
   const [secretaryForm, setSecretaryForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    doctorId: "",
+  firstName: "",
+  lastName: "",
+  email: "",
+  password: "",
+  doctorId: "", // This will be used in the final step
+  affiliation: "", // New field for step 2
+  clinicHours: "", // New field for step 2
   });
+
+  const handleNextSecretaryStep = () => {
+  if (currentSecretaryStep < 3) {
+    setCurrentSecretaryStep(currentSecretaryStep + 1);
+  }
+};
+
+const handlePrevSecretaryStep = () => {
+  if (currentSecretaryStep > 1) {
+    setCurrentSecretaryStep(currentSecretaryStep - 1);
+  }
+};
 
   const [newLinkSecretary, setNewLinkSecretary] = useState("");
   const [newLinkDoctor, setNewLinkDoctor] = useState("");
@@ -70,6 +97,7 @@ const AdminDashboard = ({ onLogout, user }) => {
     return;
   }
 
+  
   // Create a map to store the most recent updated_at timestamp for each patient
   const lastSubmissions = new Map();
   data.forEach((metric) => {
@@ -173,6 +201,7 @@ const AdminDashboard = ({ onLogout, user }) => {
     else setPatients(data);
   };
 
+  
   const fetchLinks = async () => {
     const { data, error } = await supabase
       .from("secretary_doctor_links")
@@ -196,6 +225,19 @@ const AdminDashboard = ({ onLogout, user }) => {
     setFilteredDoctors(data); // Set all doctors with their secretary info
   };
 
+  // New function to handle moving to the next step
+  const handleNextStep = () => {
+    if (currentStep < 4) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  // New function to handle moving to the previous step
+  const handlePrevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
 
   const createDoctor = async () => {
     const confirm = window.confirm("Are you sure you want to create this doctor?");
@@ -211,6 +253,7 @@ const AdminDashboard = ({ onLogout, user }) => {
         last_name: doctorForm.lastName,
         email: doctorForm.email,
         password: doctorForm.password,
+        affiliation: doctorForm.affiliation,
         specialization: doctorForm.specialization,
       })
       .select("doctor_id")
@@ -904,128 +947,169 @@ const AdminDashboard = ({ onLogout, user }) => {
   const indexOfFirstSecretary = indexOfLastSecretary - secretariesPerPage;
   const currentSecretaries = filteredSecretaries.slice(indexOfFirstSecretary, indexOfLastSecretary);
 
-  return (
-    <div className="dashboard-container">
-      {/* Global Header */}
-      <div className="global-header">
-        <div className="header-left">
-          <div className="header-logo-section">
-            <img src={logo} alt="DiaTrack Logo" className="header-logo" />
-            <h1 className="header-title">
-              <span style={{ color: "#00aaff" }}>Dia</span>
-              <span style={{ color: "#ff9800" }}>Track</span>
-            </h1>
-          </div>
-        </div>
-        <div className="header-right">
-          <button className="header-icon">
-            <i className="fas fa-cog"></i>
-          </button>
-          <button className="header-icon" onClick={() => setShowUsersPopup(true)}>
-            <i className="fas fa-bell"></i>
-          </button>
-          <div className="user-profile-header">
-            <img src="../picture/secretary.png" alt="User Avatar" className="user-avatar-header" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/aabbcc/ffffff?text=User"; }}/>
-            <div className="user-info-header">
-              <span className="user-name-header">{adminName}</span>
-              <span className="user-role-header">Admin</span>
-            </div>
-          </div>
-          <button className="header-icon logout-btn" onClick={() => {
-            if (window.confirm("Are you sure you want to sign out?")) onLogout();
-          }}>
-            <i className="fas fa-sign-out-alt"></i>
-          </button>
-        </div>
-      </div>
-
-      <div className="dashboard-layout">
-        {/* Sidebar Navigation */}
-        <div className="sidebar">
-          
-          <nav className="sidebar-nav">
-            <ul className="nav-menu">
-              <li className={activeTab === "dashboard" ? "nav-item active" : "nav-item"} 
-                  onClick={() => setActiveTab("dashboard")}>
-                <i className="fas fa-tachometer-alt nav-icon"></i>
-                <span>Dashboard</span>
-              </li>
-              <li className={activeTab === "manage" ? "nav-item active" : "nav-item"} 
-                  onClick={() => setActiveTab("manage")}>
-                <i className="fas fa-users-cog nav-icon"></i>
-                <span>Manage</span>
-              </li>
-              <li className="nav-item dropdown-menu">
-                <div className={`nav-item-header ${activeTab === "list" ? "active" : ""}`}
-                     onClick={() => {
-                       setIsDropdownOpen(!isDropdownOpen);
-                       setActiveTab("list");
-                     }}>
-                  <i className="fas fa-list nav-icon"></i>
-                  <span>Masterlist</span>
-                  <i className={`fas fa-chevron-down dropdown-arrow ${isDropdownOpen ? "open" : ""}`}></i>
-                </div>
-                <ul className={`dropdown-submenu ${isDropdownOpen ? "show" : ""}`}>
-                  <li onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedListType("patients");
-                    setActiveTab("list");
-                  }}>Patients</li>
-                  <li onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedListType("doctors");
-                    setActiveTab("list");
-                  }}>Doctors</li>
-                  <li onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedListType("secretaries");
-                    setActiveTab("list");
-                  }}>Secretaries</li>
-                </ul>
-              </li>
-              <li className={activeTab === "accounts" ? "nav-item active" : "nav-item"} 
-                  onClick={() => setActiveTab("accounts")}>
-                <i className="fas fa-user-friends nav-icon"></i>
-                <span>Accounts</span>
-              </li>
-              <li className={activeTab === "audit" ? "nav-item active" : "nav-item"} 
-                  onClick={() => setActiveTab("audit")}>
-                <i className="fas fa-clipboard-list nav-icon"></i>
-                <span>Audit Logs</span>
-              </li>
-              <li className={activeTab === "compliance" ? "nav-item active" : "nav-item"} 
-                  onClick={() => setActiveTab("compliance")}>
-                <i className="fas fa-shield-alt nav-icon"></i>
-                <span>Compliance</span>
-              </li>
-              <li className={activeTab === "ml" ? "nav-item active" : "nav-item"} 
-                  onClick={() => setActiveTab("ml")}>
-                <i className="fas fa-brain nav-icon"></i>
-                <span>ML Settings</span>
-              </li>
-            </ul>
-          </nav>
-        </div>
-
-        {/* Main Content Area */}
-        <div className="main-content">
-          {/* Content Header */}
-          {activeTab !== "audit" && (
-            <div className="content-header">
-              <h1 className="page-title">
-                {activeTab === "dashboard" && "Welcome, System Admin! 👋"}
-                {activeTab === "manage" && "Manage Users"}
-                {activeTab === "list" && "Master Lists"}
-                {activeTab === "accounts" && "User Accounts"}
-                {activeTab === "compliance" && "Compliance Management"}
-                {activeTab === "ml" && "ML Settings"}
+   return (
+    <>
+      <div className="dashboard-container">
+        {/* Global Header */}
+        <div className="global-header">
+          <div className="header-left">
+            <div className="header-logo-section">
+              <img src={logo} alt="DiaTrack Logo" className="header-logo" />
+              <h1 className="header-title">
+                <span style={{ color: "#00aaff" }}>Dia</span>
+                <span style={{ color: "#ff9800" }}>Track</span>
               </h1>
             </div>
-          )}
+          </div>
+          <div className="header-right">
+            <button className="header-icon">
+              <i className="fas fa-cog"></i>
+            </button>
+            <button className="header-icon" onClick={() => setShowUsersPopup(true)}>
+              <i className="fas fa-bell"></i>
+            </button>
+            <div className="user-profile-header">
+              <img
+                src="../picture/secretary.png"
+                alt="User Avatar"
+                className="user-avatar-header"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "https://placehold.co/40x40/aabbcc/ffffff?text=User";
+                }}
+              />
+              <div className="user-info-header">
+                <span className="user-name-header">{adminName}</span>
+                <span className="user-role-header">Admin</span>
+              </div>
+            </div>
+            <button
+              className="header-icon logout-btn"
+              onClick={() => {
+                if (window.confirm("Are you sure you want to sign out?")) onLogout();
+              }}
+            >
+              <i className="fas fa-sign-out-alt"></i>
+            </button>
+          </div>
+        </div>
 
-          {/* Content Body */}
-          <div className="content-body">
-            {activeTab === "dashboard" && (
+        <div className="dashboard-layout">
+          {/* Sidebar Navigation */}
+          <div className="sidebar">
+            <nav className="sidebar-nav">
+              <ul className="nav-menu">
+                <li
+                  className={activeTab === "dashboard" ? "nav-item active" : "nav-item"}
+                  onClick={() => setActiveTab("dashboard")}
+                >
+                  <i className="fas fa-tachometer-alt nav-icon"></i>
+                  <span>Dashboard</span>
+                </li>
+                <li
+                  className={activeTab === "manage" ? "nav-item active" : "nav-item"}
+                  onClick={() => setActiveTab("manage")}
+                >
+                  <i className="fas fa-users-cog nav-icon"></i>
+                  <span>Manage</span>
+                </li>
+                <li className="nav-item dropdown-menu">
+                  <div
+                    className={`nav-item-header ${activeTab === "list" ? "active" : ""}`}
+                    onClick={() => {
+                      setIsDropdownOpen(!isDropdownOpen);
+                      setActiveTab("list");
+                    }}
+                  >
+                    <i className="fas fa-list nav-icon"></i>
+                    <span>Masterlist</span>
+                    <i
+                      className={`fas fa-chevron-down dropdown-arrow ${
+                        isDropdownOpen ? "open" : ""
+                      }`}
+                    ></i>
+                  </div>
+                  <ul className={`dropdown-submenu ${isDropdownOpen ? "show" : ""}`}>
+                    <li
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedListType("patients");
+                        setActiveTab("list");
+                      }}
+                    >
+                      Patients
+                    </li>
+                    <li
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedListType("doctors");
+                        setActiveTab("list");
+                      }}
+                    >
+                      Doctors
+                    </li>
+                    <li
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedListType("secretaries");
+                        setActiveTab("list");
+                      }}
+                    >
+                      Secretaries
+                    </li>
+                  </ul>
+                </li>
+                <li
+                  className={activeTab === "accounts" ? "nav-item active" : "nav-item"}
+                  onClick={() => setActiveTab("accounts")}
+                >
+                  <i className="fas fa-user-friends nav-icon"></i>
+                  <span>Accounts</span>
+                </li>
+                <li
+                  className={activeTab === "audit" ? "nav-item active" : "nav-item"}
+                  onClick={() => setActiveTab("audit")}
+                >
+                  <i className="fas fa-clipboard-list nav-icon"></i>
+                  <span>Audit Logs</span>
+                </li>
+                <li
+                  className={activeTab === "compliance" ? "nav-item active" : "nav-item"}
+                  onClick={() => setActiveTab("compliance")}
+                >
+                  <i className="fas fa-shield-alt nav-icon"></i>
+                  <span>Compliance</span>
+                </li>
+                <li
+                  className={activeTab === "ml" ? "nav-item active" : "nav-item"}
+                  onClick={() => setActiveTab("ml")}
+                >
+                  <i className="fas fa-brain nav-icon"></i>
+                  <span>ML Settings</span>
+                </li>
+              </ul>
+            </nav>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="main-content">
+            {/* Content Header */}
+            {activeTab !== "audit" && (
+              <div className="content-header">
+                <h1 className="page-title">
+                  {activeTab === "dashboard" && "Welcome, System Admin! 👋"}
+                  {activeTab === "manage" && "Manage Users"}
+                  {activeTab === "list" && "Master Lists"}
+                  {activeTab === "accounts" && "User Accounts"}
+                  {activeTab === "compliance" && "Compliance Management"}
+                  {activeTab === "ml" && "ML Settings"}
+                </h1>
+              </div>
+            )}
+
+            {/* Content Body */}
+            <div className="content-body">
+              {activeTab === "dashboard" && (
               <>
                 <div className="summary-widget-grid">
                   <div className="summary-widget total-patients">
@@ -1169,6 +1253,29 @@ const AdminDashboard = ({ onLogout, user }) => {
                         )}
                       </tbody>
                     </table>
+                    {filteredPatients.length > patientsPerPage && (
+                    <div className="pagination">
+                      <button
+                        onClick={() => setCurrentPagePatients((prev) => Math.max(prev - 1, 1))}
+                        disabled={currentPagePatients === 1}
+                      >
+                        Prev
+                      </button>
+                      <span>
+                        Page {currentPagePatients} of {Math.ceil(filteredPatients.length / patientsPerPage)}
+                      </span>
+                      <button
+                        onClick={() =>
+                          setCurrentPagePatients((prev) =>
+                            prev < Math.ceil(filteredPatients.length / patientsPerPage) ? prev + 1 : prev
+                          )
+                        }
+                        disabled={currentPagePatients === Math.ceil(filteredPatients.length / patientsPerPage)}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
                   </>
                 )}
 
@@ -1218,6 +1325,29 @@ const AdminDashboard = ({ onLogout, user }) => {
                         )}
                       </tbody>
                     </table>
+                    {filteredDoctorsForSearch.length > doctorsPerPage && (
+                    <div className="pagination">
+                      <button
+                        onClick={() => setCurrentPageDoctors((prev) => Math.max(prev - 1, 1))}
+                        disabled={currentPageDoctors === 1}
+                      >
+                        Prev
+                      </button>
+                      <span>
+                        Page {currentPageDoctors} of {Math.ceil(filteredDoctorsForSearch.length / doctorsPerPage)}
+                      </span>
+                      <button
+                        onClick={() =>
+                          setCurrentPageDoctors((prev) =>
+                            prev < Math.ceil(filteredDoctorsForSearch.length / doctorsPerPage) ? prev + 1 : prev
+                          )
+                        }
+                        disabled={currentPageDoctors === Math.ceil(filteredDoctorsForSearch.length / doctorsPerPage)}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
                   </>
                 )}
 
@@ -1259,6 +1389,29 @@ const AdminDashboard = ({ onLogout, user }) => {
                         )}
                       </tbody>
                     </table>
+                    {filteredSecretaries.length > secretariesPerPage && (
+                    <div className="pagination">
+                      <button
+                        onClick={() => setCurrentPageSecretaries((prev) => Math.max(prev - 1, 1))}
+                        disabled={currentPageSecretaries === 1}
+                      >
+                        Prev
+                      </button>
+                      <span>
+                        Page {currentPageSecretaries} of {Math.ceil(filteredSecretaries.length / secretariesPerPage)}
+                      </span>
+                      <button
+                        onClick={() =>
+                          setCurrentPageSecretaries((prev) =>
+                            prev < Math.ceil(filteredSecretaries.length / secretariesPerPage) ? prev + 1 : prev
+                          )
+                        }
+                        disabled={currentPageSecretaries === Math.ceil(filteredSecretaries.length / secretariesPerPage)}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
                   </>
                 )}
               </>
@@ -1268,142 +1421,253 @@ const AdminDashboard = ({ onLogout, user }) => {
               <AuditLogs onLogout={onLogout} user={user} />
             )}
 
-            {activeTab === "accounts" && (
-              <div>
-                <h3>Create New Account</h3>
-                {accountCreationType ? (
-                  <button className="action-button" onClick={() => setAccountCreationType(null)}>
-                    Back
-                  </button>
-                ) : (
-                  <div className="account-creation-buttons">
-                    <button className="action-button" onClick={() => setAccountCreationType('doctor')}>Create Doctor</button>
-                    <button className="action-button" onClick={() => setAccountCreationType('secretary')}>Create Secretary</button>
-                  </div>
-                )}
 
-                {accountCreationType === 'doctor' && (
+              {activeTab === "accounts" && (
+                <div>
+                  <h3>Create New Account</h3>
+                  {accountCreationType ? (
+                    <button className="action-button" onClick={() => setAccountCreationType(null)}>
+                      Back
+                    </button>
+                  ) : (
+                    <div className="account-creation-buttons">
+                      <button className="action-button" onClick={() => setAccountCreationType('doctor')}>Create Doctor</button>
+                      <button className="action-button" onClick={() => setAccountCreationType('secretary')}>Create Secretary</button>
+                    </div>
+                  )}
+
+                  {accountCreationType === 'doctor' && (
                   <div className="form-section">
-                    <h4>Create Doctor Account</h4>
+                    <h4>Create Doctor Account - Step {currentStep} of 4</h4>
+                    {/* Step 1: Demographics */}
+                    {currentStep === 1 && (
+                      <div className="form-container">
+                        <div className="form-group">
+                          <label>First Name</label>
+                          <input
+                            type="text"
+                            value={doctorForm.firstName}
+                            onChange={(e) => setDoctorForm({ ...doctorForm, firstName: e.target.value })}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>Last Name</label>
+                          <input
+                            type="text"
+                            value={doctorForm.lastName}
+                            onChange={(e) => setDoctorForm({ ...doctorForm, lastName: e.target.value })}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>Email</label>
+                          <input
+                            type="email"
+                            value={doctorForm.email}
+                            onChange={(e) => setDoctorForm({ ...doctorForm, email: e.target.value })}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>Password</label>
+                          <input
+                            type="password"
+                            value={doctorForm.password}
+                            onChange={(e) => setDoctorForm({ ...doctorForm, password: e.target.value })}
+                          />
+                        </div>
+                        <button className="action-button" onClick={handleNextStep}>Next</button>
+                      </div>
+                    )}
+                    {/* Step 2: Specialization & License */}
+                    {currentStep === 2 && (
+                      <div className="form-container">
+                        <div className="form-group">
+                          <label>Specialization</label>
+                          <input
+                            type="text"
+                            value={doctorForm.specialization}
+                            onChange={(e) => setDoctorForm({ ...doctorForm, specialization: e.target.value })}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>Medical License</label>
+                          <input
+                            type="text"
+                            value={doctorForm.medicalLicense}
+                            onChange={(e) => setDoctorForm({ ...doctorForm, medicalLicense: e.target.value })}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>License Expiration</label>
+                          <input
+                            type="date"
+                            value={doctorForm.licenseExpiration}
+                            onChange={(e) => setDoctorForm({ ...doctorForm, licenseExpiration: e.target.value })}
+                          />
+                        </div>
+                        <div className="button-group">
+                          <button className="action-button" onClick={handlePrevStep}>Previous</button>
+                          <button className="action-button" onClick={handleNextStep}>Next</button>
+                        </div>
+                      </div>
+                    )}
+                    {currentStep === 3 && (
                     <div className="form-container">
                       <div className="form-group">
-                        <label>First Name</label>
-                        <input
-                          type="text"
-                          value={doctorForm.firstName}
-                          onChange={(e) => setDoctorForm({ ...doctorForm, firstName: e.target.value })}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Last Name</label>
-                        <input
-                          type="text"
-                          value={doctorForm.lastName}
-                          onChange={(e) => setDoctorForm({ ...doctorForm, lastName: e.target.value })}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Email</label>
-                        <input
-                          type="email"
-                          value={doctorForm.email}
-                          onChange={(e) => setDoctorForm({ ...doctorForm, email: e.target.value })}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Password</label>
-                        <input
-                          type="password"
-                          value={doctorForm.password}
-                          onChange={(e) => setDoctorForm({ ...doctorForm, password: e.target.value })}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Specialization</label>
-                        <input
-                          type="text"
-                          value={doctorForm.specialization}
-                          onChange={(e) => setDoctorForm({ ...doctorForm, specialization: e.target.value })}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Link to Secretary (Optional)</label>
+                        <label>Hospital/Clinic Affiliation</label>
                         <select
-                          value={doctorForm.secretaryId}
-                          onChange={(e) => setDoctorForm({ ...doctorForm, secretaryId: e.target.value })}
+                          value={doctorForm.affiliation}
+                          onChange={(e) => setDoctorForm({ ...doctorForm, affiliation: e.target.value })}
                         >
-                          <option value="">-- Select a Secretary --</option>
-                          {secretaries.map((sec) => (
-                            <option key={sec.secretary_id} value={sec.secretary_id}>
-                              {sec.first_name} {sec.last_name}
-                            </option>
-                          ))}
+                          <option value="">-- Select Affiliation --</option>
+                          <option value="Mission">Mission</option>
+                          <option value="Don Benito">Don Benito</option>
+                          <option value="The Medical City">The Medical City</option>
+                          <option value="Other">Other</option>
                         </select>
                       </div>
-                      <button className="action-button" onClick={createDoctor}>Create Doctor</button>
+                      <div className="form-group">
+                        <label>Clinic Hours/Availability</label>
+                        <input
+                          type="text"
+                          value={doctorForm.clinicHours}
+                          onChange={(e) => setDoctorForm({ ...doctorForm, clinicHours: e.target.value })}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Clinic Address</label>
+                        <input
+                          type="text"
+                          value={doctorForm.clinicAddress}
+                          onChange={(e) => setDoctorForm({ ...doctorForm, clinicAddress: e.target.value })}
+                        />
+                      </div>
+                      <div className="button-group">
+                        <button className="action-button" onClick={handlePrevStep}>Previous</button>
+                        <button className="action-button" onClick={handleNextStep}>Next</button>
+                      </div>
                     </div>
+                  )}
+                    {/* Step 4: Assign Secretary */}
+                    {currentStep === 4 && (
+                      <div className="form-container">
+                        <div className="form-group">
+                          <label>Assign Secretary (Optional)</label>
+                          <select
+                            value={doctorForm.secretaryId}
+                            onChange={(e) => setDoctorForm({ ...doctorForm, secretaryId: e.target.value })}
+                          >
+                            <option value="">-- Select a Secretary --</option>
+                            {secretaries.map((sec) => (
+                              <option key={sec.secretary_id} value={sec.secretary_id}>
+                                {sec.first_name} {sec.last_name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="button-group">
+                          <button className="action-button" onClick={handlePrevStep}>Previous</button>
+                          <button className="action-button" onClick={createDoctor}>Create Doctor</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {accountCreationType === 'secretary' && (
-                  <div className="form-section">
-                    <h4>Create Secretary Account</h4>
-                    <div className="form-container">
-                      <div className="form-group">
-                        <label>First Name</label>
-                        <input
-                          type="text"
-                          value={secretaryForm.firstName}
-                          onChange={(e) => setSecretaryForm({ ...secretaryForm, firstName: e.target.value })}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Last Name</label>
-                        <input
-                          type="text"
-                          value={secretaryForm.lastName}
-                          onChange={(e) => setSecretaryForm({ ...secretaryForm, lastName: e.target.value })}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Email</label>
-                        <input
-                          type="email"
-                          value={secretaryForm.email}
-                          onChange={(e) => setSecretaryForm({ ...secretaryForm, email: e.target.value })}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Password</label>
-                        <input
-                          type="password"
-                          value={secretaryForm.password}
-                          onChange={(e) => setSecretaryForm({ ...secretaryForm, password: e.target.value })}
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Link to Doctor (Optional)</label>
-                        <select
-                          value={secretaryForm.doctorId}
-                          onChange={(e) => setSecretaryForm({ ...secretaryForm, doctorId: e.target.value })}
-                        >
-                          <option value="">-- Select a Doctor --</option>
-                          {doctors.map((doc) => (
-                            <option key={doc.doctor_id} value={doc.doctor_id}>
-                              {doc.first_name} {doc.last_name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <button className="action-button" onClick={createSecretary}>Create Secretary</button>
+                  {/* Secretary Creation Form (now matches doctor form style) */}
+                  {accountCreationType === 'secretary' && (
+                    <div className="form-section">
+                      <h4>Create Secretary Account - Step {currentSecretaryStep} of 3</h4>
+                      {/* Step 1: Demographics */}
+                      {currentSecretaryStep === 1 && (
+                        <div className="form-container">
+                          <div className="form-group">
+                            <label>First Name</label>
+                            <input
+                              type="text"
+                              value={secretaryForm.firstName}
+                              onChange={(e) => setSecretaryForm({ ...secretaryForm, firstName: e.target.value })}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Last Name</label>
+                            <input
+                              type="text"
+                              value={secretaryForm.lastName}
+                              onChange={(e) => setSecretaryForm({ ...secretaryForm, lastName: e.target.value })}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Email</label>
+                            <input
+                              type="email"
+                              value={secretaryForm.email}
+                              onChange={(e) => setSecretaryForm({ ...secretaryForm, email: e.target.value })}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Password</label>
+                            <input
+                              type="password"
+                              value={secretaryForm.password}
+                              onChange={(e) => setSecretaryForm({ ...secretaryForm, password: e.target.value })}
+                            />
+                          </div>
+                          <button className="action-button" onClick={handleNextSecretaryStep}>Next</button>
+                        </div>
+                      )}
+                      {/* Step 2: Affiliation and Clinic Hours */}
+                      {currentSecretaryStep === 2 && (
+                        <div className="form-container">
+                          <div className="form-group">
+                            <label>Current Hospital/Clinic Affiliation</label>
+                            <input
+                              type="text"
+                              value={secretaryForm.affiliation}
+                              onChange={(e) => setSecretaryForm({ ...secretaryForm, affiliation: e.target.value })}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Clinic Hours/Availability</label>
+                            <input
+                              type="text"
+                              value={secretaryForm.clinicHours}
+                              onChange={(e) => setSecretaryForm({ ...secretaryForm, clinicHours: e.target.value })}
+                            />
+                          </div>
+                          <div className="button-group">
+                            <button className="action-button" onClick={handlePrevSecretaryStep}>Previous</button>
+                            <button className="action-button" onClick={handleNextSecretaryStep}>Next</button>
+                          </div>
+                        </div>
+                      )}
+                      {/* Step 3: Assign to Doctor */}
+                      {currentSecretaryStep === 3 && (
+                        <div className="form-container">
+                          <div className="form-group">
+                            <label>Link to Doctor (Optional)</label>
+                            <select
+                              value={secretaryForm.doctorId}
+                              onChange={(e) => setSecretaryForm({ ...secretaryForm, doctorId: e.target.value })}
+                            >
+                              <option value="">-- Select a Doctor --</option>
+                              {doctors.map((doc) => (
+                                <option key={doc.doctor_id} value={doc.doctor_id}>
+                                  {doc.first_name} {doc.last_name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="button-group">
+                            <button className="action-button" onClick={handlePrevSecretaryStep}>Previous</button>
+                            <button className="action-button" onClick={createSecretary}>Create Secretary</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-
-            {activeTab === "compliance" && (
+                  )}
+                </div>
+              )}
+              {activeTab === "compliance" && (
                 <div>
                   <h2>Compliance</h2>
                   <table className="master-list">
@@ -1458,7 +1722,10 @@ const AdminDashboard = ({ onLogout, user }) => {
               </div>
             )}
 
-            {message && <p className="message">{message}</p>}
+
+              {/* ...rest of your tab content unchanged... */}
+              {message && <p className="message">{message}</p>}
+            </div>
           </div>
         </div>
       </div>
@@ -1483,7 +1750,7 @@ const AdminDashboard = ({ onLogout, user }) => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 

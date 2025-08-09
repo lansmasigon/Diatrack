@@ -991,50 +991,49 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setPendingLabResultsCount(pendingLabs);
   };
 
-  // Renamed to fetchAllAppointments and removed date filtering
-  const fetchAllAppointments = async () => {
-    const now = new Date().toISOString();
-    const { data, error } = await supabase
-      .from("appointments")
-      .select(`
-        appointment_id,
-        appointment_datetime,
-        notes,
-        patient_id,
-        doctor_id,
-        patients (first_name, last_name),
-        doctors (first_name, last_name)
-      `)
-      .eq("secretary_id", user.secretary_id)
-      .gte('appointment_datetime', now) // Filter to show only upcoming appointments
-      .order("appointment_datetime", { ascending: true }); // Order by datetime
+ const fetchAllAppointments = async () => {
+  const now = new Date();
+  const nowISO = now.toISOString();
 
-    if (error) {
-      console.error("Error fetching appointments:", error);
-      setMessage(`Error fetching appointments: ${error.message}`);
-    } else {
-      setAppointmentsToday(data.map(app => {
-        // No Date object creation here, directly use string parts
-        const formattedDatePart = app.appointment_datetime.split('T')[0];
-        const formattedTimePart = app.appointment_datetime.substring(11, 16); // Extracts HH:MM (24-hour)
+  const { data, error } = await supabase
+    .from("appointments")
+    .select(`
+      appointment_id,
+      appointment_datetime,
+      appointment_state,
+      notes,
+      patient_id,
+      doctor_id,
+      patients (first_name, last_name),
+      doctors (first_name, last_name)
+    `)
+    .eq("secretary_id", user.secretary_id)
+    .order("appointment_datetime", { ascending: true });
 
-        return {
-          ...app,
-          patient_name: app.patients ? `${app.patients.first_name} ${app.patients.last_name}` : 'Unknown Patient',
-          doctor_name: app.doctors ? `${app.doctors.first_name} ${app.doctors.last_name}` : 'Unknown Doctor',
-          // Apply 12-hour formatting for display
-          dateTimeDisplay: `${formattedDatePart} ${formatTimeTo12Hour(formattedTimePart)}`,
-        };
-      }));
-      // --- Start Debugging Console Logs ---
-      console.log("Fetched raw appointments data:", data); // Log the raw data from Supabase
-      data.forEach(app => {
-        const formattedTimeForLog = formatTimeTo12Hour(app.appointment_datetime.substring(11, 16));
-        console.log(`Appointment ID: ${app.appointment_id}, Raw datetime: "${app.appointment_datetime}", Display Value: "${app.appointment_datetime.split('T')[0]} ${formattedTimeForLog}"`);
-      });
-      // --- End Debugging Console Logs ---
-    }
-  };
+  if (error) {
+    console.error("Error fetching appointments:", error);
+    setMessage(`Error fetching appointments: ${error.message}`);
+  } else {
+    // Filter out finished/done/cancelled and past appointments
+    const filtered = data.filter(app => {
+      const state = (app.appointment_state || '').toLowerCase();
+      const isFuture = new Date(app.appointment_datetime) >= now;
+      const isActive = state !== 'finished' && state !== 'done' && state !== 'cancelled';
+      return isFuture && isActive;
+    });
+
+    setAppointmentsToday(filtered.map(app => {
+      const formattedDatePart = app.appointment_datetime.split('T')[0];
+      const formattedTimePart = app.appointment_datetime.substring(11, 16);
+      return {
+        ...app,
+        patient_name: app.patients ? `${app.patients.first_name} ${app.patients.last_name}` : 'Unknown Patient',
+        doctor_name: app.doctors ? `${app.doctors.first_name} ${app.doctors.last_name}` : 'Unknown Doctor',
+        dateTimeDisplay: `${formattedDatePart} ${formatTimeTo12Hour(formattedTimePart)}`,
+      };
+    }));
+  }
+};
 
   const handleInputChange = (field, value) => {
     setPatientForm(prev => ({ ...prev, [field]: value }));

@@ -24,6 +24,9 @@ const Dashboard = ({ user, onLogout }) => {
   const [showUsersPopup, setShowUsersPopup] = useState(false);
   const [showMessagePopup, setShowMessagePopup] = useState(false);
 
+  const [showModal, setShowModal] = useState(false);
+  const [appointmentToConfirm, setAppointmentToConfirm] = useState(null);
+  const [actionType, setActionType] = useState(""); // "cancel" or "done"
 
   // New states for medication management (from previous iterations, for patient profile)
   const [patientMedications, setPatientMedications] = useState([]); // State for medications
@@ -543,59 +546,66 @@ const Dashboard = ({ user, onLogout }) => {
   );
 
 
-const handleCancel = async (appointmentId) => {
-    try {
-        const { error } = await supabase
-            .from('appointments')
-            .update({ appointment_state: 'cancelled' })
-            .eq('appointment_id', appointmentId);
-        
-        if (error) throw error;
-
-        // Optionally, you can refetch the appointments or update the state here
-        // to reflect the change on the UI immediately without a full page refresh.
-
-    } catch (error) {
-        console.error('Error cancelling appointment:', error.message);
-    }
+const handleShowModal = (appointment, action) => {
+  setAppointmentToConfirm(appointment);
+  setActionType(action);
+  setShowModal(true);
 };
 
-const handleDone = async (appointmentId, patientId) => {
-    try {
-        // Step 1: Update the appointment state to 'Done'
-        const { error: apptError } = await supabase
-            .from('appointments')
-            .update({ appointment_state: 'Done' })
-            .eq('appointment_id', appointmentId);
-        
-        if (apptError) throw apptError;
-
-        // Step 2: Increment patient_visits in the patients table
-        // First, fetch the current patient_visits count
-        const { data: patientData, error: patientFetchError } = await supabase
-            .from('patients')
-            .select('patient_visits')
-            .eq('patient_id', patientId)
-            .single();
-
-        if (patientFetchError) throw patientFetchError;
-        
-        // Then, update the patient_visits count
-        const newVisits = patientData.patient_visits + 1;
-        const { error: patientUpdateError } = await supabase
-            .from('patients')
-            .update({ patient_visits: newVisits })
-            .eq('patient_id', patientId);
-
-        if (patientUpdateError) throw patientUpdateError;
-
-        // Optionally, refetch the appointments to remove the "Done" one from the list.
-        
-    } catch (error) {
-        console.error('Error completing appointment:', error.message);
-    }
+const handleCancelModal = () => {
+  setShowModal(false);
+  setAppointmentToConfirm(null);
+  setActionType("");
 };
 
+const handleConfirmAction = async () => {
+  if (!appointmentToConfirm) return;
+
+  if (actionType === "cancel") {
+    try {
+      const { error } = await supabase
+        .from("appointments")
+        .update({ appointment_state: "cancelled" })
+        .eq("appointment_id", appointmentToConfirm.appointment_id);
+      if (error) throw error;
+      alert("Appointment cancelled successfully!");
+      fetchAppointments();
+    } catch (error) {
+      console.error("Error cancelling appointment:", error.message);
+      alert("Failed to cancel appointment.");
+    }
+  } else if (actionType === "done") {
+    try {
+      const { error: apptError } = await supabase
+        .from("appointments")
+        .update({ appointment_state: "Done" })
+        .eq("appointment_id", appointmentToConfirm.appointment_id);
+      if (apptError) throw apptError;
+
+      const { data: patientData, error: patientFetchError } = await supabase
+        .from("patients")
+        .select("patient_visits")
+        .eq("patient_id", appointmentToConfirm.patient_id)
+        .single();
+      if (patientFetchError) throw patientFetchError;
+
+      const newVisits = patientData.patient_visits + 1;
+      const { error: patientUpdateError } = await supabase
+        .from("patients")
+        .update({ patient_visits: newVisits })
+        .eq("patient_id", appointmentToConfirm.patient_id);
+      if (patientUpdateError) throw patientUpdateError;
+
+      alert("Appointment completed successfully!");
+      fetchAppointments();
+    } catch (error) {
+      console.error("Error completing appointment:", error.message);
+      alert("Failed to complete appointment.");
+    }
+  }
+
+  handleCancelModal();
+};
   const renderAppointments = () => (
     <div className="card3 appointments-card3">
         <h2>Upcoming Appointments</h2>
@@ -625,8 +635,8 @@ const handleDone = async (appointmentId, patientId) => {
                       <td>{appt.notes || "N/A"}</td>
                       <td>{appt.appointment_state || "N/A"}</td> {/* NEW: Added appointment state data */}
                       <td>
-                          <button onClick={() => handleCancel(appt.appointment_id)}>Cancel</button>
-                          <button onClick={() => handleDone(appt.appointment_id, appt.patient_id)}>Done</button>
+                        <button onClick={() => handleShowModal(appt, "cancel")}>Cancel</button>
+                        <button onClick={() => handleShowModal(appt, "done")}>Done</button>
                       </td>
                     </tr>
                   ))
@@ -637,6 +647,33 @@ const handleDone = async (appointmentId, patientId) => {
       </div>
   );
 
+  {showModal && (
+  <div className="modal-overlay3">
+    <div className="modal-content3">
+      <div className="modal-header3">
+        <h3>Confirm Action</h3>
+        <button className="close-button3" onClick={handleCancelModal}>
+          &times;
+        </button>
+      </div>
+      <div className="modal-body3">
+        <p>
+          Are you sure you want to{" "}
+          <strong>{actionType === "cancel" ? "cancel" : "mark as done"}</strong>{" "}
+          this appointment?
+        </p>
+        <div className="modal-button-group3">
+          <button className="modal-confirm-button3" onClick={handleConfirmAction}>
+            Confirm
+          </button>
+          <button className="modal-cancel-button3" onClick={handleCancelModal}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
   const renderDashboardContent = () => (
     <div className="dashboard-grid3">
@@ -1531,6 +1568,34 @@ const renderReportsContent = () => {
         {activePage === "treatment-plan-summary" && selectedPatient && renderTreatmentPlanSummary()} {/* NEW: Render the summary page */}
       </main>
 
+      
+        {showModal && (
+  <div className="modal-overlay3">
+    <div className="modal-content3">
+      <div className="modal-header3">
+        <h3>Confirm Action</h3>
+        <button className="close-button3" onClick={handleCancelModal}>
+          &times;
+        </button>
+      </div>
+      <div className="modal-body3">
+        <p>
+          Are you sure you want to{" "}
+          <strong>{actionType === "cancel" ? "cancel" : "mark as done"}</strong>{" "}
+          this appointment?
+        </p>
+        <div className="modal-button-group3">
+          <button className="modal-confirm-button3" onClick={handleConfirmAction}>
+            Confirm
+          </button>
+          <button className="modal-cancel-button3" onClick={handleCancelModal}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
       {/* Pop-up for Notification Icon */}
       {showUsersPopup && (
         <div className="popup-overlay3">
