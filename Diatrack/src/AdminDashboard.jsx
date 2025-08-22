@@ -114,6 +114,10 @@ const handlePrevSecretaryStep = () => {
   const [currentPageSecretaries, setCurrentPageSecretaries] = useState(1);
   const [secretariesPerPage] = useState(6); // Max 6 items per page
 
+  // New states for compliance pagination
+  const [currentPageCompliance, setCurrentPageCompliance] = useState(1);
+  const [compliancePerPage] = useState(10); // Max 10 items per page
+
   // New states for patient editing
   const [editingPatientId, setEditingPatientId] = useState(null);
   const [editPatientForm, setEditPatientForm] = useState({
@@ -947,6 +951,11 @@ const handlePrevSecretaryStep = () => {
   const indexOfFirstSecretary = indexOfLastSecretary - secretariesPerPage;
   const currentSecretaries = filteredSecretaries.slice(indexOfFirstSecretary, indexOfLastSecretary);
 
+  // Pagination for compliance
+  const indexOfLastCompliance = currentPageCompliance * compliancePerPage;
+  const indexOfFirstCompliance = indexOfLastCompliance - compliancePerPage;
+  const currentCompliancePatients = patients.slice(indexOfFirstCompliance, indexOfLastCompliance);
+
    return (
     <>
       <div className="dashboard-container">
@@ -956,7 +965,7 @@ const handlePrevSecretaryStep = () => {
             <div className="header-logo-section">
               <img src={logo} alt="DiaTrack Logo" className="header-logo" />
               <h1 className="header-title">
-                <span style={{ color: "#00aaff" }}>Dia</span>
+                <span>Dia</span>
                 <span style={{ color: "#ff9800" }}>Track</span>
               </h1>
             </div>
@@ -1668,51 +1677,89 @@ const handlePrevSecretaryStep = () => {
                 </div>
               )}
               {activeTab === "compliance" && (
-                <div>
-                  <h2>Compliance</h2>
-                  <table className="master-list">
-                    <thead>
-                      <tr>
-                        <th>Patient Name</th>
-                        <th>Assigned Doctor</th>
-                        <th>Days Since Last Submission</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {patients.length > 0 ? (
-                        patients.map((patient) => {
-                          const lastSubmissionDate = healthMetrics[patient.patient_id];
-                          
-                          // Calculate days passed, handling cases where there is no submission or it's today
-                          const daysPassed = lastSubmissionDate
-                            ? Math.max(0, Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(lastSubmissionDate).setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24)))
-                            : "No Submission";
-                            
-                          return (
-                            <tr key={patient.patient_id}>
-                              <td>{patient.first_name} {patient.last_name}</td>
-                              <td>
-                                {patient.preferred_doctor_id
-                                  ? `${patient.preferred_doctor_id.first_name} ${patient.preferred_doctor_id.last_name}`
-                                  : "N/A"}
-                              </td>
-                              <td>{daysPassed}</td>
-                              <td>  
-                                <button>Reviewed</button>
-                                <button>Notify</button>
-                                <button>Flag</button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      ) : (
+                <div className="compliance-container">
+                  <h2>Compliance Management</h2>
+                  <div className="table-responsive">
+                    <table className="compliance-table">
+                      <thead>
                         <tr>
-                          <td colSpan="3">No patients found.</td>
+                          <th>Patient Name</th>
+                          <th>Assigned Doctor</th>
+                          <th>Days Since Last Submission</th>
+                          <th>Actions</th>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {currentCompliancePatients.length > 0 ? (
+                          currentCompliancePatients.map((patient) => {
+                            const lastSubmissionDate = healthMetrics[patient.patient_id];
+                            
+                            // Calculate days passed, handling cases where there is no submission or it's today
+                            const daysPassed = lastSubmissionDate
+                              ? Math.max(0, Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(lastSubmissionDate).setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24)))
+                              : "No Submission";
+                              
+                            return (
+                              <tr key={patient.patient_id}>
+                                <td>{patient.first_name} {patient.last_name}</td>
+                                <td>
+                                  {patient.preferred_doctor_id
+                                    ? `${patient.preferred_doctor_id.first_name} ${patient.preferred_doctor_id.last_name}`
+                                    : "N/A"}
+                                </td>
+                                <td>
+                                  <span className={`compliance-status ${daysPassed === "No Submission" ? "no-submission" : daysPassed > 7 ? "overdue" : daysPassed > 3 ? "warning" : "good"}`}>
+                                    {daysPassed}
+                                  </span>
+                                </td>
+                                <td className="action-buttons">  
+                                  <button className="action-btn reviewed-btn">Reviewed</button>
+                                  <button className="action-btn notify-btn">Notify</button>
+                                  <button className="action-btn flag-btn">Flag</button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        ) : (
+                          <tr>
+                            <td colSpan="4" className="no-data">No patients found.</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {/* Pagination for Compliance */}
+                  <div className="pagination-container">
+                    <div className="pagination-info">
+                      Showing {indexOfFirstCompliance + 1} to {Math.min(indexOfLastCompliance, patients.length)} of {patients.length} patients
+                    </div>
+                    <div className="pagination">
+                      <button
+                        className="pagination-btn"
+                        onClick={() => setCurrentPageCompliance(currentPageCompliance - 1)}
+                        disabled={currentPageCompliance === 1}
+                      >
+                        Previous
+                      </button>
+                      {Array.from({ length: Math.ceil(patients.length / compliancePerPage) }, (_, i) => (
+                        <button
+                          key={i + 1}
+                          className={`pagination-btn ${currentPageCompliance === i + 1 ? 'active' : ''}`}
+                          onClick={() => setCurrentPageCompliance(i + 1)}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                      <button
+                        className="pagination-btn"
+                        onClick={() => setCurrentPageCompliance(currentPageCompliance + 1)}
+                        disabled={currentPageCompliance === Math.ceil(patients.length / compliancePerPage)}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 
