@@ -1270,9 +1270,15 @@ const handlePrevSecretaryStep = () => {
                       >
                         Prev
                       </button>
-                      <span>
-                        Page {currentPagePatients} of {Math.ceil(filteredPatients.length / patientsPerPage)}
-                      </span>
+                      {Array.from({ length: Math.ceil(filteredPatients.length / patientsPerPage) }, (_, i) => (
+                        <button
+                          key={i + 1}
+                          className={currentPagePatients === i + 1 ? 'active' : ''}
+                          onClick={() => setCurrentPagePatients(i + 1)}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
                       <button
                         onClick={() =>
                           setCurrentPagePatients((prev) =>
@@ -1342,9 +1348,15 @@ const handlePrevSecretaryStep = () => {
                       >
                         Prev
                       </button>
-                      <span>
-                        Page {currentPageDoctors} of {Math.ceil(filteredDoctorsForSearch.length / doctorsPerPage)}
-                      </span>
+                      {Array.from({ length: Math.ceil(filteredDoctorsForSearch.length / doctorsPerPage) }, (_, i) => (
+                        <button
+                          key={i + 1}
+                          className={currentPageDoctors === i + 1 ? 'active' : ''}
+                          onClick={() => setCurrentPageDoctors(i + 1)}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
                       <button
                         onClick={() =>
                           setCurrentPageDoctors((prev) =>
@@ -1406,9 +1418,15 @@ const handlePrevSecretaryStep = () => {
                       >
                         Prev
                       </button>
-                      <span>
-                        Page {currentPageSecretaries} of {Math.ceil(filteredSecretaries.length / secretariesPerPage)}
-                      </span>
+                      {Array.from({ length: Math.ceil(filteredSecretaries.length / secretariesPerPage) }, (_, i) => (
+                        <button
+                          key={i + 1}
+                          className={currentPageSecretaries === i + 1 ? 'active' : ''}
+                          onClick={() => setCurrentPageSecretaries(i + 1)}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
                       <button
                         onClick={() =>
                           setCurrentPageSecretaries((prev) =>
@@ -1434,14 +1452,20 @@ const handlePrevSecretaryStep = () => {
               {activeTab === "accounts" && (
                 <div>
                   <h3>Create New Account</h3>
-                  {accountCreationType ? (
-                    <button className="action-button" onClick={() => setAccountCreationType(null)}>
-                      Back
-                    </button>
-                  ) : (
+                  {!accountCreationType && (
                     <div className="account-creation-buttons">
-                      <button className="action-button" onClick={() => setAccountCreationType('doctor')}>Create Doctor</button>
-                      <button className="action-button" onClick={() => setAccountCreationType('secretary')}>Create Secretary</button>
+                      <button className="action-button" onClick={() => setAccountCreationType('doctor')}>
+                        <div className="button-content">
+                          <span className="button-icon-large">🩺</span>
+                          <span className="button-text">Create Doctor</span>
+                        </div>
+                      </button>
+                      <button className="action-button" onClick={() => setAccountCreationType('secretary')}>
+                        <div className="button-content">
+                          <span className="button-icon-large">👤</span>
+                          <span className="button-text">Create Secretary</span>
+                        </div>
+                      </button>
                     </div>
                   )}
 
@@ -1483,7 +1507,10 @@ const handlePrevSecretaryStep = () => {
                             onChange={(e) => setDoctorForm({ ...doctorForm, password: e.target.value })}
                           />
                         </div>
-                        <button className="action-button" onClick={handleNextStep}>Next</button>
+                        <div className="button-group">
+                          <button className="action-button" onClick={() => setAccountCreationType(null)}>Back</button>
+                          <button className="action-button" onClick={handleNextStep}>Next</button>
+                        </div>
                       </div>
                     )}
                     {/* Step 2: Specialization & License */}
@@ -1621,7 +1648,10 @@ const handlePrevSecretaryStep = () => {
                               onChange={(e) => setSecretaryForm({ ...secretaryForm, password: e.target.value })}
                             />
                           </div>
-                          <button className="action-button" onClick={handleNextSecretaryStep}>Next</button>
+                          <div className="button-group">
+                            <button className="action-button" onClick={() => setAccountCreationType(null)}>Back</button>
+                            <button className="action-button" onClick={handleNextSecretaryStep}>Next</button>
+                          </div>
                         </div>
                       )}
                       {/* Step 2: Affiliation and Clinic Hours */}

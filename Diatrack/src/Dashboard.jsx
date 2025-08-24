@@ -24,6 +24,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [showUsersPopup, setShowUsersPopup] = useState(false);
   const [showMessagePopup, setShowMessagePopup] = useState(false);
 
+
   const [showModal, setShowModal] = useState(false);
   const [appointmentToConfirm, setAppointmentToConfirm] = useState(null);
   const [actionType, setActionType] = useState(""); // "cancel" or "done"
@@ -223,6 +224,45 @@ const Dashboard = ({ user, onLogout }) => {
         }
       } catch (err) {
         setError("Error deleting patient: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handlePhaseToggle = async (patient) => {
+    const newPhase = patient.phase === 'Pre-Operative' ? 'Post-Operative' : 'Pre-Operative';
+    
+    if (window.confirm(`Are you sure you want to change ${patient.first_name} ${patient.last_name}'s phase from ${patient.phase} to ${newPhase}?`)) {
+      setLoading(true);
+      setError("");
+      try {
+        const { error } = await supabase
+          .from("patients")
+          .update({ phase: newPhase })
+          .eq("patient_id", patient.patient_id);
+
+        if (error) {
+          setError(`Error updating patient phase: ${error.message}`);
+        } else {
+          // Log the phase change
+          await logPatientDataChange(
+            'doctor',
+            user.doctor_id,
+            `${user.first_name} ${user.last_name}`,
+            patient.patient_id,
+            'phase_update',
+            'edit',
+            `Phase changed from ${patient.phase} to ${newPhase}`,
+            `Updated phase for ${patient.first_name} ${patient.last_name}`,
+            'Doctor Dashboard - Patient Phase Management'
+          );
+          
+          alert(`Patient phase updated to ${newPhase} successfully!`);
+          fetchPatients(); // Refresh the patient list to show the updated phase
+        }
+      } catch (err) {
+        setError("Error updating patient phase: " + err.message);
       } finally {
         setLoading(false);
       }
@@ -529,9 +569,18 @@ const Dashboard = ({ user, onLogout }) => {
                       </span>
                     </td>
                     <td>
-                      <span className={`phase3 ${patient.phase}`}>
-                        {patient.phase}
-                      </span>
+                      <div className="phase-toggle-container">
+                        <span className={`phase3 ${patient.phase}`}>
+                          {patient.phase}
+                        </span>
+                        <button 
+                          className="phase-toggle-button" 
+                          onClick={() => handlePhaseToggle(patient)}
+                          title={`Change to ${patient.phase === 'Pre-Operative' ? 'Post-Operative' : 'Pre-Operative'}`}
+                        >
+                          <i className="fas fa-exchange-alt"></i>
+                        </button>
+                      </div>
                     </td>
                     <td>
                       <button className="action-button3 view-button3" onClick={() => handleViewClick(patient)}>View</button>

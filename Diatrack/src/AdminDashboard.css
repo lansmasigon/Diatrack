@@ -650,8 +650,11 @@ body {
 
 .pagination {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   align-items: center;
+  justify-content: center;
+  margin-top: 20px;
+  padding: 16px 20px;
 }
 
 .pagination-btn {
@@ -688,6 +691,64 @@ body {
 .pagination-btn.active:hover {
   background-color: #2563eb;
   border-color: #2563eb;
+}
+
+/* Masterlist Pagination Styles - Simple and clean */
+.pagination button {
+  padding: 6px 12px;
+  border: 1px solid #3b82f6;
+  background: #3b82f6;
+  color: white;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 60px;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.pagination button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #6b7280;
+  border-color: #6b7280;
+  color: white;
+}
+
+/* Page number buttons - white background with blue border */
+.pagination button:not(:first-child):not(:last-child) {
+  background: white;
+  color: #3b82f6;
+}
+
+.pagination button:not(:first-child):not(:last-child):hover:not(:disabled) {
+  background: #3b82f6;
+  color: white;
+}
+
+/* Active state for page number buttons */
+.pagination button.active {
+  background: #3b82f6 !important;
+  color: white !important;
+  border-color: #3b82f6 !important;
+}
+
+.pagination button.active:hover {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+}
+
+.pagination span {
+  padding: 6px 12px;
+  color: #475569;
+  font-weight: 500;
+  font-size: 13px;
+  text-align: center;
 }
 
 /* Responsive Design */
@@ -747,6 +808,16 @@ body {
   .pagination {
     justify-content: center;
     flex-wrap: wrap;
+  }
+  
+  /* Make forms single column on mobile */
+  .form-container {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .button-group {
+    grid-column: 1;
   }
 }
 
@@ -845,6 +916,36 @@ body {
   background: #2563eb;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Button Group for form navigation */
+.button-group {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+  grid-column: 1 / -1; /* Span across all columns in the grid */
+}
+
+.button-group .action-button {
+  width: auto;
+  min-width: 100px;
+  padding: 10px 20px;
+  font-size: 13px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+
+.button-group .action-button:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border-color: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
 }
 
 /* Search and Filter Container */
@@ -1026,6 +1127,71 @@ h3 {
 
 .account-creation-buttons .action-button {
   flex: 1; /* Make buttons take equal space */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  height: 120px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.account-creation-buttons .action-button:hover {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-color: #1d4ed8;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.25);
+}
+
+.account-creation-buttons .action-button:hover .button-icon-large {
+  color: white;
+  transform: scale(1.1);
+}
+
+.account-creation-buttons .action-button:hover .button-text {
+  color: white;
+}
+
+/* Button content layout - vertical stack with icon on top, text on bottom */
+.button-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* Large icon styling for buttons */
+.button-icon-large {
+  font-size: 48px;
+  line-height: 1;
+  color: #3b82f6;
+  transition: all 0.3s ease;
+}
+
+/* Button text styling */
+.button-text {
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  color: #334155;
+  transition: all 0.3s ease;
+}
+
+/* Legacy icon styling (keeping for other buttons) */
+.button-icon {
+  font-size: 18px;
+  margin-right: 4px;
+}
+
+.button-icon-img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  margin-right: 4px;
 }
 
 /* Shared styles for the forms */
@@ -1047,7 +1213,8 @@ h3 {
 
 .form-container {
   display: grid;
-  gap: 16px;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 24px;
 }
 
 .form-group {
