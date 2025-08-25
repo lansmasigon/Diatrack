@@ -119,78 +119,79 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
           </div>
         </div>
       </div>
-      <div className="patient-categories-widget"> {/* Replaced inline style with class */}
-        <h3>
-          Patient Categories
-        </h3>
-        <div className="progress-bars-container"> {/* Replaced inline style with class */}
-          {/* Pre-Op Bar */}
-          <div className="progress-bar-row"> {/* Replaced inline style with class */}
-            <span className="progress-count">{preOp}</span> {/* Replaced inline style with class */}
-            <div className="progress-bar-background"> {/* Replaced inline style with class */}
-              <div className="progress-bar-fill progress-bar-pre-op" style={{ width: `${preOpPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+      <div className="widget-side-by-side-container">
+        <div className="patient-categories-widget small-widget"> {/* Added small-widget class */}
+          <h3>
+            <i className="fas fa-users"></i> Patient Categories
+          </h3>
+          <div className="progress-bars-container"> {/* Replaced inline style with class */}
+            {/* Pre-Op Bar */}
+            <div className="progress-bar-row"> {/* Replaced inline style with class */}
+              <span className="progress-count">{preOp}</span> {/* Replaced inline style with class */}
+              <div className="progress-bar-background"> {/* Replaced inline style with class */}
+                <div className="progress-bar-fill progress-bar-pre-op" style={{ width: `${preOpPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+              </div>
+            </div>
+            {/* Post-Op Bar */}
+            <div className="progress-bar-row"> {/* Replaced inline style with class */}
+              <span className="progress-count">{postOp}</span> {/* Replaced inline style with class */}
+              <div className="progress-bar-background"> {/* Replaced inline style with class */}
+                <div className="progress-bar-fill progress-bar-post-op" style={{ width: `${postOpPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+              </div>
             </div>
           </div>
-          {/* Post-Op Bar */}
-          <div className="progress-bar-row"> {/* Replaced inline style with class */}
-            <span className="progress-count">{postOp}</span> {/* Replaced inline style with class */}
-            <div className="progress-bar-background"> {/* Replaced inline style with class */}
-              <div className="progress-bar-fill progress-bar-post-op" style={{ width: `${postOpPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+          <div className="legend-container"> {/* Replaced inline style with class */}
+            <div className="legend-item"> {/* Replaced inline style with class */}
+              <span className="legend-color-box legend-color-pre-op"></span> {/* Replaced inline style with class */}
+              Pre-Op
+            </div>
+            <div className="legend-item"> {/* Replaced inline style with class */}
+              <span className="legend-color-box legend-color-post-op"></span> {/* Replaced inline style with class */}
+              Post-Op
             </div>
           </div>
         </div>
-        <div className="legend-container"> {/* Replaced inline style with class */}
-          <div className="legend-item"> {/* Replaced inline style with class */}
-            <span className="legend-color-box legend-color-pre-op"></span> {/* Replaced inline style with class */}
-            Pre-Op
-          </div>
-          <div className="legend-item"> {/* Replaced inline style with class */}
-            <span className="legend-color-box legend-color-post-op"></span> {/* Replaced inline style with class */}
-            Post-Op
-          </div>
-        </div>
-      </div>
 
-      <div className="risk-classes-widget"> {/* Replaced inline style with class */}
-        <h3>
-
-          Pre-Op Risk Classes
-        </h3>
-        <div className="progress-bars-container"> {/* Replaced inline style with class */}
-          {/* Low Risk Bar */}
-          <div className="progress-bar-row"> {/* Replaced inline style with class */}
-            <span className="progress-count">{lowRisk}</span> {/* Replaced inline style with class */}
-            <div className="progress-bar-background"> {/* Replaced inline style with class */}
-              <div className="progress-bar-fill progress-bar-low-risk" style={{ width: `${lowRiskPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+        <div className="risk-classes-widget small-widget"> {/* Added small-widget class */}
+          <h3>
+            <i className="fas fa-users"></i> Pre-Op Risk Classes
+          </h3>
+          <div className="progress-bars-container"> {/* Replaced inline style with class */}
+            {/* Low Risk Bar */}
+            <div className="progress-bar-row"> {/* Replaced inline style with class */}
+              <span className="progress-count">{lowRisk}</span> {/* Replaced inline style with class */}
+              <div className="progress-bar-background"> {/* Replaced inline style with class */}
+                <div className="progress-bar-fill progress-bar-low-risk" style={{ width: `${lowRiskPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+              </div>
+            </div>
+            {/* Moderate Risk Bar */}
+            <div className="progress-bar-row"> {/* Replaced inline style with class */}
+              <span className="progress-count">{moderateRisk}</span> {/* Replaced inline style with class */}
+              <div className="progress-bar-background"> {/* Replaced inline style with class */}
+                <div className="progress-bar-fill progress-bar-moderate-risk" style={{ width: `${moderateRiskPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+              </div>
+            </div>
+            {/* High Risk Bar */}
+            <div className="progress-bar-row"> {/* Replaced inline style with class */}
+              <span className="progress-count">{highRisk}</span> {/* Replaced inline style with class */}
+              <div className="progress-bar-background"> {/* Replaced inline style with class */}
+                <div className="progress-bar-fill progress-bar-high-risk" style={{ width: `${highRiskPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+              </div>
             </div>
           </div>
-          {/* Moderate Risk Bar */}
-          <div className="progress-bar-row"> {/* Replaced inline style with class */}
-            <span className="progress-count">{moderateRisk}</span> {/* Replaced inline style with class */}
-            <div className="progress-bar-background"> {/* Replaced inline style with class */}
-              <div className="progress-bar-fill progress-bar-moderate-risk" style={{ width: `${moderateRiskPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+          <div className="legend-container"> {/* Replaced inline style with class */}
+            <div className="legend-item"> {/* Replaced inline style with class */}
+              <span className="legend-color-box legend-color-low-risk"></span> {/* Replaced inline style with class */}
+              Low Risk
             </div>
-          </div>
-          {/* High Risk Bar */}
-          <div className="progress-bar-row"> {/* Replaced inline style with class */}
-            <span className="progress-count">{highRisk}</span> {/* Replaced inline style with class */}
-            <div className="progress-bar-background"> {/* Replaced inline style with class */}
-              <div className="progress-bar-fill progress-bar-high-risk" style={{ width: `${highRiskPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+            <div className="legend-item"> {/* Replaced inline style with class */}
+              <span className="legend-color-box legend-color-moderate-risk"></span> {/* Replaced inline style with class */}
+              Moderate Risk
             </div>
-          </div>
-        </div>
-        <div className="legend-container"> {/* Replaced inline style with class */}
-          <div className="legend-item"> {/* Replaced inline style with class */}
-            <span className="legend-color-box legend-color-low-risk"></span> {/* Replaced inline style with class */}
-            Low Risk
-          </div>
-          <div className="legend-item"> {/* Replaced inline style with class */}
-            <span className="legend-color-box legend-color-moderate-risk"></span> {/* Replaced inline style with class */}
-            Moderate Risk
-          </div>
-          <div className="legend-item"> {/* Replaced inline style with class */}
-            <span className="legend-color-box legend-color-high-risk"></span> {/* Replaced inline style with class */}
-            High Risk
+            <div className="legend-item"> {/* Replaced inline style with class */}
+              <span className="legend-color-box legend-color-high-risk"></span> {/* Replaced inline style with class */}
+              High Risk
+            </div>
           </div>
         </div>
       </div>
@@ -361,7 +362,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   try {
     const { error } = await supabase
       .from('appointments')
-      .update({ appointment_state: 'cancelled' })
+      .update({ 
+        appointment_state: 'cancelled'
+      })
       .eq('appointment_id', appointmentId);
 
     if (error) {
@@ -389,7 +392,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   try {
     const { error } = await supabase
       .from('appointments')
-      .update({ appointment_state: 'in queue' })
+      .update({ 
+        appointment_state: 'in queue'
+      })
       .eq('appointment_id', appointmentId);
 
     if (error) {
@@ -1385,6 +1390,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             secretary_id: user.secretary_id,
             appointment_datetime: appointmentDateTime.toISOString(),
             notes: appointmentForm.notes,
+            appointment_state: "Pending",
           },
         ])
         .select()
@@ -1752,6 +1758,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         <tr>
                           <th>Date & Time</th> {/* Changed to Date & Time */}
                           <th>Patient Name</th>
+                          <th>Status</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
@@ -1766,6 +1773,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             <tr key={appointment.appointment_id}>
                               <td>{appointment.dateTimeDisplay}</td> {/* Use the new dateTimeDisplay */}
                               <td>{appointment.patient_name}</td>
+                              <td className="appointment-status">
+                                <span className={`status-${(appointment.appointment_state || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
+                                  {(() => {
+                                    const state = appointment.appointment_state || 'pending';
+                                    if (state === 'in queue') return 'In Queue';
+                                    if (state === 'cancelled') return 'Cancelled';
+                                    if (state === 'pending') return 'Pending';
+                                    return state.charAt(0).toUpperCase() + state.slice(1);
+                                  })()}
+                                </span>
+                              </td>
                               <td className="appointment-actions">
                                 <button
                                   onClick={() => handleCancelAppointment(appointment.appointment_id)}
@@ -1785,7 +1803,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         {/* Message for no appointments on the current page */}
                         {appointmentsToday.length === 0 && (
                           <tr>
-                            <td colSpan="3" style={{ textAlign: "center" }}>
+                            <td colSpan="4" style={{ textAlign: "center" }}>
                               No appointments found.
                             </td>
                           </tr>
@@ -1797,7 +1815,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           currentPageAppointments * APPOINTMENTS_PER_PAGE
                         ).length === 0 && (
                           <tr>
-                            <td colSpan="3" style={{ textAlign: "center" }}>
+                            <td colSpan="4" style={{ textAlign: "center" }}>
                               No appointments on this page.
                             </td>
                           </tr>
@@ -2062,6 +2080,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   {message && <p className="form-message">{message}</p>}
 
                   <div className="form-navigation-buttons">
+                    <button className="cancel-button" onClick={() => setActivePage("dashboard")}>Cancel</button>
                     {currentPatientStep > 0 && (
                       <button className="previous-step-button" onClick={handlePreviousStep}>Previous</button>
                     )}
@@ -2073,7 +2092,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         {editingPatientId ? "Update Patient" : "Create Patient"}
                       </button>
                     )}
-                    <button className="cancel-button" onClick={() => setActivePage("dashboard")}>Cancel</button>
                   </div>
                 </div>
               )}
@@ -2771,18 +2789,20 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   {showSuccessModal && (
                     <div className="modal-backdrop">
                       <div className="modal-content success-modal">
-                        <i className="fas fa-check-circle success-icon"></i>
-                        <h2 className="modal-title">Lab Results Submitted!</h2>
-                        <p className="modal-subtext">
-                          The lab results for {labResults.selectedPatientForLab?.first_name} {labResults.selectedPatientForLab?.last_name} have been successfully recorded.
-                        </p>
-                        <button className="modal-green-button" onClick={() => {
-                          setShowSuccessModal(false);
-                          setLabEntryStep(1); // Reset to step 1 (patient search)
-                          setActivePage("dashboard"); // Optionally navigate to dashboard or patient list
-                        }}>
-                          Done
-                        </button>
+                        <img src="../picture/labentry.png" alt="Lab Entry Success" className="success-icon" />
+                        <div className="modal-text-content">
+                          <h2 className="modal-title">Lab Results Submitted!</h2>
+                          <p className="modal-subtext">
+                            The lab results for {labResults.selectedPatientForLab?.first_name} {labResults.selectedPatientForLab?.last_name} have been successfully recorded.
+                          </p>
+                          <button className="modal-green-button" onClick={() => {
+                            setShowSuccessModal(false);
+                            setLabEntryStep(1); // Reset to step 1 (patient search)
+                            setActivePage("dashboard"); // Optionally navigate to dashboard or patient list
+                          }}>
+                            Done
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -2843,8 +2863,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
               {showPatientConfirmationModal && (
                   <div className="modal-backdrop">
                     <div className="modal-content confirmation-modal">
-                      <img src="https://placehold.co/60x60/FFD700/000000?text=! " alt="Confirmation Image"/> {/* Placeholder for a confirmation icon */}
-                      <h2 className="modal-title"> Finalize Patient Profile?</h2>
+                      <img src="../picture/confirm.png" alt="Confirmation Image" className="confirmation-icon" />
+                      <div className="modal-text-content">
+                        <h2 className="modal-title"> Finalize Patient Profile?</h2>
                         <p className="modal-subtext">
                           Are you sure you want to finalize this patient's profile?
                           Please ensure all details are accurate before proceeding.
@@ -2861,6 +2882,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             Yes, Continue
                           </button>
                         </div>
+                      </div>
                       </div>
                     </div>
                 )}
