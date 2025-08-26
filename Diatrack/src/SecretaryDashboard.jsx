@@ -24,8 +24,8 @@ const formatTimeTo12Hour = (time24h) => {
 // Helper function to determine lab status
 const getLabStatus = (latestLabResult) => {
   if (!latestLabResult) {
-    console.log("getLabStatus: No lab result provided, returning N/A"); // <-- ADD THIS LOG
-    return 'N/A';
+    console.log("getLabStatus: No lab result provided, returning Awaiting");
+    return 'Awaiting';
   }
 
   const requiredLabFields = [
@@ -45,15 +45,15 @@ const getLabStatus = (latestLabResult) => {
   }
 
   let status;
-  if (!hasAnyField && !missingFields) { // This condition implies a record exists but all *required* fields were empty initially
-      status = 'N/A';
+  if (!hasAnyField && !missingFields) {
+      status = 'Awaiting';
   } else if (missingFields) {
-      status = 'Pending';
+      status = 'Submitted'; // Patient has some lab data, even if incomplete
   } else {
-      status = 'Submitted';
+      status = '✅Submitted'; // Patient has complete lab data
   }
 
-  console.log("getLabStatus: Result for lab data", latestLabResult, "is:", status); // <-- ADD THIS LOG
+  console.log("getLabStatus: Result for lab data", latestLabResult, "is:", status);
   return status;
 };
 
@@ -72,9 +72,9 @@ const getProfileStatus = (patient) => {
     patient.diabetes_type && patient.diabetes_type.trim() !== '' &&
     patient.smoking_status && patient.smoking_status.trim() !== ''
   ) {
-    return 'Complete';
+    return '🟢Finalized';
   } else {
-    return 'Incomplete';
+    return '🟡Pending';
   }
 };
 
@@ -926,7 +926,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             .order('date_submitted', { ascending: false })
             .limit(1);
   
-          let labStatus = 'N/A';
+          let labStatus = '❌Awaiting';
           let latestLabDate = null;
   
           if (labError) {
@@ -983,7 +983,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       }
   
       // Pending Lab Results (including N/A)
-      if (patient.lab_status === 'Pending' || patient.lab_status === 'N/A') {
+      if (patient.lab_status === 'Awaiting' || patient.lab_status === 'Pending' || patient.lab_status === 'N/A') {
         pendingLabs++;
       }
     });
@@ -1090,6 +1090,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         monitoring_frequency: patientForm.monitoringFrequencyGlucose,
         last_doctor_visit: patientForm.lastDoctorVisit,
         last_eye_exam: patientForm.lastEyeExam,
+        phase: 'Pre-Operative', // Default to Pre-Operative on creation
       };
 
       let error;
@@ -2140,14 +2141,13 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 {pat.risk_classification || 'N/A'}
                             </td>
                             <td className={
-                            pat.lab_status === 'Submitted' ? 'lab-status-submitted' :
-                            pat.lab_status === 'Pending' ? 'lab-status-pending' : // Add this if you want pending to have a specific style
-                            pat.lab_status === 'N/A' ? 'lab-status-na' : // Add this if you want N/A to have a specific style
+                            pat.lab_status === 'Submitted' ? 'lab-status-complete' :
+                            pat.lab_status === 'Awaiting' ? 'lab-status-awaiting' : // Add this if you want pending to have a specific style
                             ''
                           }>
-                            {pat.lab_status || 'N/A'}
+                            {pat.lab_status || 'Awaiting'}
                           </td>
-                          <td className={pat.profile_status === 'Complete' ? 'status-complete' : 'status-incomplete'}>
+                          <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                             {pat.profile_status}
                           </td>
                             <td>{pat.last_doctor_visit || 'N/A'}</td> {/* Corrected line */}
@@ -2624,17 +2624,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                     pat.lab_status === 'N/A' ? 'lab-status-na' :
                                     '' }> {pat.lab_status || 'N/A'}
                                   </td>
-                                  <td className={pat.profile_status === 'Complete' ? 'status-complete' : 'status-incomplete'}>
+                                  <td className={pat.profile_status === 'Finalized' ? 'status-finalized' : 'status-pending'}>
                                     {pat.profile_status}
                                   </td>
                                   <td>{pat.last_doctor_visit || 'N/A'}</td>
                                   <td>
                                     <div className="lab-actions-buttons">
                                       <button className="enter-labs-button" onClick={() => handleSelectPatientForLab(pat)}>
-                                        Enter Labs
+                                        {pat.lab_status === 'Submitted' ? '🔄 Update': '🧪 Enter Labs'}
                                       </button>
                                       <button className="view-labs-button" onClick={() => handleViewPatientLabDetails(pat)}>
-                                        View
+                                        👁️View
                                       </button>
                                     </div>
                                   </td>
@@ -2867,8 +2867,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       <div className="modal-text-content">
                         <h2 className="modal-title"> Finalize Patient Profile?</h2>
                         <p className="modal-subtext">
-                          Are you sure you want to finalize this patient's profile?
-                          Please ensure all details are accurate before proceeding.
+                          The laboratory data has been securely stored and is now locked for editing to ensure accuracy and audit compliance.
+                          You may now proceed to finalize the patient profile with the attending doctor..
                           <br /><br />
                           This action will {editingPatientId ? "update the existing" : "create a new"} patient record.
                         </p>
