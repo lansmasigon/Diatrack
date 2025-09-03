@@ -1308,8 +1308,15 @@ const renderReportsContent = () => {
           {/* REPLACED NOTES WITH APPOINTMENT SCHEDULE */}
           <div className="card3 appointment-schedule-card3">
             <h3>Patient Appointment Schedule</h3>
-            {patientAppointments.length === 0 ? (
-              <p className="no-appointments-text3">No appointments scheduled for this patient.</p>
+            {patientAppointments.filter(appt => 
+              appt.appointment_state !== 'Done' && 
+              appt.appointment_state !== 'cancelled' && 
+              appt.appointment_state !== null && 
+              appt.appointment_state !== undefined &&
+              appt.appointment_state !== 'N/A' &&
+              appt.appointment_state !== ''
+            ).length === 0 ? (
+              <p className="no-appointments-text3">No upcoming appointments scheduled for this patient.</p>
             ) : (
               <div className="table-responsive3">
                 <table className="appointment-list-table3">
@@ -1322,7 +1329,16 @@ const renderReportsContent = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {patientAppointments.map((appt) => (
+                    {patientAppointments
+                      .filter(appt => 
+                        appt.appointment_state !== 'Done' && 
+                        appt.appointment_state !== 'cancelled' && 
+                        appt.appointment_state !== null && 
+                        appt.appointment_state !== undefined &&
+                        appt.appointment_state !== 'N/A' &&
+                        appt.appointment_state !== ''
+                      )
+                      .map((appt) => (
                       <tr key={appt.appointment_id}>
                         <td>{new Date(appt.appointment_datetime).toLocaleDateString()}</td>
                         <td>{new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>

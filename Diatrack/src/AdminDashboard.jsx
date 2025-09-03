@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
+import Pagination from "./components/Pagination";
 import "./AdminDashboard.css";
 import logo from "../picture/logo.png"; // Import the logo image
 import AuditLogs from "./AuditLogs"; // Import the AuditLogs component
@@ -1263,34 +1264,14 @@ const handlePrevSecretaryStep = () => {
                       </tbody>
                     </table>
                     {filteredPatients.length > patientsPerPage && (
-                    <div className="pagination">
-                      <button
-                        onClick={() => setCurrentPagePatients((prev) => Math.max(prev - 1, 1))}
-                        disabled={currentPagePatients === 1}
-                      >
-                        Prev
-                      </button>
-                      {Array.from({ length: Math.ceil(filteredPatients.length / patientsPerPage) }, (_, i) => (
-                        <button
-                          key={i + 1}
-                          className={currentPagePatients === i + 1 ? 'active' : ''}
-                          onClick={() => setCurrentPagePatients(i + 1)}
-                        >
-                          {i + 1}
-                        </button>
-                      ))}
-                      <button
-                        onClick={() =>
-                          setCurrentPagePatients((prev) =>
-                            prev < Math.ceil(filteredPatients.length / patientsPerPage) ? prev + 1 : prev
-                          )
-                        }
-                        disabled={currentPagePatients === Math.ceil(filteredPatients.length / patientsPerPage)}
-                      >
-                        Next
-                      </button>
-                    </div>
-                  )}
+                      <Pagination
+                        currentPage={currentPagePatients}
+                        totalPages={Math.ceil(filteredPatients.length / patientsPerPage)}
+                        onPageChange={setCurrentPagePatients}
+                        itemsPerPage={patientsPerPage}
+                        totalItems={filteredPatients.length}
+                      />
+                    )}
                   </>
                 )}
 
@@ -1341,34 +1322,14 @@ const handlePrevSecretaryStep = () => {
                       </tbody>
                     </table>
                     {filteredDoctorsForSearch.length > doctorsPerPage && (
-                    <div className="pagination">
-                      <button
-                        onClick={() => setCurrentPageDoctors((prev) => Math.max(prev - 1, 1))}
-                        disabled={currentPageDoctors === 1}
-                      >
-                        Prev
-                      </button>
-                      {Array.from({ length: Math.ceil(filteredDoctorsForSearch.length / doctorsPerPage) }, (_, i) => (
-                        <button
-                          key={i + 1}
-                          className={currentPageDoctors === i + 1 ? 'active' : ''}
-                          onClick={() => setCurrentPageDoctors(i + 1)}
-                        >
-                          {i + 1}
-                        </button>
-                      ))}
-                      <button
-                        onClick={() =>
-                          setCurrentPageDoctors((prev) =>
-                            prev < Math.ceil(filteredDoctorsForSearch.length / doctorsPerPage) ? prev + 1 : prev
-                          )
-                        }
-                        disabled={currentPageDoctors === Math.ceil(filteredDoctorsForSearch.length / doctorsPerPage)}
-                      >
-                        Next
-                      </button>
-                    </div>
-                  )}
+                      <Pagination
+                        currentPage={currentPageDoctors}
+                        totalPages={Math.ceil(filteredDoctorsForSearch.length / doctorsPerPage)}
+                        onPageChange={setCurrentPageDoctors}
+                        itemsPerPage={doctorsPerPage}
+                        totalItems={filteredDoctorsForSearch.length}
+                      />
+                    )}
                   </>
                 )}
 
@@ -1411,34 +1372,14 @@ const handlePrevSecretaryStep = () => {
                       </tbody>
                     </table>
                     {filteredSecretaries.length > secretariesPerPage && (
-                    <div className="pagination">
-                      <button
-                        onClick={() => setCurrentPageSecretaries((prev) => Math.max(prev - 1, 1))}
-                        disabled={currentPageSecretaries === 1}
-                      >
-                        Prev
-                      </button>
-                      {Array.from({ length: Math.ceil(filteredSecretaries.length / secretariesPerPage) }, (_, i) => (
-                        <button
-                          key={i + 1}
-                          className={currentPageSecretaries === i + 1 ? 'active' : ''}
-                          onClick={() => setCurrentPageSecretaries(i + 1)}
-                        >
-                          {i + 1}
-                        </button>
-                      ))}
-                      <button
-                        onClick={() =>
-                          setCurrentPageSecretaries((prev) =>
-                            prev < Math.ceil(filteredSecretaries.length / secretariesPerPage) ? prev + 1 : prev
-                          )
-                        }
-                        disabled={currentPageSecretaries === Math.ceil(filteredSecretaries.length / secretariesPerPage)}
-                      >
-                        Next
-                      </button>
-                    </div>
-                  )}
+                      <Pagination
+                        currentPage={currentPageSecretaries}
+                        totalPages={Math.ceil(filteredSecretaries.length / secretariesPerPage)}
+                        onPageChange={setCurrentPageSecretaries}
+                        itemsPerPage={secretariesPerPage}
+                        totalItems={filteredSecretaries.length}
+                      />
+                    )}
                   </>
                 )}
               </>
@@ -1761,34 +1702,13 @@ const handlePrevSecretaryStep = () => {
                   
                   {/* Pagination for Compliance */}
                   <div className="pagination-container">
-                    <div className="pagination-info">
-                      Showing {indexOfFirstCompliance + 1} to {Math.min(indexOfLastCompliance, patients.length)} of {patients.length} patients
-                    </div>
-                    <div className="pagination">
-                      <button
-                        className="pagination-btn"
-                        onClick={() => setCurrentPageCompliance(currentPageCompliance - 1)}
-                        disabled={currentPageCompliance === 1}
-                      >
-                        Previous
-                      </button>
-                      {Array.from({ length: Math.ceil(patients.length / compliancePerPage) }, (_, i) => (
-                        <button
-                          key={i + 1}
-                          className={`pagination-btn ${currentPageCompliance === i + 1 ? 'active' : ''}`}
-                          onClick={() => setCurrentPageCompliance(i + 1)}
-                        >
-                          {i + 1}
-                        </button>
-                      ))}
-                      <button
-                        className="pagination-btn"
-                        onClick={() => setCurrentPageCompliance(currentPageCompliance + 1)}
-                        disabled={currentPageCompliance === Math.ceil(patients.length / compliancePerPage)}
-                      >
-                        Next
-                      </button>
-                    </div>
+                    <Pagination
+                      currentPage={currentPageCompliance}
+                      totalPages={Math.ceil(patients.length / compliancePerPage)}
+                      onPageChange={setCurrentPageCompliance}
+                      itemsPerPage={compliancePerPage}
+                      totalItems={patients.length}
+                    />
                   </div>
                 </div>
               )}

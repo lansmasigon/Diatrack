@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
 import { logAppointmentEvent, logPatientDataChange, logSystemAction } from "./auditLogger";
+import Pagination from "./components/Pagination";
 import "./SecretaryDashboard.css";
 import logo from "../picture/logo.png"; // Import the logo image
 
@@ -90,10 +91,6 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
   const lowRiskPercentage = totalRiskClasses > 0 ? (lowRisk / totalRiskClasses) * 100 : 0;
   const moderateRiskPercentage = totalRiskClasses > 0 ? (moderateRisk / totalRiskClasses) * 100 : 0;
   const highRiskPercentage = totalRiskClasses > 0 ? (highRisk / totalRiskClasses) * 100 : 0;
-// Helper function to render pagination buttons
-
-
-
 
   return (
     <>
@@ -350,6 +347,12 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
   });
   const [patientAppointments, setPatientAppointments] = useState([]);
+
+  // NEW STATE FOR SPECIALIST ASSIGNMENT
+  const [availableSpecialists, setAvailableSpecialists] = useState([]);
+  const [selectedSpecialistId, setSelectedSpecialistId] = useState("");
+  const [patientForSpecialistAssignment, setPatientForSpecialistAssignment] = useState(null);
+  const [currentPatientSpecialists, setCurrentPatientSpecialists] = useState([]);
   
   // Handle appointment cancellation with improved logging
   const handleCancelAppointment = async (appointmentId) => {
@@ -446,42 +449,6 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
-
-  // Helper function to render pagination buttons
-const renderPaginationButtons = (currentPage, totalPages, setCurrentPage) => {
-  const pageNumbers = [];
-  for (let i = 1; i <= totalPages; i++) {
-    pageNumbers.push(i);
-  }
-
-  return (
-    <div className="pagination-controls">
-      <button
-        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-        disabled={currentPage === 1}
-        className="pagination-button" // Added pagination-button class
-      >
-        Previous
-      </button>
-      {pageNumbers.map(number => (
-        <button
-          key={number}
-          onClick={() => setCurrentPage(number)}
-          className={`pagination-button ${currentPage === number ? 'active-page' : ''}`} // Added pagination-button class
-        >
-          {number}
-        </button>
-      ))}
-      <button
-        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-        disabled={currentPage === totalPages}
-        className="pagination-button" // Added pagination-button class
-      >
-        Next
-      </button>
-    </div>
-  );
-};
 
   // NEW STATE: Medications for selected patient
   const [patientMedications, setPatientMedications] = useState([]);
@@ -850,6 +817,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         } else {
           setPatientMedications([]);
         }
+
+        // --- Fetch Patient Specialists ---
+        fetchPatientSpecialists(selectedPatientForDetail.patient_id);
       } else {
         // Reset all states if no patient selected
         setLastLabDate('N/A');
@@ -863,6 +833,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         setWoundPhotoData({ url: '', date: '' }); // Reset wound photo URL
         setPatientAppointments([]);
         setPatientMedications([]); // Reset medications
+        setCurrentPatientSpecialists([]); // Reset specialists
       }
     };
 
@@ -1554,6 +1525,186 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     // as they will be re-fetched if a patient is selected again.
   };
 
+  // NEW FUNCTIONS FOR SPECIALIST ASSIGNMENT
+  const fetchAvailableSpecialists = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("doctors")
+        .select("doctor_id, first_name, last_name, specialization")
+        .order("first_name", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching specialists:", error);
+        setAvailableSpecialists([]);
+        return;
+      }
+
+      setAvailableSpecialists(data || []);
+    } catch (error) {
+      console.error("Error in fetchAvailableSpecialists:", error);
+      setAvailableSpecialists([]);
+    }
+  };
+
+  const fetchPatientSpecialists = async (patientId) => {
+    try {
+      const { data, error } = await supabase
+        .from("patient_specialists")
+        .select(`
+          id,
+          doctor_id,
+          specialization,
+          assigned_at,
+          doctors (first_name, last_name, specialization)
+        `)
+        .eq("patient_id", patientId)
+        .order("assigned_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching patient specialists:", error);
+        setCurrentPatientSpecialists([]);
+        return;
+      }
+
+      setCurrentPatientSpecialists(data || []);
+    } catch (error) {
+      console.error("Error in fetchPatientSpecialists:", error);
+      setCurrentPatientSpecialists([]);
+    }
+  };
+
+  const handleEditSpecialist = (patient) => {
+    setPatientForSpecialistAssignment(patient);
+    setSelectedSpecialistId("");
+    fetchAvailableSpecialists();
+    fetchPatientSpecialists(patient.patient_id);
+    setActivePage("specialist-assignment");
+  };
+
+  const handleAssignSpecialist = async () => {
+    if (!selectedSpecialistId) {
+      setMessage("Please select a specialist to assign.");
+      return;
+    }
+
+    if (!patientForSpecialistAssignment) {
+      setMessage("No patient selected for specialist assignment.");
+      return;
+    }
+
+    try {
+      // Check if this specialist is already assigned to this patient
+      const { data: existingAssignment } = await supabase
+        .from("patient_specialists")
+        .select("id")
+        .eq("patient_id", patientForSpecialistAssignment.patient_id)
+        .eq("doctor_id", selectedSpecialistId)
+        .single();
+
+      if (existingAssignment) {
+        setMessage("This specialist is already assigned to this patient.");
+        return;
+      }
+
+      // Insert new specialist assignment
+      const { error } = await supabase
+        .from("patient_specialists")
+        .insert([
+          {
+            patient_id: patientForSpecialistAssignment.patient_id,
+            doctor_id: selectedSpecialistId,
+            specialization: null // Will use doctor's specialization from doctors table
+          }
+        ]);
+
+      if (error) {
+        console.error("Error assigning specialist:", error);
+        setMessage(`Error assigning specialist: ${error.message}`);
+        return;
+      }
+
+      setMessage("Specialist assigned successfully!");
+      setSelectedSpecialistId("");
+      
+      // Refresh the current patient specialists list
+      fetchPatientSpecialists(patientForSpecialistAssignment.patient_id);
+      
+      // Log the assignment
+      await logSystemAction(
+        'secretary',
+        user.secretary_id,
+        `${user.first_name} ${user.last_name}`,
+        'specialist_assignment',
+        'assign',
+        `Assigned specialist to patient: ${patientForSpecialistAssignment.first_name} ${patientForSpecialistAssignment.last_name}`,
+        'Secretary Dashboard - Specialist Assignment'
+      );
+
+    } catch (error) {
+      console.error("Error in handleAssignSpecialist:", error);
+      setMessage(`Error assigning specialist: ${error.message}`);
+    }
+  };
+
+  const handleRemoveSpecialist = async (assignmentId) => {
+    const confirmRemove = window.confirm("Are you sure you want to remove this specialist assignment?");
+    if (!confirmRemove) return;
+
+    try {
+      const { error } = await supabase
+        .from("patient_specialists")
+        .delete()
+        .eq("id", assignmentId);
+
+      if (error) {
+        console.error("Error removing specialist:", error);
+        setMessage(`Error removing specialist: ${error.message}`);
+        return;
+      }
+
+      setMessage("Specialist removed successfully!");
+      
+      // Refresh the current patient specialists list
+      if (patientForSpecialistAssignment) {
+        fetchPatientSpecialists(patientForSpecialistAssignment.patient_id);
+      }
+
+      // Log the removal
+      await logSystemAction(
+        'secretary',
+        user.secretary_id,
+        `${user.first_name} ${user.last_name}`,
+        'specialist_assignment',
+        'remove',
+        `Removed specialist assignment for patient: ${patientForSpecialistAssignment?.first_name} ${patientForSpecialistAssignment?.last_name}`,
+        'Secretary Dashboard - Specialist Assignment'
+      );
+
+    } catch (error) {
+      console.error("Error in handleRemoveSpecialist:", error);
+      setMessage(`Error removing specialist: ${error.message}`);
+    }
+  };
+
+  const handleCancelSpecialistAssignment = () => {
+    setActivePage("patient-detail-view");
+    setPatientForSpecialistAssignment(null);
+    setSelectedSpecialistId("");
+    setMessage("");
+    // Keep currentPatientSpecialists so they still display in patient details
+  };
+
+  const handleDoneSpecialistAssignment = () => {
+    // Refresh the patient specialists data before going back
+    if (patientForSpecialistAssignment) {
+      fetchPatientSpecialists(patientForSpecialistAssignment.patient_id);
+    }
+    setActivePage("patient-detail-view");
+    setPatientForSpecialistAssignment(null);
+    setSelectedSpecialistId("");
+    setMessage("");
+  };
+
 
   const handleFinalizeLabSubmission = async () => {
     // --- Start Debugging ---
@@ -1826,25 +1977,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
                     {/* Pagination Controls */}
                     {appointmentsToday.length > APPOINTMENTS_PER_PAGE && ( // Only show controls if there's more than one page
-                      <div className="pagination-controls">
-                        <button
-                          onClick={() => setCurrentPageAppointments(prev => Math.max(prev - 1, 1))}
-                          disabled={currentPageAppointments === 1}
-                          className="pagination-button"
-                        >
-                          Previous
-                        </button>
-                        <span>
-                          Page {currentPageAppointments} of {Math.ceil(appointmentsToday.length / APPOINTMENTS_PER_PAGE)}
-                        </span>
-                        <button
-                          onClick={() => setCurrentPageAppointments(prev => Math.min(prev + 1, Math.ceil(appointmentsToday.length / APPOINTMENTS_PER_PAGE)))}
-                          disabled={currentPageAppointments === Math.ceil(appointmentsToday.length / APPOINTMENTS_PER_PAGE)}
-                          className="pagination-button"
-                        >
-                          Next
-                        </button>
-                      </div>
+                      <Pagination
+                        currentPage={currentPageAppointments}
+                        totalPages={Math.ceil(appointmentsToday.length / APPOINTMENTS_PER_PAGE)}
+                        onPageChange={setCurrentPageAppointments}
+                        itemsPerPage={APPOINTMENTS_PER_PAGE}
+                        totalItems={appointmentsToday.length}
+                        showPageInfo={false}
+                      />
                     )}
                   </div>
                 </div>
@@ -2171,7 +2311,16 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   {/* Message display for patient list */}
                   {message && <p className="form-message">{message}</p>}
 
-                  {renderPaginationButtons(currentPagePatients, totalPatientPages, setCurrentPagePatients)}
+                  {/* Pagination */}
+                  {filteredPatients.length > PATIENTS_PER_PAGE && (
+                    <Pagination
+                      currentPage={currentPagePatients}
+                      totalPages={totalPatientPages}
+                      onPageChange={setCurrentPagePatients}
+                      itemsPerPage={PATIENTS_PER_PAGE}
+                      totalItems={filteredPatients.length}
+                    />
+                  )}
                 </div>
               )}
 
@@ -2362,6 +2511,27 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             {/* Doctor Assigned Section */}
                             <div className="doctor-assigned-section">
                                 <p><strong>Assigned Doctor:</strong> {selectedPatientForDetail.doctors ? `${selectedPatientForDetail.doctors.first_name} ${selectedPatientForDetail.doctors.last_name}` : 'N/A'}</p>
+                                
+                                {/* Display Assigned Specialists */}
+                                <div className="assigned-specialists-display">
+                                  <p><strong>Assigned Specialists:</strong></p>
+                                  {currentPatientSpecialists.length > 0 ? (
+                                    <ul className="specialists-list">
+                                      {currentPatientSpecialists.map((specialist) => (
+                                        <li key={specialist.id}>
+                                          {specialist.doctors 
+                                            ? `${specialist.doctors.first_name} ${specialist.doctors.last_name}` 
+                                            : 'Unknown Doctor'}
+                                          {specialist.doctors?.specialization && ` (${specialist.doctors.specialization})`}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <p className="no-specialists">No specialists assigned</p>
+                                  )}
+                                </div>
+                                
+                                <button onClick={() => handleEditSpecialist(selectedPatientForDetail)}>Edit</button>
                             </div>
                             {/* Current Medications Section */}
                             <div className="current-medications-section">
@@ -2493,6 +2663,97 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
 {/* ... rest of the patient details ...*/}
             
+                </div>
+              )}
+
+              {/* Specialist Assignment Section */}
+              {activePage === "specialist-assignment" && patientForSpecialistAssignment && (
+                <div className="specialist-assignment-section">
+                  <div className="specialist-assignment-header">
+                    <h2>Assign Specialist to {patientForSpecialistAssignment.first_name} {patientForSpecialistAssignment.last_name}</h2>
+                  </div>
+
+                  <div className="specialist-assignment-content">
+                    {/* Current Specialists Section */}
+                    <div className="current-specialists-section">
+                      <h3>Currently Assigned Specialists</h3>
+                      {currentPatientSpecialists.length > 0 ? (
+                        <table className="specialists-table">
+                          <thead>
+                            <tr>
+                              <th>Specialist Name</th>
+                              <th>Specialization</th>
+                              <th>Assigned Date</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {currentPatientSpecialists.map((specialist) => (
+                              <tr key={specialist.id}>
+                                <td>
+                                  {specialist.doctors 
+                                    ? `${specialist.doctors.first_name} ${specialist.doctors.last_name}` 
+                                    : 'Unknown Doctor'}
+                                </td>
+                                <td>{specialist.doctors?.specialization || 'General'}</td>
+                                <td>{new Date(specialist.assigned_at).toLocaleDateString()}</td>
+                                <td>
+                                  <button 
+                                    className="remove-specialist-button"
+                                    onClick={() => handleRemoveSpecialist(specialist.id)}
+                                  >
+                                    Remove
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <p className="no-specialists-message">No specialists currently assigned to this patient.</p>
+                      )}
+                    </div>
+
+                    {/* Add New Specialist Section */}
+                    <div className="add-specialist-section">
+                      <h3>Assign New Specialist</h3>
+                      <div className="specialist-selection-form">
+                        <div className="form-group">
+                          <label>Select Specialist:</label>
+                          <select 
+                            value={selectedSpecialistId} 
+                            onChange={(e) => setSelectedSpecialistId(e.target.value)}
+                            className="specialist-dropdown"
+                          >
+                            <option value="">Select a specialist...</option>
+                            {availableSpecialists.map((doctor) => (
+                              <option key={doctor.doctor_id} value={doctor.doctor_id}>
+                                {doctor.first_name} {doctor.last_name} {doctor.specialization && `(${doctor.specialization})`}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <button 
+                          className="assign-specialist-button"
+                          onClick={handleAssignSpecialist}
+                          disabled={!selectedSpecialistId}
+                        >
+                          Assign Specialist
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {message && <p className="form-message">{message}</p>}
+
+                  <div className="specialist-assignment-buttons">
+                    <button className="cancel-button" onClick={handleCancelSpecialistAssignment}>
+                      Cancel
+                    </button>
+                    <button className="done-button" onClick={handleDoneSpecialistAssignment}>
+                      Done
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -2650,9 +2911,13 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
                         {/* Add Pagination Controls for this patient search table */}
                         {totalLabSearchPatients > LAB_SEARCH_PATIENTS_PER_PAGE && (
-                          <div className="pagination-container">
-                            {renderPaginationButtons(currentPageLabSearchPatients, totalLabSearchPatientPages, setCurrentPageLabSearchPatients)}
-                          </div>
+                          <Pagination
+                            currentPage={currentPageLabSearchPatients}
+                            totalPages={totalLabSearchPatientPages}
+                            onPageChange={setCurrentPageLabSearchPatients}
+                            itemsPerPage={LAB_SEARCH_PATIENTS_PER_PAGE}
+                            totalItems={totalLabSearchPatients}
+                          />
                         )}
                       </div>
                     )}

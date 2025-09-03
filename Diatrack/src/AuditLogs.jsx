@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
+import Pagination from "./components/Pagination";
 import "./AuditLogs.css";
 
 const AuditLogs = ({ onLogout, user }) => {
@@ -366,50 +367,13 @@ const AuditLogs = ({ onLogout, user }) => {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="pagination">
-              <button
-                onClick={() => paginate(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="page-btn"
-              >
-                ← Previous
-              </button>
-              
-              {[...Array(Math.min(5, totalPages))].map((_, index) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = index + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = index + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + index;
-                } else {
-                  pageNum = currentPage - 2 + index;
-                }
-
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => paginate(pageNum)}
-                    className={`page-btn ${currentPage === pageNum ? 'active' : ''}`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-
-              <button
-                onClick={() => paginate(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="page-btn"
-              >
-                Next →
-              </button>
-
-              <div className="page-info">
-                Page {currentPage} of {totalPages} ({filteredLogs.length} total)
-              </div>
-            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={paginate}
+              itemsPerPage={logsPerPage}
+              totalItems={filteredLogs.length}
+            />
           )}
         </div>
     </div>
