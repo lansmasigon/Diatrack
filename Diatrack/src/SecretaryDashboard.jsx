@@ -92,101 +92,104 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
   const moderateRiskPercentage = totalRiskClasses > 0 ? (moderateRisk / totalRiskClasses) * 100 : 0;
   const highRiskPercentage = totalRiskClasses > 0 ? (highRisk / totalRiskClasses) * 100 : 0;
 
-  return (
+   return (
     <>
       <div className="summary-widget-grid">
         <div className="summary-widget total-patients">
-          <div className="summary-widget-icon">
-            <i className="fas fa-users"></i>
+          <div className="summary-widget-header">
+            <img src="../picture/total.png" alt="Total Patients" className="summary-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=👥"; }}/>
+            <h4>Total Patients</h4>
           </div>
           <div className="summary-widget-content">
-            <h3>Total Patients</h3>
-            <p className="summary-number">{totalPatients}</p>
-            <p className="summary-subtitle">Patients who have been registered to the system</p>
+            <div className="summary-widget-left">
+              <p className="summary-number">{totalPatients}</p>
+            </div>
+            <div className="summary-widget-right">
+              <p className="summary-subtitle">Patients who have been registered to the system</p>
+            </div>
           </div>
         </div>
         <div className="summary-widget pending-lab-results">
-          <div className="summary-widget-icon">
-            <i className="fas fa-hourglass-half"></i>
+          <div className="summary-widget-header">
+            <img src="../picture/pending.png" alt="Pending Lab Results" className="summary-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ff9800/ffffff?text=⏳"; }}/>
+            <h4>Pending Lab Results</h4>
           </div>
           <div className="summary-widget-content">
-            <h3>Pending Lab Results</h3>
-            <p className="summary-number">{pendingLabResults}</p>
-            <p className="summary-subtitle">Patients who have consulted the doctor, but still haven't turned over test results</p>
+            <div className="summary-widget-left">
+              <p className="summary-number">{pendingLabResults}</p>
+            </div>
+            <div className="summary-widget-right">
+              <p className="summary-subtitle">Patients who have consulted the doctor, but still haven't turned over test results</p>
+            </div>
           </div>
         </div>
       </div>
       <div className="widget-side-by-side-container">
-        <div className="patient-categories-widget small-widget"> {/* Added small-widget class */}
+        <div className="patient-categories-widget small-widget">
           <h3>
             <i className="fas fa-users"></i> Patient Categories
           </h3>
-          <div className="progress-bars-container"> {/* Replaced inline style with class */}
-            {/* Pre-Op Bar */}
-            <div className="progress-bar-row"> {/* Replaced inline style with class */}
-              <span className="progress-count">{preOp}</span> {/* Replaced inline style with class */}
-              <div className="progress-bar-background"> {/* Replaced inline style with class */}
-                <div className="progress-bar-fill progress-bar-pre-op" style={{ width: `${preOpPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+          <div className="progress-bars-container">
+            <div className="progress-bar-row">
+              <span className="progress-count">{preOp}</span>
+              <div className="progress-bar-background">
+                <div className="progress-bar-fill progress-bar-pre-op" style={{ width: `${preOpPercentage}%` }}></div>
               </div>
             </div>
-            {/* Post-Op Bar */}
-            <div className="progress-bar-row"> {/* Replaced inline style with class */}
-              <span className="progress-count">{postOp}</span> {/* Replaced inline style with class */}
-              <div className="progress-bar-background"> {/* Replaced inline style with class */}
-                <div className="progress-bar-fill progress-bar-post-op" style={{ width: `${postOpPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+            <div className="progress-bar-row">
+              <span className="progress-count">{postOp}</span>
+              <div className="progress-bar-background">
+                <div className="progress-bar-fill progress-bar-post-op" style={{ width: `${postOpPercentage}%` }}></div>
               </div>
             </div>
           </div>
-          <div className="legend-container"> {/* Replaced inline style with class */}
-            <div className="legend-item"> {/* Replaced inline style with class */}
-              <span className="legend-color-box legend-color-pre-op"></span> {/* Replaced inline style with class */}
+          <div className="legend-container">
+            <div className="legend-item">
+              <span className="legend-color-box legend-color-pre-op"></span>
               Pre-Op
             </div>
-            <div className="legend-item"> {/* Replaced inline style with class */}
-              <span className="legend-color-box legend-color-post-op"></span> {/* Replaced inline style with class */}
+            <div className="legend-item">
+              <span className="legend-color-box legend-color-post-op"></span>
               Post-Op
             </div>
           </div>
         </div>
 
-        <div className="risk-classes-widget small-widget"> {/* Added small-widget class */}
+        <div className="risk-classes-widget small-widget">
           <h3>
             <i className="fas fa-users"></i> Pre-Op Risk Classes
           </h3>
-          <div className="progress-bars-container"> {/* Replaced inline style with class */}
-            {/* Low Risk Bar */}
-            <div className="progress-bar-row"> {/* Replaced inline style with class */}
-              <span className="progress-count">{lowRisk}</span> {/* Replaced inline style with class */}
-              <div className="progress-bar-background"> {/* Replaced inline style with class */}
-                <div className="progress-bar-fill progress-bar-low-risk" style={{ width: `${lowRiskPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+          <div className="progress-bars-container">
+            <div className="progress-bar-row">
+              <span className="progress-count">{lowRisk}</span>
+              <div className="progress-bar-background">
+                <div className="progress-bar-fill progress-bar-low-risk" style={{ width: `${lowRiskPercentage}%` }}></div>
               </div>
             </div>
-            {/* Moderate Risk Bar */}
-            <div className="progress-bar-row"> {/* Replaced inline style with class */}
-              <span className="progress-count">{moderateRisk}</span> {/* Replaced inline style with class */}
-              <div className="progress-bar-background"> {/* Replaced inline style with class */}
-                <div className="progress-bar-fill progress-bar-moderate-risk" style={{ width: `${moderateRiskPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+            <div className="progress-bar-row">
+              <span className="progress-count">{moderateRisk}</span>
+              <div className="progress-bar-background">
+                <div className="progress-bar-fill progress-bar-moderate-risk" style={{ width: `${moderateRiskPercentage}%` }}></div>
               </div>
             </div>
-            {/* High Risk Bar */}
-            <div className="progress-bar-row"> {/* Replaced inline style with class */}
-              <span className="progress-count">{highRisk}</span> {/* Replaced inline style with class */}
-              <div className="progress-bar-background"> {/* Replaced inline style with class */}
-                <div className="progress-bar-fill progress-bar-high-risk" style={{ width: `${highRiskPercentage}%` }}></div> {/* Replaced inline style with class, kept width */}
+            <div className="progress-bar-row">
+              <span className="progress-count">{highRisk}</span>
+              <div className="progress-bar-background">
+                <div className="progress-bar-fill progress-bar-high-risk" style={{ width: `${highRiskPercentage}%` }}></div>
               </div>
             </div>
           </div>
-          <div className="legend-container"> {/* Replaced inline style with class */}
-            <div className="legend-item"> {/* Replaced inline style with class */}
-              <span className="legend-color-box legend-color-low-risk"></span> {/* Replaced inline style with class */}
+          <div className="legend-container">
+            <div className="legend-item">
+              <span className="legend-color-box legend-color-low-risk"></span>
               Low Risk
             </div>
-            <div className="legend-item"> {/* Replaced inline style with class */}
-              <span className="legend-color-box legend-color-moderate-risk"></span> {/* Replaced inline style with class */}
+            <div className="legend-item">
+              <span className="legend-color-box legend-color-moderate-risk"></span>
               Moderate Risk
             </div>
-            <div className="legend-item"> {/* Replaced inline style with class */}
-              <span className="legend-color-box legend-color-high-risk"></span> {/* Replaced inline style with class */}
+            <div className="legend-item">
+              <span className="legend-color-box legend-color-high-risk"></span>
               High Risk
             </div>
           </div>
@@ -897,7 +900,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             .order('date_submitted', { ascending: false })
             .limit(1);
   
-          let labStatus = '❌Awaiting';
+          let labStatus = 'Awaiting';
           let latestLabDate = null;
   
           if (labError) {
@@ -954,7 +957,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       }
   
       // Pending Lab Results (including N/A)
-      if (patient.lab_status === 'Awaiting' || patient.lab_status === 'Pending' || patient.lab_status === 'N/A') {
+      if (patient.lab_status === 'Awaiting' || patient.lab_status === 'Awaiting' || patient.lab_status === 'N/A') {
         pendingLabs++;
       }
     });
@@ -1870,22 +1873,22 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             <div className="dashboard-columns-container">
               <div className="dashboard-left-column">
                 <div className="quick-links">
-                  <h3>Quick links</h3>
-                  <div className="quick-links-grid">
-                    <div className="quick-link-item" onClick={() => setActivePage("lab-result-entry")}>
-                      <div className="quick-link-icon lab-result">
-                        <i className="fas fa-flask"></i>
-                      </div>
-                      <span>Lab Result Entry</span>
+                <h3>Quick links</h3>
+                <div className="quick-links-grid">
+                  <div className="quick-link-item" onClick={() => setActivePage("lab-result-entry")}>
+                    <div className="quick-link-icon lab-result">
+                      <img src="../picture/labresult.png" alt="Lab Result" className="quick-link-image" />
                     </div>
-                    <div className="quick-link-item" onClick={() => setActivePage("appointments")}>
-                      <div className="quick-link-icon set-appointment">
-                        <i className="fas fa-calendar-plus"></i>
-                      </div>
-                      <span>Set Appointment</span>
+                    <span>Lab Result Entry</span>
+                  </div>
+                  <div className="quick-link-item" onClick={() => setActivePage("appointments")}>
+                    <div className="quick-link-icon set-appointment">
+                      <img src="../picture/appointment.png" alt="Appointment" className="quick-link-image" />
                     </div>
+                    <span>Set Appointment</span>
                   </div>
                 </div>
+              </div>
 
                 <div className="widgets">
                   <h3>Widgets</h3>
@@ -1939,13 +1942,13 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               <td className="appointment-actions">
                                 <button
                                   onClick={() => handleCancelAppointment(appointment.appointment_id)}
-                                  className="action-btn cancel-btn"
+                                  className="action-btn5 cancel-btn5"
                                 >
                                   Cancel
                                 </button>
                                 <button
                                   onClick={() => handleInQueueAppointment(appointment.appointment_id)}
-                                  className="action-btn queue-btn"
+                                  className="action-btn5 queue-btn5"
                                 >
                                   In Queue
                                 </button>
@@ -2255,7 +2258,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       <tr>
                       <th>Patient Name</th>
                       <th>Age/Sex</th>
-                      <th>Assigned Doctor</th>
                       <th>Phase</th> {/* New Status column */}
                       <th>Classification</th>
                       <th>Lab Status</th>
@@ -2270,7 +2272,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           <tr key={pat.patient_id}>
                             <td>{pat.first_name} {pat.last_name}</td>
                             <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
-                            <td>{pat.doctors ? `${pat.doctors.first_name} ${pat.doctors.last_name}` : 'Unknown'}</td>
                             <td className={`patient-phase ${
                             pat.phase === 'Pre-Operative' ? 'phase-pre-operative' :
                             pat.phase === 'Post-Operative' ? 'phase-post-operative' : ''
@@ -2333,13 +2334,12 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             <i className="fas fa-arrow-left"></i> Back to List
                         </button>
                     </div>
-                    <div className="patient-details-content-container"> {/* New container for details content */}
+                    <div className="patient-details-content-container">
                         <div className="patient-details-left-column">
                             {/* Basic Patient Information Section */}
                             <div className="patient-basic-info-section">
                                 <p><strong>Name:</strong> {selectedPatientForDetail.first_name} {selectedPatientForDetail.middle_name ? selectedPatientForDetail.middle_name + ' ' : ''}{selectedPatientForDetail.last_name}</p>
                                 <p><strong>Gender:</strong> {selectedPatientForDetail.gender || 'N/A'}</p>
-                                {/* Display date of birth directly as stored (YYYY-MM-DD) */}
                                 <p><strong>Date of Birth:</strong> {selectedPatientForDetail.date_of_birth || 'N/A'}</p>
                                 <p><strong>Contact Number:</strong> {selectedPatientForDetail.contact_info || 'N/A'}</p>
                                 <p><strong>Diabetes Type:</strong> {selectedPatientForDetail.diabetes_type || 'N/A'}</p>
@@ -2347,6 +2347,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 <p><strong>Hypertensive:</strong> {selectedPatientForDetail.complication_history?.includes("Hypertensive") ? "Yes" : "No"}</p>
                                 <p><strong>Patient Phase:</strong> {selectedPatientForDetail.phase || 'N/A'}</p>
                             </div>
+                            
                             {/* Laboratory Result Section */}
                             <div className="laboratory-results-section">
                                 <h3>Laboratory Results (Latest)</h3>
@@ -2360,153 +2361,153 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 <p><strong>HDL Cholesterol:</strong> {patientLabResults.hdlCholesterol}</p>
                                 <p><strong>LDL Cholesterol:</strong> {patientLabResults.ldlCholesterol}</p>
                             </div>
-                            {/* Latest Health Metrics Section */}
-                            <div className="latest-health-metrics-section">
-                                <h3>Latest Health Metrics</h3>
-                                {/* Updated to use patientHealthMetrics state */}
-                                <p><strong>Blood Glucose Level:</strong> {patientHealthMetrics.bloodGlucoseLevel}</p>
-                                <p><strong>Blood Pressure:</strong> {patientHealthMetrics.bloodPressure}</p>
-                                {/* Risk Classification fetched from selectedPatientForDetail (patients table) */}
-                                <p><strong>Risk Classification:</strong> {selectedPatientForDetail.risk_classification || 'N/A'}</p>
-                            </div>
-                            {/* History Charts Section */}
+                            
+                            {/* History Charts Section - Updated structure */}
                             <div className="history-charts-section">
-                                <h3>History Charts</h3>
-                                {/* Blood Glucose Chart */}
-                                <div className="chart-container">
-                                    <h4>Blood Glucose Level History</h4>
-                                    <Bar
-                                        data={{
-                                            labels: allPatientHealthMetrics.map(entry => new Date(entry.submission_date).toLocaleDateString()),
-                                            datasets: [{
-                                                label: 'Blood Glucose',
-                                                data: allPatientHealthMetrics.map(entry => parseFloat(entry.blood_glucose) || 0),
-                                                backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                                                borderColor: 'rgba(75, 192, 192, 1)',
-                                                borderWidth: 1,
-                                            }],
-                                        }}
-                                        options={{
-                                            responsive: true,
-                                            maintainAspectRatio: false,
-                                            plugins: {
-                                                legend: {
-                                                    display: false, // Hide legend for cleaner look
-                                                },
-                                                tooltip: {
-                                                    callbacks: {
-                                                        label: function(context) {
-                                                            return `Glucose: ${context.raw} mg/dL`;
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            scales: {
-                                                y: {
-                                                    beginAtZero: true,
-                                                    title: {
-                                                        display: true,
-                                                        text: 'mg/dL'
-                                                    },
-                                                    min: 0,
-                                                    max: 200, // Adjusted max value
-                                                    ticks: {
-                                                        stepSize: 40,
-                                                        callback: function(value) {
-                                                            // Only display labels for 40, 80, 120, 160, 200
-                                                            if (value % 40 === 0 && value >= 40 && value <= 200) {
-                                                                return value;
-                                                            }
-                                                            return null; // Hide other ticks
-                                                        }
-                                                    }
-                                                },
-                                                x: {
-                                                    grid: {
-                                                        display: false
-                                                    },
-                                                    title: {
-                                                        display: true,
-                                                        text: 'Date'
-                                                    }
-                                                }
+                              <h3>History Charts</h3>
+                              
+                              {/* Blood Glucose Chart - Separate div */}
+                              <div className="blood-glucose-chart-container">
+                                <h4>Blood Glucose Level History</h4>
+                                <div className="chart-wrapper">
+                                  <Bar
+                                    data={{
+                                      labels: allPatientHealthMetrics.map(entry => new Date(entry.submission_date).toLocaleDateString()),
+                                      datasets: [{
+                                        label: 'Blood Glucose',
+                                        data: allPatientHealthMetrics.map(entry => parseFloat(entry.blood_glucose) || 0),
+                                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                                        borderColor: 'rgba(75, 192, 192, 1)',
+                                        borderWidth: 1,
+                                        barThickness: 10,
+                                      }],
+                                    }}
+                                    options={{
+                                      responsive: true,
+                                      maintainAspectRatio: false,
+                                      plugins: {
+                                        legend: {
+                                          display: false,
+                                        },
+                                        tooltip: {
+                                          callbacks: {
+                                            label: function(context) {
+                                              return `Glucose: ${context.raw} mg/dL`;
                                             }
-                                        }}
-                                    />
-                                </div>
-                                {/* Blood Pressure Chart */}
-                                <div className="chart-container">
-                                    <h4>Blood Pressure History</h4>
-                                    <Bar
-                                        data={{
-                                            labels: allPatientHealthMetrics.map(entry => new Date(entry.submission_date).toLocaleDateString()),
-                                            datasets: [
-                                                {
-                                                    label: 'Systolic',
-                                                    data: allPatientHealthMetrics.map(entry => parseFloat(entry.bp_systolic) || 0),
-                                                    backgroundColor: 'rgba(255, 99, 132, 0.6)',
-                                                    borderColor: 'rgba(255, 99, 132, 1)',
-                                                    borderWidth: 1,
-                                                },
-                                                {
-                                                    label: 'Diastolic',
-                                                    data: allPatientHealthMetrics.map(entry => parseFloat(entry.bp_diastolic) || 0),
-                                                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                                                    borderColor: 'rgba(54, 162, 235, 1)',
-                                                    borderWidth: 1,
-                                                },
-                                            ],
-                                        }}
-                                        options={{
-                                            responsive: true,
-                                            maintainAspectRatio: false,
-                                            plugins: {
-                                                legend: {
-                                                    display: false, // Hide legend to remove "systolic" and "diastolic" from bottom
-                                                },
-                                                tooltip: {
-                                                    callbacks: {
-                                                        label: function(context) {
-                                                            return `${context.dataset.label}: ${context.raw} mmHg`;
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            scales: {
-                                                y: {
-                                                    beginAtZero: true,
-                                                    title: {
-                                                        display: true,
-                                                        text: 'mmHg'
-                                                    },
-                                                    min: 0,
-                                                    max: 200, // Adjusted max value
-                                                    ticks: {
-                                                        stepSize: 40,
-                                                        callback: function(value) {
-                                                            // Only display labels for 40, 80, 120, 160, 200
-                                                            if (value % 40 === 0 && value >= 40 && value <= 200) {
-                                                                return value;
-                                                            }
-                                                            return null; // Hide other ticks
-                                                        }
-                                                    }
-                                                },
-                                                x: {
-                                                    grid: {
-                                                        display: false
-                                                    },
-                                                    title: {
-                                                        display: true,
-                                                        text: 'Date'
-                                                    }
-                                                }
+                                          }
+                                        }
+                                      },
+                                      scales: {
+                                        y: {
+                                          beginAtZero: true,
+                                          title: {
+                                            display: true,
+                                            text: 'mg/dL'
+                                          },
+                                          min: 0,
+                                          max: 200,
+                                          ticks: {
+                                            stepSize: 40,
+                                            callback: function(value) {
+                                              if (value % 40 === 0 && value >= 40 && value <= 200) {
+                                                return value;
+                                              }
+                                              return null;
                                             }
-                                        }}
-                                    />
+                                          }
+                                        },
+                                        x: {
+                                          grid: {
+                                            display: false
+                                          },
+                                          title: {
+                                            display: true,
+                                            text: 'Date'
+                                          }
+                                        }
+                                      }
+                                    }}
+                                  />
                                 </div>
+                              </div>
+
+                              {/* Blood Pressure Chart - Separate div */}
+                              <div className="blood-pressure-chart-container">
+                                <h4>Blood Pressure History</h4>
+                                <div className="chart-wrapper">
+                                  <Bar
+                                    data={{
+                                      labels: allPatientHealthMetrics.map(entry => new Date(entry.submission_date).toLocaleDateString()),
+                                      datasets: [
+                                        {
+                                          label: 'Systolic',
+                                          data: allPatientHealthMetrics.map(entry => parseFloat(entry.bp_systolic) || 0),
+                                          backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                                          borderColor: 'rgba(255, 99, 132, 1)',
+                                          borderWidth: 1,
+                                          barThickness: 10,
+                                        },
+                                        {
+                                          label: 'Diastolic',
+                                          data: allPatientHealthMetrics.map(entry => parseFloat(entry.bp_diastolic) || 0),
+                                          backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                                          borderColor: 'rgba(54, 162, 235, 1)',
+                                          borderWidth: 1,
+                                          barThickness: 10,
+                                        },
+                                      ],
+                                    }}
+                                    options={{
+                                      responsive: true,
+                                      maintainAspectRatio: false,
+                                      plugins: {
+                                        legend: {
+                                          display: false,
+                                        },
+                                        tooltip: {
+                                          callbacks: {
+                                            label: function(context) {
+                                              return `${context.dataset.label}: ${context.raw} mmHg`;
+                                            }
+                                          }
+                                        }
+                                      },
+                                      scales: {
+                                        y: {
+                                          beginAtZero: true,
+                                          title: {
+                                            display: true,
+                                            text: 'mmHg'
+                                          },
+                                          min: 0,
+                                          max: 200,
+                                          ticks: {
+                                            stepSize: 40,
+                                            callback: function(value) {
+                                              if (value % 40 === 0 && value >= 40 && value <= 200) {
+                                                return value;
+                                              }
+                                              return null;
+                                            }
+                                          }
+                                        },
+                                        x: {
+                                          grid: {
+                                            display: false
+                                          },
+                                          title: {
+                                            display: true,
+                                            text: 'Date'
+                                          }
+                                        }
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              </div>
                             </div>
                         </div>
+
                         <div className="patient-details-right-column">
                             {/* Doctor Assigned Section */}
                             <div className="doctor-assigned-section">
@@ -2533,6 +2534,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 
                                 <button onClick={() => handleEditSpecialist(selectedPatientForDetail)}>Edit</button>
                             </div>
+                            
                             {/* Current Medications Section */}
                             <div className="current-medications-section">
                                 <h3>Current Medications:</h3>
@@ -2565,6 +2567,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   </table>
                                 </div>
                             </div>
+                            
                             {/* Appointment Schedule Section */}
                             <div className="appointment-schedule-section">
                                 <h3>Appointment Schedule</h3>
@@ -2580,9 +2583,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         {patientAppointments.length > 0 ? (
                                             patientAppointments.map((appointment, idx) => (
                                                 <tr key={idx}>
-                                                    {/* Display date from ISO stringYYYY-MM-DD */}
                                                     <td>{appointment.appointment_datetime.split('T')[0]}</td>
-                                                    {/* Display time from ISO string HH:MM, converted to 12-hour */}
                                                     <td>{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</td>
                                                     <td>{appointment.notes || 'N/A'}</td>
                                                 </tr>
@@ -2619,7 +2620,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                                             ? `${metric.bp_systolic}/${metric.bp_diastolic}`
                                                             : 'N/A'}
                                                     </td>
-                                                    {/* Display the current risk classification for each entry */}
                                                     <td className={`risk-classification-${(metric.risk_classification || 'N/A').toLowerCase()}`}>
                                                         {metric.risk_classification || 'N/A'}
                                                     </td>
@@ -2635,37 +2635,32 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             </div>
                         </div>
                     </div>
+                    
                     {/* Wound Photo Timeline Section - Added as a footer-like section */}
-                    {/* Inside activePage === "patient-detail-view" && selectedPatientForDetail */}
-{/* ... other patient details ... */}
-
-<div className="wound-photo-timeline-section"> {/* Changed from wound-photos-section */}
-    <h3>Wound Photos History</h3>
-    {allWoundPhotos.length > 0 ? (
-        <>
-            {allWoundPhotos.map((photo, index) => (
-                <div key={index} className="wound-photo-entry"> {/* Changed from wound-photo-item */}
-                    <div className="wound-photo-placeholder"> {/* Added this wrapper */}
-                        <img
-                            src={photo.url}
-                            alt={`Wound Photo - ${photo.date}`}
-                            // 'className="wound-photo-thumbnail"' is no longer needed here, styling is on .wound-photo-placeholder img
-                        />
+                    <div className="wound-photo-timeline-section">
+                        <h3>Wound Photos History</h3>
+                        {allWoundPhotos.length > 0 ? (
+                            <>
+                                {allWoundPhotos.map((photo, index) => (
+                                    <div key={index} className="wound-photo-entry">
+                                        <div className="wound-photo-placeholder">
+                                            <img
+                                                src={photo.url}
+                                                alt={`Wound Photo - ${photo.date}`}
+                                            />
+                                        </div>
+                                        <p className="wound-photo-date">Date: {photo.date}</p>
+                                    </div>
+                                ))}
+                            </>
+                        ) : (
+                            <p style={{ gridColumn: '1 / -1' }}>No wound photos available for this patient.</p>
+                        )}
                     </div>
-                    <p className="wound-photo-date">Date: {photo.date}</p>
-                </div>
-            ))}
-        </>
-    ) : (
-        <p style={{ gridColumn: '1 / -1' }}>No wound photos available for this patient.</p>
-    )}
-</div>
-
-{/* ... rest of the patient details ...*/}
-            
                 </div>
               )}
 
+{/* ... rest of the patient details ...*/}
               {/* Specialist Assignment Section */}
               {activePage === "specialist-assignment" && patientForSpecialistAssignment && (
                 <div className="specialist-assignment-section">
@@ -2822,7 +2817,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   <div className="lab-result-entry-section">
                     <h2>Enter Patient Lab Results</h2>
                     <p>
-                      Input the patient's baseline laboratory values to support risk classification and care planning. Once submitted, values will be locked for data integrity.
+                      Input the patient's baseline laboratory values to support risk classification and care planning.
+                    </p>
+                    <p>
+                      Once submitted, values will be locked for data integrity.
                     </p>
 
                     <div className="lab-stepper">
@@ -2845,7 +2843,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
                     {/* Step 1: Patient Search */}
                     {labEntryStep === 1 && (
-                      <div className="lab-step-content">
+                    <div className="lab-step-content">
+                      <div className="lab-patient-search-header">
                         <h3>Search for a Patient</h3>
                         <div className="search-bar">
                           <input
@@ -2857,6 +2856,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           />
                           <i className="fas fa-search search-icon"></i>
                         </div>
+                      </div>
                         <table className="patient-table">
                           <thead>
                             <tr>
