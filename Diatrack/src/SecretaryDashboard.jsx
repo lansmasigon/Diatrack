@@ -6,11 +6,11 @@ import "./SecretaryDashboard.css";
 import logo from "../picture/logo.png"; // Import the logo image
 
 // Import Chart.js components - These will no longer be directly used for the bars but might be used elsewhere
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from'chart.js';
-import { Doughnut, Bar } from 'react-chartjs-2'; // Doughnut will be removed for the bars
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Filler } from'chart.js';
+import { Doughnut, Bar, Line } from 'react-chartjs-2'; // Doughnut will be removed for the bars
 
 // Register Chart.js components
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Filler);
 
 // Helper function to convert 24-hour time to 12-hour format with AM/PM
 const formatTimeTo12Hour = (time24h) => {
@@ -79,7 +79,7 @@ const getProfileStatus = (patient) => {
   }
 };
 
-const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp, lowRisk, moderateRisk, highRisk }) => {
+const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp, lowRisk, moderateRisk, highRisk, patientCountHistory }) => {
 
   // Calculate percentages for Patient Categories
   const totalPatientCategories = preOp + postOp;
@@ -91,6 +91,84 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
   const lowRiskPercentage = totalRiskClasses > 0 ? (lowRisk / totalRiskClasses) * 100 : 0;
   const moderateRiskPercentage = totalRiskClasses > 0 ? (moderateRisk / totalRiskClasses) * 100 : 0;
   const highRiskPercentage = totalRiskClasses > 0 ? (highRisk / totalRiskClasses) * 100 : 0;
+
+  // Prepare data for the area chart
+  const areaChartData = {
+    labels: patientCountHistory?.labels || [],
+    datasets: [
+      {
+        label: 'Total Patients',
+        data: patientCountHistory?.data || [],
+        fill: true,
+        backgroundColor: 'rgba(31, 170, 237, 0.3)', // Light blue fill
+        borderColor: 'transparent', // Make border transparent
+        borderWidth: 0, // No border
+        pointBackgroundColor: 'transparent',
+        pointBorderColor: 'transparent',
+        pointBorderWidth: 0,
+        pointRadius: 0,
+        pointHoverRadius: 4, // Show point on hover
+        pointHoverBackgroundColor: '#1FAAED',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 2,
+        tension: 0.4, // Smooth curves
+        hoverBackgroundColor: 'rgba(31, 170, 237, 0.5)', // Slightly darker on hover
+      },
+    ],
+  };
+
+  const areaChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        enabled: true, // Ensure tooltips are enabled
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        borderColor: '#1FAAED',
+        borderWidth: 1,
+        cornerRadius: 4,
+        displayColors: false, // Remove color box in tooltip
+        callbacks: {
+          title: function(context) {
+            return `Month: ${context[0].label}`;
+          },
+          label: function(context) {
+            return `Total Patients: ${context.raw}`;
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        display: false, // Hide y-axis
+        beginAtZero: true,
+      },
+      x: {
+        display: false, // Hide x-axis
+      },
+    },
+    elements: {
+      point: {
+        radius: 0, // Hide points normally
+        hoverRadius: 4, // Show small point on hover
+        hoverBackgroundColor: '#1FAAED',
+        hoverBorderColor: '#fff',
+        hoverBorderWidth: 2,
+      },
+      line: {
+        borderWidth: 0, // Remove line
+      }
+    },
+    interaction: {
+      intersect: false,
+      mode: 'index',
+    },
+  };
 
    return (
     <>
@@ -108,6 +186,16 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
               <p className="summary-subtitle">Patients who have been registered to the system</p>
             </div>
           </div>
+          {/* Mini Area Chart for Patient Count History */}
+          <div className="mini-chart-container">
+            {patientCountHistory?.labels?.length > 0 ? (
+              <Line data={areaChartData} options={areaChartOptions} />
+            ) : (
+              <div className="no-chart-data">
+                <p>No patient data available</p>
+              </div>
+            )}
+          </div>
         </div>
         <div className="summary-widget pending-lab-results">
           <div className="summary-widget-header">
@@ -124,6 +212,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
           </div>
         </div>
       </div>
+      
       <div className="widget-side-by-side-container">
         <div className="patient-categories-widget small-widget">
           <h3>
@@ -277,6 +366,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [currentPageLabSearchPatients, setCurrentPageLabSearchPatients] = useState(1); // New state for this specific patient list
   const LAB_SEARCH_PATIENTS_PER_PAGE = 10; // New: Define how many patients per page (you can adjust this number)
   
+  // State for patient count over the past 6 months
+  const [patientCountHistory, setPatientCountHistory] = useState([]);
+  
   useEffect(() => {
     const fetchUpcomingAppointments = async () => {
       const doctorIds = linkedDoctors.map(d => d.doctor_id);
@@ -311,6 +403,67 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   
     if (supabase && linkedDoctors.length > 0) {
       fetchUpcomingAppointments();
+    }
+  }, [supabase, linkedDoctors]); // Re-run when supabase or linkedDoctors change
+
+  // Function to fetch patient count history for the past 6 months
+  const fetchPatientCountHistory = async () => {
+    const doctorIds = linkedDoctors.map(d => d.doctor_id);
+    if (doctorIds.length === 0) {
+      setPatientCountHistory([]);
+      return;
+    }
+
+    try {
+      // Get current date and calculate 6 months ago
+      const now = new Date();
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(now.getMonth() - 6);
+
+      // Create array of the past 6 months
+      const months = [];
+      const monthCounts = [];
+      
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date();
+        date.setMonth(now.getMonth() - i);
+        const monthYear = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        months.push(monthYear);
+        
+        // Calculate start and end of the month
+        const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        
+        // Fetch patient count for this month (patients registered by end of this month)
+        const { data: monthData, error } = await supabase
+          .from('patients')
+          .select('patient_id, created_at')
+          .in('preferred_doctor_id', doctorIds)
+          .lte('created_at', endOfMonth.toISOString());
+
+        if (error) {
+          console.error("Error fetching patient count for month:", monthYear, error);
+          monthCounts.push(0);
+        } else {
+          monthCounts.push(monthData ? monthData.length : 0);
+        }
+      }
+
+      setPatientCountHistory({
+        labels: months,
+        data: monthCounts
+      });
+
+    } catch (error) {
+      console.error("Error fetching patient count history:", error);
+      setPatientCountHistory([]);
+    }
+  };
+
+  // useEffect to fetch patient count history
+  useEffect(() => {
+    if (supabase && linkedDoctors.length > 0) {
+      fetchPatientCountHistory();
     }
   }, [supabase, linkedDoctors]); // Re-run when supabase or linkedDoctors change
 
@@ -1899,6 +2052,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     lowRisk={lowRiskCount}
                     moderateRisk={moderateRiskCount}
                     highRisk={highRiskCount}
+                    patientCountHistory={patientCountHistory}
                   />
                 </div>
               </div>
