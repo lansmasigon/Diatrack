@@ -946,7 +946,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         postOp++;
       }
   
-      // Risk Classification
+      // Risk Classification  
       const risk = (patient.risk_classification || '').toLowerCase();
       if (risk === 'low') {
         lowRisk++;
@@ -1790,8 +1790,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       <div className="top-navbar">
         <h1 className="app-title">
           <img src={logo} alt="DiaTrack Logo" className="app-logo" />
-          <span style={{ color: 'var(--primary-blue)' }}>Dia</span>
-          <span style={{ color: 'var(--secondary-orange)' }}>Track</span>
+          <img src ="../picture/diatracktext.png" alt="diatracktext" className="diatracktext" />
         </h1>
         <ul className="navbar-menu">
           <li className={activePage === "dashboard" ? "active" : ""} onClick={() => setActivePage("dashboard")}>Dashboard</li>
@@ -1998,10 +1997,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
               {activePage === "create-patient" && (
                 <div className="create-patient-section">
                   <div className="create-patient-header">
-                    <h2>{editingPatientId ? "Edit Patient Account" : "Create Patient Account"}</h2>
+                    <h2>{editingPatientId ? "Edit Patient Account" : "Create New Patient"}</h2>
                     <button className="close-form-button" onClick={() => setActivePage("dashboard")}>
                       <i className="fas fa-times"></i>
                     </button>
+                    
                   </div>
 
                   <div className="progress-indicator">
@@ -2362,6 +2362,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 <p><strong>LDL Cholesterol:</strong> {patientLabResults.ldlCholesterol}</p>
                             </div>
                             
+                            {/* Latest Health Metrics Section */}
+                            <div className="latest-health-metrics-section">
+                                <h3>Latest Health Metrics</h3>
+                                <p><strong>Blood Glucose Level:</strong> {patientHealthMetrics.bloodGlucoseLevel} {patientHealthMetrics.bloodGlucoseLevel !== 'N/A' && patientHealthMetrics.bloodGlucoseLevel !== 'Error' ? 'mg/dL' : ''}</p>
+                                <p><strong>Blood Pressure:</strong> {patientHealthMetrics.bloodPressure} {patientHealthMetrics.bloodPressure !== 'N/A' && patientHealthMetrics.bloodPressure !== 'Error' ? 'mmHg' : ''}</p>
+                                <p><strong>Risk Classification:</strong> {selectedPatientForDetail.risk_classification || 'N/A'}</p>
+                            </div>
+
                             {/* History Charts Section - Updated structure */}
                             <div className="history-charts-section">
                               <h3>History Charts</h3>
@@ -3056,10 +3064,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       <div className="modal-content success-modal">
                         <img src="../picture/labentry.png" alt="Lab Entry Success" className="success-icon" />
                         <div className="modal-text-content">
-                          <h2 className="modal-title">Lab Results Submitted!</h2>
+                          <h2 className="modal-title">Lab Results Successfully Submitted & Locked</h2>
                           <p className="modal-subtext">
-                            The lab results for {labResults.selectedPatientForLab?.first_name} {labResults.selectedPatientForLab?.last_name} have been successfully recorded.
+                            The laboratory data has been securely stored and is now locked for editing to ensure accuracy and audit compliance. 
                           </p>
+                          <p className="modal-subtext">You may now proceed to finalize the patient profile with the attending doctor.</p>
                           <button className="modal-green-button" onClick={() => {
                             setShowSuccessModal(false);
                             setLabEntryStep(1); // Reset to step 1 (patient search)
