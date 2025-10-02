@@ -2672,13 +2672,29 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           <h4>Optional Profile Picture</h4>
                           <div className="profile-picture-upload">
                             <div className="upload-area" >
-                              <div className="upload-icon">
-                                <i className="fas fa-camera"></i>
-                              </div>
-                              <p className="upload-text">
-                                Drop your file here, or <span className="upload-link" onClick={() => document.getElementById('profile-picture-input').click()}>Browse</span>
-                              </p>
-                              <p className="upload-subtext">Max size 10MB</p>
+                              {profilePicture ? (
+                                <div className="preview-container">
+                                  <img 
+                                    src={profilePicture} 
+                                    alt="Profile Preview" 
+                                    className="profile-preview"
+                                    onError={(e) => e.target.src = "../picture/secretary.png"}
+                                  />
+                                  <button className="change-photo-btn" onClick={() => document.getElementById('profile-picture-input').click()}>
+                                    Change Photo
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="upload-icon">
+                                    <i className="fas fa-camera"></i>
+                                  </div>
+                                  <p className="upload-text">
+                                    Drop your file here, or <span className="upload-link" onClick={() => document.getElementById('profile-picture-input').click()}>Browse</span>
+                                  </p>
+                                  <p className="upload-subtext">Max size 10MB</p>
+                                </>
+                              )}
                               <input 
                                 type="file" 
                                 accept="image/*" 
@@ -2816,9 +2832,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 <div className="patient-info-container">
                                     <div className="patient-avatar-container">
                                         <img 
-                                            src="../picture/secretary.png" 
+                                            src={selectedPatientForDetail?.patient_picture || "../picture/secretary.png"} 
                                             alt="Patient Avatar" 
                                             className="patient-avatar-large"
+                                            onError={(e) => e.target.src = "../picture/secretary.png"}
                                         />
                                         <div className={`patient-phase-badge ${
                                             selectedPatientForDetail.phase === 'Post-Op' || selectedPatientForDetail.phase === 'Post-Operative' ? 'post-operative' :
