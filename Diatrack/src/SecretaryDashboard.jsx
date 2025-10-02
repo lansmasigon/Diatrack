@@ -79,7 +79,13 @@ const getProfileStatus = (patient) => {
   }
 };
 
-const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp, lowRisk, moderateRisk, highRisk, patientCountHistory }) => {
+const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp, lowRisk, moderateRisk, highRisk, patientCountHistory, pendingLabHistory }) => {
+
+  // Debug logging to see what data we're working with
+  console.log("PatientSummaryWidget - pendingLabResults:", pendingLabResults);
+  console.log("PatientSummaryWidget - pendingLabHistory:", pendingLabHistory);
+  console.log("PatientSummaryWidget - pendingLabHistory data length:", pendingLabHistory?.data?.length);
+  console.log("PatientSummaryWidget - pendingLabHistory labels length:", pendingLabHistory?.labels?.length);
 
   // Calculate percentages for Patient Categories
   const totalPatientCategories = preOp + postOp;
@@ -100,26 +106,146 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
         label: 'Total Patients',
         data: patientCountHistory?.data || [],
         fill: true,
-        backgroundColor: 'rgba(31, 170, 237, 0.3)', // Light blue fill
-        borderColor: 'transparent', // Make border transparent
-        borderWidth: 0, // No border
+        backgroundColor: (context) => {
+          const chart = context.chart;
+          const {ctx, chartArea} = chart;
+          if (!chartArea) {
+            return null;
+          }
+          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          gradient.addColorStop(0, 'rgba(31, 170, 237, 0.6)');
+          gradient.addColorStop(0.5, 'rgba(31, 170, 237, 0.3)');
+          gradient.addColorStop(1, 'rgba(31, 170, 237, 0.1)');
+          return gradient;
+        },
+        borderColor: '#1FAAED', // Visible blue line
+        borderWidth: 2, // Line thickness
         pointBackgroundColor: 'transparent',
         pointBorderColor: 'transparent',
         pointBorderWidth: 0,
         pointRadius: 0,
-        pointHoverRadius: 4, // Show point on hover
+        pointHoverRadius: 0, // No points on hover
         pointHoverBackgroundColor: '#1FAAED',
         pointHoverBorderColor: '#fff',
-        pointHoverBorderWidth: 2,
+        pointHoverBorderWidth: 3,
         tension: 0.4, // Smooth curves
-        hoverBackgroundColor: 'rgba(31, 170, 237, 0.5)', // Slightly darker on hover
+        hoverBackgroundColor: 'rgba(31, 170, 237, 0.7)', // Slightly darker on hover
       },
     ],
+  };
+
+  // Prepare data for the submitted lab results area chart
+  // This chart displays how many patients submitted their lab results each month
+  const pendingLabChartData = {
+    labels: pendingLabHistory?.labels?.length > 0 ? pendingLabHistory.labels : ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
+    datasets: [
+      {
+        label: 'Submitted Lab Results',
+        data: pendingLabHistory?.data?.length > 0 ? pendingLabHistory.data : [0, 0, 0, 0, 0, 0],
+        fill: true,
+        backgroundColor: (context) => {
+          const chart = context.chart;
+          const {ctx, chartArea} = chart;
+          if (!chartArea) {
+            return null;
+          }
+          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          gradient.addColorStop(0, 'rgba(217, 19, 65, 0.6)');
+          gradient.addColorStop(0.5, 'rgba(217, 19, 65, 0.3)');
+          gradient.addColorStop(1, 'rgba(217, 19, 65, 0.1)');
+          return gradient;
+        },
+        borderColor: '#D91341', // Visible red line
+        borderWidth: 2, // Line thickness
+        pointBackgroundColor: 'transparent',
+        pointBorderColor: 'transparent',
+        pointBorderWidth: 0,
+        pointRadius: 0,
+        pointHoverRadius: 0, // No points on hover
+        pointHoverBackgroundColor: '#D91341',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 3,
+        tension: 0.5, // Smooth curves (same as total patients chart)
+        hoverBackgroundColor: 'rgba(217, 19, 65, 0.7)', // Slightly darker on hover
+      },
+    ],
+  };
+
+  const pendingLabChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    layout: {
+      padding: {
+        top: 5,
+        bottom: 5,
+        left: 2,
+        right: 2
+      }
+    },
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        enabled: true, // Ensure tooltips are enabled
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        borderColor: '#D91341',
+        borderWidth: 1,
+        cornerRadius: 4,
+        displayColors: false, // Remove color box in tooltip
+        callbacks: {
+          title: function(context) {
+            return `Month: ${context[0].label}`;
+          },
+          label: function(context) {
+            return `Submitted Labs: ${context.raw}`;
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        display: false, // Hide y-axis
+        beginAtZero: true,
+        grid: {
+          display: false
+        }
+      },
+      x: {
+        display: false, // Hide x-axis
+        grid: {
+          display: false
+        }
+      },
+    },
+    elements: {
+      point: {
+        radius: 0, // Hide points normally
+        hoverRadius: 0, // No hover points
+      },
+      line: {
+        borderWidth: 2, // Line thickness
+      }
+    },
+    interaction: {
+      intersect: false,
+      mode: 'index',
+    },
   };
 
   const areaChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    layout: {
+      padding: {
+        top: 5,
+        bottom: 5,
+        left: 2,
+        right: 2
+      }
+    },
     plugins: {
       legend: {
         display: false,
@@ -147,21 +273,24 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
       y: {
         display: false, // Hide y-axis
         beginAtZero: true,
+        grid: {
+          display: false
+        }
       },
       x: {
         display: false, // Hide x-axis
+        grid: {
+          display: false
+        }
       },
     },
     elements: {
       point: {
         radius: 0, // Hide points normally
-        hoverRadius: 4, // Show small point on hover
-        hoverBackgroundColor: '#1FAAED',
-        hoverBorderColor: '#fff',
-        hoverBorderWidth: 2,
+        hoverRadius: 0, // No hover points
       },
       line: {
-        borderWidth: 0, // Remove line
+        borderWidth: 2, // Line thickness
       }
     },
     interaction: {
@@ -189,7 +318,11 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
           {/* Mini Area Chart for Patient Count History */}
           <div className="mini-chart-container">
             {patientCountHistory?.labels?.length > 0 ? (
-              <Line data={areaChartData} options={areaChartOptions} />
+              <Line 
+                key={`patient-count-chart-${patientCountHistory?.data?.join('-') || 'empty'}`}
+                data={areaChartData} 
+                options={areaChartOptions} 
+              />
             ) : (
               <div className="no-chart-data">
                 <p>No patient data available</p>
@@ -209,6 +342,20 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
             <div className="summary-widget-right">
               <p className="summary-subtitle">Patients who have consulted the doctor, but still haven't turned over test results</p>
             </div>
+          </div>
+          {/* Mini Area Chart for Submitted Lab Results History */}
+          <div className="mini-chart-container">
+            {pendingLabHistory?.labels?.length > 0 ? (
+              <Line 
+                key={`pending-lab-chart-${pendingLabHistory?.data?.join('-') || 'empty'}`}
+                data={pendingLabChartData} 
+                options={pendingLabChartOptions} 
+              />
+            ) : (
+              <div className="no-chart-data">
+                <p>No lab submission data available</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -369,6 +516,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   // State for patient count over the past 6 months
   const [patientCountHistory, setPatientCountHistory] = useState([]);
   
+  // State for pending lab results count over the past 6 months
+  const [pendingLabHistory, setPendingLabHistory] = useState([]);
+  
   useEffect(() => {
     const fetchUpcomingAppointments = async () => {
       const doctorIds = linkedDoctors.map(d => d.doctor_id);
@@ -434,11 +584,12 @@ const SecretaryDashboard = ({ user, onLogout }) => {
         const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
         const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
         
-        // Fetch patient count for this month (patients registered by end of this month)
+        // Fetch patient count for this month (patients registered during this specific month)
         const { data: monthData, error } = await supabase
           .from('patients')
           .select('patient_id, created_at')
           .in('preferred_doctor_id', doctorIds)
+          .gte('created_at', startOfMonth.toISOString())
           .lte('created_at', endOfMonth.toISOString());
 
         if (error) {
@@ -460,10 +611,117 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // useEffect to fetch patient count history
+  // Function to fetch lab results submission history for the past 6 months
+  // This chart shows how many patients submitted their lab results each month
+  const fetchPendingLabHistory = async () => {
+    const startTime = performance.now();
+    console.log("🔄 Starting optimized lab submission history fetch...");
+    
+    const doctorIds = linkedDoctors.map(d => d.doctor_id);
+    if (doctorIds.length === 0) {
+      console.log("❌ No linked doctors found for lab submission history");
+      setPendingLabHistory({ labels: [], data: [] });
+      return;
+    }
+
+    console.log("✅ Fetching lab submission history for doctors:", doctorIds);
+
+    try {
+      // Get current date
+      const now = new Date();
+      
+      // Calculate date range for the past 6 months
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(now.getMonth() - 6);
+      
+      // First, get all patients for linked doctors once
+      const { data: allPatientsData, error: patientsError } = await supabase
+        .from('patients')
+        .select('patient_id, created_at')
+        .in('preferred_doctor_id', doctorIds);
+
+      if (patientsError) {
+        console.error("Error fetching patients for lab submission history:", patientsError);
+        setPendingLabHistory({ labels: [], data: [] });
+        return;
+      }
+
+      if (!allPatientsData || allPatientsData.length === 0) {
+        console.log("❌ No patients found for lab submission history");
+        setPendingLabHistory({ labels: [], data: [] });
+        return;
+      }
+
+      const patientIds = allPatientsData.map(p => p.patient_id);
+      console.log(`✅ Found ${patientIds.length} patients total`);
+
+      // Fetch ALL lab submissions for the past 6 months in one query
+      const { data: allLabsData, error: labsError } = await supabase
+        .from('patient_labs')
+        .select('patient_id, date_submitted')
+        .in('patient_id', patientIds)
+        .gte('date_submitted', sixMonthsAgo.toISOString())
+        .lte('date_submitted', now.toISOString());
+
+      if (labsError) {
+        console.error("Error fetching lab submissions:", labsError);
+        setPendingLabHistory({ labels: [], data: [] });
+        return;
+      }
+
+      console.log(`✅ Found ${allLabsData?.length || 0} total lab submissions in the past 6 months`);
+
+      // Create array of the past 6 months
+      const months = [];
+      const submittedCounts = [];
+      
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date();
+        date.setMonth(now.getMonth() - i);
+        const monthYear = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        months.push(monthYear);
+        
+        // Calculate start and end of the month for comparison
+        const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        
+        // Count unique patients who submitted labs during this specific month
+        const patientsWithSubmissionsThisMonth = new Set();
+        
+        if (allLabsData) {
+          allLabsData.forEach(lab => {
+            const submissionDate = new Date(lab.date_submitted);
+            if (submissionDate >= startOfMonth && submissionDate <= endOfMonth) {
+              patientsWithSubmissionsThisMonth.add(lab.patient_id);
+            }
+          });
+        }
+
+        const submittedCount = patientsWithSubmissionsThisMonth.size;
+        console.log(`Month ${monthYear}: ${submittedCount} unique patients with submitted labs`);
+        submittedCounts.push(submittedCount);
+      }
+
+      const endTime = performance.now();
+      console.log(`⚡ Lab submission history fetch completed in ${(endTime - startTime).toFixed(2)}ms`);
+      console.log("📊 Final lab submission history:", { labels: months, data: submittedCounts });
+
+      setPendingLabHistory({
+        labels: months,
+        data: submittedCounts
+      });
+
+    } catch (error) {
+      console.error("❌ Error fetching lab submission history:", error);
+      setPendingLabHistory({ labels: [], data: [] });
+    }
+  };
+
+  // useEffect to fetch patient count history and pending lab history
   useEffect(() => {
     if (supabase && linkedDoctors.length > 0) {
       fetchPatientCountHistory();
+      fetchPendingLabHistory();
     }
   }, [supabase, linkedDoctors]); // Re-run when supabase or linkedDoctors change
 
@@ -1110,7 +1368,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       }
   
       // Pending Lab Results (including N/A)
-      if (patient.lab_status === 'Awaiting' || patient.lab_status === 'Awaiting' || patient.lab_status === 'N/A') {
+      if (patient.lab_status === 'Awaiting' || patient.lab_status === 'N/A') {
         pendingLabs++;
       }
     });
@@ -1952,19 +2210,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
           <li className={activePage === "reports" ? "active" : ""} onClick={() => setActivePage("reports")}>Reports</li>
         </ul>
         <div className="navbar-right">
+          <button className="fas fa-bell notification-icon" onClick={() => setShowUsersPopup(true)}></button>
           <div className="user-profile">
             <img src="../picture/secretary.png" alt="User Avatar" className="user-avatar" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/aabbcc/ffffff?text=User"; }}/>
             <div className="user-info">
               <span className="user-name">{user ? `${user.first_name} ${user.last_name}` : 'Maria Batumbakal'}</span>
               <span className="user-role">Secretary</span>
             </div>
-          </div>
-          <div className="header-icons">
-          <button className="fas fa-bell notification-icon" onClick={() => setShowUsersPopup(true)}></button>
-          <button className="fas fa-envelope message-icon" onClick={() => setShowMessagePopup(true)}></button>
             <button className="signout-button4" onClick={() => {
-              if (window.confirm("Are you sure you want to sign out?")) onLogout();
-            }}><i className="fas fa-sign-out-alt"></i></button>
+    if (window.confirm("Are you sure you want to sign out?")) onLogout();
+  }}>
+    <i className="fas fa-sign-out-alt"></i>
+  </button>
           </div>
         </div>
         {/* Pop-up for Notification Icon */}
@@ -2053,13 +2310,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     moderateRisk={moderateRiskCount}
                     highRisk={highRiskCount}
                     patientCountHistory={patientCountHistory}
+                    pendingLabHistory={pendingLabHistory}
                   />
                 </div>
               </div>
 
               <div className="dashboard-right-column">
                 <div className="appointments-today">
-                  <h3>Upcoming Appointments</h3> {/* Changed heading */}
+                  <h3>Appointments Today</h3> {/* Changed heading */}
                   <div className="appointment-list-container"> {/* Added container for table + pagination */}
                     <table className="appointment-list-table"> {/* Class added for potential styling */}
                       <thead>
@@ -2157,6 +2415,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     </button>
                     
                   </div>
+                  
 
                   <div className="progress-indicator">
                     {steps.map((step, index) => (
@@ -2355,7 +2614,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       <div className="form-step assignment-form-step">
                         <h3>Assignment</h3>
                         <div className="form-row">
-                          <div className="form-group full-width">
+                          <div className="form-group">
                             <label>Assign Doctor:</label>
                             <select className="doctor-select" value={selectedDoctorId} onChange={(e) => setSelectedDoctorId(e.target.value)}>
                               <option value="">Select Doctor</option>
@@ -2364,22 +2623,42 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               ))}
                             </select>
                           </div>
-                        </div>
-                        <div className="form-row">
-                          <div className="form-group full-width">
+                          <div className="form-group">
                             <label>Prepared By:</label>
                             <input className="patient-input" type="text" value={user ? `${user.first_name} ${user.last_name}` : ''} readOnly />
+                          </div>
+                        </div>
+                        
+                        <div className="profile-picture-section">
+                          <h4>Optional Profile Picture</h4>
+                          <div className="profile-picture-upload">
+                            <div className="upload-area" >
+                              <div className="upload-icon">
+                                <i className="fas fa-camera"></i>
+                              </div>
+                              <p className="upload-text">
+                                Drop your file here, or <span className="upload-link" onClick={() => document.getElementById('profile-picture-input').click()}>Browse</span>
+                              </p>
+                              <p className="upload-subtext">Max size 10MB</p>
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                className="file-input-hidden" 
+                                id="profile-picture-input"
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
                     )}
                   </div>
 
-                  {message && <p className="form-message">{message}</p>}
+              
 
                   <div className="form-navigation-buttons">
-                    <button className="cancel-button" onClick={() => setActivePage("dashboard")}>Cancel</button>
-                    {currentPatientStep > 0 && (
+                    {currentPatientStep === 0 ? (
+                      <button className="cancel-button" onClick={() => setActivePage("dashboard")}>Cancel</button>
+                    ) : (
                       <button className="previous-step-button" onClick={handlePreviousStep}>Previous</button>
                     )}
                     {currentPatientStep < steps.length - 1 && (
@@ -2391,8 +2670,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       </button>
                     )}
                   </div>
+                  {message && <p className="form-message">{message}</p>}
                 </div>
               )}
+
 
               {activePage === "patient-list" && (
                 <div className="patient-list-section">
@@ -2492,14 +2773,69 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         <div className="patient-details-left-column">
                             {/* Basic Patient Information Section */}
                             <div className="patient-basic-info-section">
-                                <p><strong>Name:</strong> {selectedPatientForDetail.first_name} {selectedPatientForDetail.middle_name ? selectedPatientForDetail.middle_name + ' ' : ''}{selectedPatientForDetail.last_name}</p>
-                                <p><strong>Gender:</strong> {selectedPatientForDetail.gender || 'N/A'}</p>
-                                <p><strong>Date of Birth:</strong> {selectedPatientForDetail.date_of_birth || 'N/A'}</p>
-                                <p><strong>Contact Number:</strong> {selectedPatientForDetail.contact_info || 'N/A'}</p>
-                                <p><strong>Diabetes Type:</strong> {selectedPatientForDetail.diabetes_type || 'N/A'}</p>
-                                <p><strong>Smoking History:</strong> {selectedPatientForDetail.smoking_status || 'N/A'}</p>
-                                <p><strong>Hypertensive:</strong> {selectedPatientForDetail.complication_history?.includes("Hypertensive") ? "Yes" : "No"}</p>
-                                <p><strong>Patient Phase:</strong> {selectedPatientForDetail.phase || 'N/A'}</p>
+                                <div className="patient-info-container">
+                                    <div className="patient-avatar-container">
+                                        <img 
+                                            src="../picture/secretary.png" 
+                                            alt="Patient Avatar" 
+                                            className="patient-avatar-large"
+                                        />
+                                        <div className={`patient-phase-badge ${
+                                            selectedPatientForDetail.phase === 'Post-Op' || selectedPatientForDetail.phase === 'Post-Operative' ? 'post-operative' :
+                                            selectedPatientForDetail.phase === 'Pre-Op' || selectedPatientForDetail.phase === 'Pre-Operative' ? 'pre-operative' :
+                                            'default'
+                                        }`}>
+                                            {selectedPatientForDetail.phase === 'Post-Op' || selectedPatientForDetail.phase === 'Post-Operative' ? 'Post-operative' : 
+                                             selectedPatientForDetail.phase === 'Pre-Op' || selectedPatientForDetail.phase === 'Pre-Operative' ? 'Pre-operative' : 
+                                             selectedPatientForDetail.phase || 'N/A'}
+                                        </div>
+                                    </div>
+                                    <div className="patient-info-details">
+                                        <div className="patient-name-section">
+                                            <h2 className="patient-name-display">
+                                                {selectedPatientForDetail.first_name} {selectedPatientForDetail.middle_name ? selectedPatientForDetail.middle_name + ' ' : ''}{selectedPatientForDetail.last_name}
+                                            </h2>
+                                        </div>
+                                        <div className="patient-details-grid">
+                                            <div className="patient-detail-item">
+                                                <span className="detail-label">Patient ID:</span>
+                                                <span className="detail-value">{selectedPatientForDetail.id ? `PO${String(selectedPatientForDetail.id).padStart(4, '0')}` : 'N/A'}</span>
+                                            </div>
+                                            <div className="patient-detail-item">
+                                                <span className="detail-label">Diabetes Type:</span>
+                                                <span className="detail-value">{selectedPatientForDetail.diabetes_type || 'N/A'}</span>
+                                            </div>
+                                            <div className="patient-detail-item">
+                                                <span className="detail-label">Phone:</span>
+                                                <span className="detail-value">{selectedPatientForDetail.contact_info || 'N/A'}</span>
+                                            </div>
+                                            <div className="patient-detail-item">
+                                                <span className="detail-label">Gender:</span>
+                                                <span className="detail-value">{selectedPatientForDetail.gender || 'N/A'}</span>
+                                            </div>
+                                            <div className="patient-detail-item">
+                                                <span className="detail-label">Age:</span>
+                                                <span className="detail-value">
+                                                    {selectedPatientForDetail.date_of_birth 
+                                                        ? new Date().getFullYear() - new Date(selectedPatientForDetail.date_of_birth).getFullYear() 
+                                                        : 'N/A'}
+                                                </span>
+                                            </div>
+                                            <div className="patient-detail-item">
+                                                <span className="detail-label">Smoking History:</span>
+                                                <span className="detail-value">{selectedPatientForDetail.smoking_status || 'N/A'}</span>
+                                            </div>
+                                            <div className="patient-detail-item">
+                                                <span className="detail-label">Heart Disease:</span>
+                                                <span className="detail-value">{selectedPatientForDetail.complication_history?.includes("Heart Attack") ? "Yes" : "None"}</span>
+                                            </div>
+                                            <div className="patient-detail-item">
+                                                <span className="detail-label">Hypertensive:</span>
+                                                <span className="detail-value">{selectedPatientForDetail.complication_history?.includes("Hypertensive") ? "Yes" : "No"}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             
                             {/* Laboratory Result Section */}
@@ -2673,28 +3009,71 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         <div className="patient-details-right-column">
                             {/* Doctor Assigned Section */}
                             <div className="doctor-assigned-section">
-                                <p><strong>Assigned Doctor:</strong> {selectedPatientForDetail.doctors ? `${selectedPatientForDetail.doctors.first_name} ${selectedPatientForDetail.doctors.last_name}` : 'N/A'}</p>
-                                
-                                {/* Display Assigned Specialists */}
-                                <div className="assigned-specialists-display">
-                                  <p><strong>Assigned Specialists:</strong></p>
-                                  {currentPatientSpecialists.length > 0 ? (
-                                    <ul className="specialists-list">
-                                      {currentPatientSpecialists.map((specialist) => (
-                                        <li key={specialist.id}>
-                                          {specialist.doctors 
-                                            ? `${specialist.doctors.first_name} ${specialist.doctors.last_name}` 
-                                            : 'Unknown Doctor'}
-                                          {specialist.doctors?.specialization && ` (${specialist.doctors.specialization})`}
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  ) : (
-                                    <p className="no-specialists">No specialists assigned</p>
-                                  )}
+                                <div className="doctors-grid">
+                                    {/* Assigned Doctor Card */}
+                                    <div className="doctor-card">
+                                        <div className="doctor-avatar">
+                                            <img 
+                                                src="../picture/secretary.png" 
+                                                alt="Doctor Avatar"
+                                            />
+                                        </div>
+                                        <div className="doctor-info">
+                                            <span className="doctor-label">Assigned Doctor:</span>
+                                            <h4 className="doctor-name">
+                                                {selectedPatientForDetail.doctors 
+                                                    ? `${selectedPatientForDetail.doctors.first_name} ${selectedPatientForDetail.doctors.last_name}` 
+                                                    : 'Alex Bulquiren'}
+                                            </h4>
+                                            <p className="doctor-specialty">
+                                                {selectedPatientForDetail.doctors?.specialization || 'General Surgeon'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Assigned Specialists Cards */}
+                                    {currentPatientSpecialists.length > 0 ? (
+                                        currentPatientSpecialists.map((specialist, index) => (
+                                            <div key={specialist.id} className="doctor-card specialist-card">
+                                                <div className="doctor-avatar">
+                                                    <img 
+                                                        src="../picture/secretary.png" 
+                                                        alt="Specialist Avatar"
+                                                    />
+                                                </div>
+                                                <div className="doctor-info">
+                                                    <span className="doctor-label">Specialist Doctor</span>
+                                                    <h4 className="doctor-name">
+                                                        {specialist.doctors 
+                                                            ? `${specialist.doctors.first_name} ${specialist.doctors.last_name}` 
+                                                            : 'Unknown Doctor'}
+                                                    </h4>
+                                                    <p className="doctor-specialty">
+                                                        {specialist.doctors?.specialization || 'General'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="doctor-card specialist-card placeholder-card">
+                                            <div className="doctor-avatar">
+                                                <img 
+                                                    src="../picture/secretary.png" 
+                                                    alt="No Specialist"
+                                                />
+                                            </div>
+                                            <div className="doctor-info">
+                                                <span className="doctor-label">Specialist Doctor</span>
+                                                <h4 className="doctor-name">No Specialist Assigned</h4>
+                                                <p className="doctor-specialty">-</p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 
-                                <button onClick={() => handleEditSpecialist(selectedPatientForDetail)}>Edit</button>
+                                <button className="edit-doctors-button" onClick={() => handleEditSpecialist(selectedPatientForDetail)}>
+                                    Edit Assignments
+                                </button>
                             </div>
                             
                             {/* Current Medications Section */}
@@ -2798,26 +3177,62 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         </div>
                     </div>
                     
-                    {/* Wound Photo Timeline Section - Added as a footer-like section */}
-                    <div className="wound-photo-timeline-section">
-                        <h3>Wound Photos History</h3>
-                        {allWoundPhotos.length > 0 ? (
-                            <>
-                                {allWoundPhotos.map((photo, index) => (
-                                    <div key={index} className="wound-photo-entry">
-                                        <div className="wound-photo-placeholder">
+                    {/* Wound Gallery Section */}
+                    <div className="wound-gallery-section">
+                        <h3>Wound Gallery</h3>
+                        <div className="wound-gallery-grid">
+                            {allWoundPhotos.length > 0 ? (
+                                allWoundPhotos.map((photo, index) => (
+                                    <div key={index} className="wound-gallery-card">
+                                        <div className="wound-photo-container">
                                             <img
                                                 src={photo.url}
                                                 alt={`Wound Photo - ${photo.date}`}
+                                                className="wound-photo-image"
                                             />
+                                            <button className="photo-expand-btn">
+                                                <i className="fas fa-expand"></i>
+                                            </button>
                                         </div>
-                                        <p className="wound-photo-date">Date: {photo.date}</p>
+                                        
+                                        <div className="photo-info">
+                                            <div className="photo-timestamp">
+                                                <span className="photo-date">{new Date(photo.date).toLocaleDateString('en-US', { 
+                                                    month: 'short', 
+                                                    day: 'numeric', 
+                                                    year: 'numeric' 
+                                                })}</span>
+                                                <span className="photo-time">| {new Date(photo.date).toLocaleTimeString('en-US', { 
+                                                    hour: 'numeric', 
+                                                    minute: '2-digit', 
+                                                    hour12: true 
+                                                })}</span>
+                                            </div>
+                                            
+                                            <div className="photo-submitter">
+                                                <img 
+                                                    src="../picture/secretary.png" 
+                                                    alt="Submitter Avatar" 
+                                                    className="submitter-avatar"
+                                                />
+                                                <span className="submitter-info">
+                                                    <span className="submitter-text">by</span> {selectedPatientForDetail.first_name} {selectedPatientForDetail.last_name}
+                                                </span>
+                                            </div>
+                                            
+                                            <div className="photo-actions">
+                                                <button className="entry-btn">Entry ID: 00{allWoundPhotos.length - index}</button>
+                                                <button className="view-details-btn">View Details</button>
+                                            </div>
+                                        </div>
                                     </div>
-                                ))}
-                            </>
-                        ) : (
-                            <p style={{ gridColumn: '1 / -1' }}>No wound photos available for this patient.</p>
-                        )}
+                                ))
+                            ) : (
+                                <div className="no-photos-message">
+                                    <p>No wound photos available for this patient.</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
               )}
@@ -3177,7 +3592,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           </div>
                         </div>
                         <div className="lab-navigation-buttons">
-                          <button className="previous-step-button" onClick={() => setLabEntryStep(1)}>Back to Patient Search</button>
+                          <button className="previous-step-button" onClick={() => setLabEntryStep(1)}>Back</button>
                           <button className="next-step-button" onClick={() => setLabEntryStep(3)}>Review & Finalize</button>
                         </div>
                       </div>
