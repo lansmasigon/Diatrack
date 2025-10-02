@@ -440,6 +440,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [activePage, setActivePage] = useState("dashboard");
   const [linkedDoctors, setLinkedDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
+  const [profilePicture, setProfilePicture] = useState(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
   const [patientForm, setPatientForm] = useState({
     firstName: "",
@@ -1448,10 +1449,48 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setMedications(newMedications);
   };
 
+  const handleProfilePictureChange = async (e) => {
+    try {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // Check file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        setMessage("File size must be less than 10MB");
+        return;
+      }
+
+      setMessage("Uploading profile picture...");
+      
+      // Upload to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const { data, error } = await supabase.storage
+        .from('patient-profile')
+        .upload(fileName, file);
+
+      if (error) {
+        throw error;
+      }
+
+      // Get public URL
+      const { data: publicUrl } = supabase.storage
+        .from('patient-profile')
+        .getPublicUrl(fileName);
+
+      setProfilePicture(publicUrl.publicUrl);
+      setMessage("Profile picture uploaded successfully!");
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      setMessage("Error uploading profile picture. Please try again.");
+    }
+  };
+
   const savePatient = async () => {
     const patientData = {
         first_name: patientForm.firstName,
         last_name: patientForm.lastName,
+        patient_picture: profilePicture, // Add the profile picture URL
         email: patientForm.email,
         password: patientForm.password, // Consider hashing in production
         preferred_doctor_id: selectedDoctorId,
@@ -2645,6 +2684,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 accept="image/*" 
                                 className="file-input-hidden" 
                                 id="profile-picture-input"
+                                onChange={handleProfilePictureChange}
                               />
                             </div>
                           </div>
