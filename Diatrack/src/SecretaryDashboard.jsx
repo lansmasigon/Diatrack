@@ -440,6 +440,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [activePage, setActivePage] = useState("dashboard");
   const [linkedDoctors, setLinkedDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
+  const [profilePicture, setProfilePicture] = useState(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
   const [patientForm, setPatientForm] = useState({
     firstName: "",
@@ -1448,10 +1449,48 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setMedications(newMedications);
   };
 
+  const handleProfilePictureChange = async (e) => {
+    try {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // Check file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        setMessage("File size must be less than 10MB");
+        return;
+      }
+
+      setMessage("Uploading profile picture...");
+      
+      // Upload to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const { data, error } = await supabase.storage
+        .from('patient-profile')
+        .upload(fileName, file);
+
+      if (error) {
+        throw error;
+      }
+
+      // Get public URL
+      const { data: publicUrl } = supabase.storage
+        .from('patient-profile')
+        .getPublicUrl(fileName);
+
+      setProfilePicture(publicUrl.publicUrl);
+      setMessage("Profile picture uploaded successfully!");
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      setMessage("Error uploading profile picture. Please try again.");
+    }
+  };
+
   const savePatient = async () => {
     const patientData = {
         first_name: patientForm.firstName,
         last_name: patientForm.lastName,
+        patient_picture: profilePicture, // Add the profile picture URL
         email: patientForm.email,
         password: patientForm.password, // Consider hashing in production
         preferred_doctor_id: selectedDoctorId,
@@ -2633,18 +2672,35 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           <h4>Optional Profile Picture</h4>
                           <div className="profile-picture-upload">
                             <div className="upload-area" >
-                              <div className="upload-icon">
-                                <i className="fas fa-camera"></i>
-                              </div>
-                              <p className="upload-text">
-                                Drop your file here, or <span className="upload-link" onClick={() => document.getElementById('profile-picture-input').click()}>Browse</span>
-                              </p>
-                              <p className="upload-subtext">Max size 10MB</p>
+                              {profilePicture ? (
+                                <div className="preview-container">
+                                  <img 
+                                    src={profilePicture} 
+                                    alt="Profile Preview" 
+                                    className="profile-preview"
+                                    onError={(e) => e.target.src = "../picture/secretary.png"}
+                                  />
+                                  <button className="change-photo-btn" onClick={() => document.getElementById('profile-picture-input').click()}>
+                                    Change Photo
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="upload-icon">
+                                    <i className="fas fa-camera"></i>
+                                  </div>
+                                  <p className="upload-text">
+                                    Drop your file here, or <span className="upload-link" onClick={() => document.getElementById('profile-picture-input').click()}>Browse</span>
+                                  </p>
+                                  <p className="upload-subtext">Max size 10MB</p>
+                                </>
+                              )}
                               <input 
                                 type="file" 
                                 accept="image/*" 
                                 className="file-input-hidden" 
                                 id="profile-picture-input"
+                                onChange={handleProfilePictureChange}
                               />
                             </div>
                           </div>
@@ -2776,9 +2832,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 <div className="patient-info-container">
                                     <div className="patient-avatar-container">
                                         <img 
-                                            src="../picture/secretary.png" 
+                                            src={selectedPatientForDetail?.patient_picture || "../picture/secretary.png"} 
                                             alt="Patient Avatar" 
                                             className="patient-avatar-large"
+                                            onError={(e) => e.target.src = "../picture/secretary.png"}
                                         />
                                         <div className={`patient-phase-badge ${
                                             selectedPatientForDetail.phase === 'Post-Op' || selectedPatientForDetail.phase === 'Post-Operative' ? 'post-operative' :
