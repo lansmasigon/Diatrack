@@ -514,11 +514,6 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [currentPageLabSearchPatients, setCurrentPageLabSearchPatients] = useState(1); // New state for this specific patient list
   const LAB_SEARCH_PATIENTS_PER_PAGE = 10; // New: Define how many patients per page (you can adjust this number)
   
-  // Pagination state for patient details sections
-  const [currentPageAppointmentDetails, setCurrentPageAppointmentDetails] = useState(1);
-  const [currentPageHealthMetrics, setCurrentPageHealthMetrics] = useState(1);
-  const ITEMS_PER_PAGE_DETAILS = 5; // Show only 5 items per page in patient details
-  
   // State for patient count over the past 6 months
   const [patientCountHistory, setPatientCountHistory] = useState([]);
   
@@ -773,7 +768,6 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [selectedSpecialistId, setSelectedSpecialistId] = useState("");
   const [patientForSpecialistAssignment, setPatientForSpecialistAssignment] = useState(null);
   const [currentPatientSpecialists, setCurrentPatientSpecialists] = useState([]);
-  const [showNewSpecialistForm, setShowNewSpecialistForm] = useState(false);
   
   // Handle appointment cancellation with improved logging
   const handleCancelAppointment = async (appointmentId) => {
@@ -2161,30 +2155,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setActivePage("patient-detail-view");
     setPatientForSpecialistAssignment(null);
     setSelectedSpecialistId("");
-    setShowNewSpecialistForm(false);
     setMessage("");
-  };
-
-  // NEW FUNCTIONS FOR SPECIALIST FORM MANAGEMENT
-  const handleShowNewSpecialistForm = () => {
-    setShowNewSpecialistForm(true);
-    setSelectedSpecialistId("");
-  };
-
-  const handleHideNewSpecialistForm = () => {
-    setShowNewSpecialistForm(false);
-    setSelectedSpecialistId("");
-  };
-
-  const handleConfirmSpecialistAssignment = async () => {
-    if (!selectedSpecialistId) {
-      setMessage("Please select a specialist to assign.");
-      return;
-    }
-    
-    await handleAssignSpecialist();
-    setShowNewSpecialistForm(false);
-    setSelectedSpecialistId("");
   };
 
 
@@ -2927,27 +2898,23 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             {/* Laboratory Result Section */}
                             <div className="laboratory-results-section">
                                 <h3>Laboratory Results (Latest)</h3>
-                                <div className="lab-results-grid">
-                                    <p><strong>Date Submitted</strong><span className="lab-value">{lastLabDate}</span></p>
-                                    <p><strong>HbA1c</strong><span className="lab-value">{patientLabResults.hba1c}</span></p>
-                                    <p><strong>Creatinine</strong><span className="lab-value">{patientLabResults.creatinine}</span></p>
-                                    <p><strong>GOT (AST)</strong><span className="lab-value">{patientLabResults.gotAst}</span></p>
-                                    <p><strong>GPT (ALT)</strong><span className="lab-value">{patientLabResults.gptAlt}</span></p>
-                                    <p><strong>Cholesterol</strong><span className="lab-value">{patientLabResults.cholesterol}</span></p>
-                                    <p><strong>Triglycerides</strong><span className="lab-value">{patientLabResults.triglycerides}</span></p>
-                                    <p><strong>HDL Cholesterol</strong><span className="lab-value">{patientLabResults.hdlCholesterol}</span></p>
-                                    <p><strong>LDL Cholesterol</strong><span className="lab-value">{patientLabResults.ldlCholesterol}</span></p>
-                                </div>
+                                <p><strong>Date Submitted:</strong> {lastLabDate}</p>
+                                <p><strong>HbA1c:</strong> {patientLabResults.hba1c}</p>
+                                <p><strong>Creatinine:</strong> {patientLabResults.creatinine}</p>
+                                <p><strong>GOT (AST):</strong> {patientLabResults.gotAst}</p>
+                                <p><strong>GPT (ALT):</strong> {patientLabResults.gptAlt}</p>
+                                <p><strong>Cholesterol:</strong> {patientLabResults.cholesterol}</p>
+                                <p><strong>Triglycerides:</strong> {patientLabResults.triglycerides}</p>
+                                <p><strong>HDL Cholesterol:</strong> {patientLabResults.hdlCholesterol}</p>
+                                <p><strong>LDL Cholesterol:</strong> {patientLabResults.ldlCholesterol}</p>
                             </div>
                             
                             {/* Latest Health Metrics Section */}
                             <div className="latest-health-metrics-section">
                                 <h3>Latest Health Metrics</h3>
-                                <div className="health-metrics-grid">
-                                    <p><strong>Blood Glucose Level</strong><span className="health-value">{patientHealthMetrics.bloodGlucoseLevel} {patientHealthMetrics.bloodGlucoseLevel !== 'N/A' && patientHealthMetrics.bloodGlucoseLevel !== 'Error' ? 'mg/dL' : ''}</span></p>
-                                    <p><strong>Blood Pressure</strong><span className="health-value">{patientHealthMetrics.bloodPressure} {patientHealthMetrics.bloodPressure !== 'N/A' && patientHealthMetrics.bloodPressure !== 'Error' ? 'mmHg' : ''}</span></p>
-                                    <p><strong>Risk Classification</strong><span className="health-value">{selectedPatientForDetail.risk_classification || 'N/A'}</span></p>
-                                </div>
+                                <p><strong>Blood Glucose Level:</strong> {patientHealthMetrics.bloodGlucoseLevel} {patientHealthMetrics.bloodGlucoseLevel !== 'N/A' && patientHealthMetrics.bloodGlucoseLevel !== 'Error' ? 'mg/dL' : ''}</p>
+                                <p><strong>Blood Pressure:</strong> {patientHealthMetrics.bloodPressure} {patientHealthMetrics.bloodPressure !== 'N/A' && patientHealthMetrics.bloodPressure !== 'Error' ? 'mmHg' : ''}</p>
+                                <p><strong>Risk Classification:</strong> {selectedPatientForDetail.risk_classification || 'N/A'}</p>
                             </div>
 
                             {/* History Charts Section - Updated structure */}
@@ -3184,7 +3151,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             
                             {/* Current Medications Section */}
                             <div className="current-medications-section">
-                                <h3>Current Medications</h3>
+                                <h3>Current Medications:</h3>
                                 <div className="medications-table-container">
                                   <table className="medications-table">
                                     <thead>
@@ -3193,40 +3160,21 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         <th>Dosage</th>
                                         <th>Frequency</th>
                                         <th>Prescribed by</th>
-                                        <th>Actions</th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       {patientMedications.length > 0 ? (
                                         patientMedications.map((med, idx) => (
                                           <tr key={med.id || idx}>
-                                            <td><input type="text" className="med-input" value={med.name || ''} readOnly /></td>
-                                            <td><input type="text" className="med-input" value={med.dosage || ''} readOnly /></td>
-                                            <td><input type="text" className="med-input" value={med.medication_frequencies && med.medication_frequencies.length > 0 ? med.medication_frequencies.map(f => `${f.frequency}`).join(', ') : ''} readOnly /></td>
-                                            <td><input type="text" className="med-input" value={(med.doctors && med.doctors.first_name) ? `${med.doctors.first_name} ${med.doctors.last_name}` : ''} readOnly /></td>
-                                            <td className="med-actions">
-                                              <button type="button" className="add-med-button" title="Add Medication">
-                                                <i className="fas fa-plus-circle"></i>
-                                              </button>
-                                              {patientMedications.length > 1 && (
-                                                <button type="button" className="remove-med-button" title="Remove Medication">
-                                                  <i className="fas fa-minus-circle"></i>
-                                                </button>
-                                              )}
-                                            </td>
+                                            <td>{med.name || 'N/A'}</td>
+                                            <td>{med.dosage || 'N/A'}</td>
+                                            <td>{med.medication_frequencies && med.medication_frequencies.length > 0 ? med.medication_frequencies.map(f => `${f.frequency}`).join(', ') : 'N/A'}</td>
+                                            <td>{(med.doctors && med.doctors.first_name) ? `${med.doctors.first_name} ${med.doctors.last_name}` : 'N/A'}</td>
                                           </tr>
                                         ))
                                       ) : (
                                         <tr>
-                                          <td><input type="text" className="med-input" placeholder="Drug Name" readOnly /></td>
-                                          <td><input type="text" className="med-input" placeholder="Dosage" readOnly /></td>
-                                          <td><input type="text" className="med-input" placeholder="Frequency" readOnly /></td>
-                                          <td><input type="text" className="med-input" placeholder="Prescribed by" readOnly /></td>
-                                          <td className="med-actions">
-                                            <button type="button" className="add-med-button" title="Add Medication">
-                                              <i className="fas fa-plus-circle"></i>
-                                            </button>
-                                          </td>
+                                          <td colSpan="4">No medications listed.</td>
                                         </tr>
                                       )}
                                     </tbody>
@@ -3246,46 +3194,21 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {(() => {
-                                            const startIndex = (currentPageAppointmentDetails - 1) * ITEMS_PER_PAGE_DETAILS;
-                                            const endIndex = startIndex + ITEMS_PER_PAGE_DETAILS;
-                                            const paginatedAppointments = patientAppointments.slice(startIndex, endIndex);
-                                            
-                                            return paginatedAppointments.length > 0 ? (
-                                                paginatedAppointments.map((appointment, idx) => (
-                                                    <tr key={idx}>
-                                                        <td>{appointment.appointment_datetime.split('T')[0]}</td>
-                                                        <td>{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</td>
-                                                        <td>{appointment.notes || 'N/A'}</td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan="3">No appointments scheduled for this patient.</td>
+                                        {patientAppointments.length > 0 ? (
+                                            patientAppointments.map((appointment, idx) => (
+                                                <tr key={idx}>
+                                                    <td>{appointment.appointment_datetime.split('T')[0]}</td>
+                                                    <td>{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</td>
+                                                    <td>{appointment.notes || 'N/A'}</td>
                                                 </tr>
-                                            );
-                                        })()}
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="3">No appointments scheduled for this patient.</td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
-                                {patientAppointments.length > ITEMS_PER_PAGE_DETAILS && (
-                                    <div className="pagination-controls">
-                                        <button 
-                                            onClick={() => setCurrentPageAppointmentDetails(prev => Math.max(prev - 1, 1))}
-                                            disabled={currentPageAppointmentDetails === 1}
-                                        >
-                                            Previous
-                                        </button>
-                                        <span className="pagination-info">
-                                            Page {currentPageAppointmentDetails} of {Math.ceil(patientAppointments.length / ITEMS_PER_PAGE_DETAILS)}
-                                        </span>
-                                        <button 
-                                            onClick={() => setCurrentPageAppointmentDetails(prev => Math.min(prev + 1, Math.ceil(patientAppointments.length / ITEMS_PER_PAGE_DETAILS)))}
-                                            disabled={currentPageAppointmentDetails === Math.ceil(patientAppointments.length / ITEMS_PER_PAGE_DETAILS)}
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
-                                )}
                             </div>
 
                             {/* Health Metrics History Table */}
@@ -3301,53 +3224,28 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {(() => {
-                                            const startIndex = (currentPageHealthMetrics - 1) * ITEMS_PER_PAGE_DETAILS;
-                                            const endIndex = startIndex + ITEMS_PER_PAGE_DETAILS;
-                                            const paginatedMetrics = allPatientHealthMetrics.slice(startIndex, endIndex);
-                                            
-                                            return paginatedMetrics.length > 0 ? (
-                                                paginatedMetrics.map((metric, index) => (
-                                                    <tr key={index}>
-                                                        <td>{new Date(metric.submission_date).toLocaleString()}</td>
-                                                        <td>{metric.blood_glucose || 'N/A'}</td>
-                                                        <td>
-                                                            {metric.bp_systolic !== null && metric.bp_diastolic !== null
-                                                                ? `${metric.bp_systolic}/${metric.bp_diastolic}`
-                                                                : 'N/A'}
-                                                        </td>
-                                                        <td className={`risk-classification-${(metric.risk_classification || 'N/A').toLowerCase()}`}>
-                                                            {metric.risk_classification || 'N/A'}
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan="4">No health metrics history available for this patient.</td>
+                                        {allPatientHealthMetrics.length > 0 ? (
+                                            allPatientHealthMetrics.map((metric, index) => (
+                                                <tr key={index}>
+                                                    <td>{new Date(metric.submission_date).toLocaleString()}</td>
+                                                    <td>{metric.blood_glucose || 'N/A'}</td>
+                                                    <td>
+                                                        {metric.bp_systolic !== null && metric.bp_diastolic !== null
+                                                            ? `${metric.bp_systolic}/${metric.bp_diastolic}`
+                                                            : 'N/A'}
+                                                    </td>
+                                                    <td className={`risk-classification-${(metric.risk_classification || 'N/A').toLowerCase()}`}>
+                                                        {metric.risk_classification || 'N/A'}
+                                                    </td>
                                                 </tr>
-                                            );
-                                        })()}
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="4">No health metrics history available for this patient.</td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
-                                {allPatientHealthMetrics.length > ITEMS_PER_PAGE_DETAILS && (
-                                    <div className="pagination-controls">
-                                        <button 
-                                            onClick={() => setCurrentPageHealthMetrics(prev => Math.max(prev - 1, 1))}
-                                            disabled={currentPageHealthMetrics === 1}
-                                        >
-                                            Previous
-                                        </button>
-                                        <span className="pagination-info">
-                                            Page {currentPageHealthMetrics} of {Math.ceil(allPatientHealthMetrics.length / ITEMS_PER_PAGE_DETAILS)}
-                                        </span>
-                                        <button 
-                                            onClick={() => setCurrentPageHealthMetrics(prev => Math.min(prev + 1, Math.ceil(allPatientHealthMetrics.length / ITEMS_PER_PAGE_DETAILS)))}
-                                            disabled={currentPageHealthMetrics === Math.ceil(allPatientHealthMetrics.length / ITEMS_PER_PAGE_DETAILS)}
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </div>
@@ -3423,8 +3321,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   <div className="specialist-assignment-content">
                     {/* Current Specialists Section */}
                     <div className="current-specialists-section">
-                      <div className="specialists-table-container">
-                        <label>Currently Assigned Specialists:</label>
+                      <h3>Currently Assigned Specialists</h3>
+                      {currentPatientSpecialists.length > 0 ? (
                         <table className="specialists-table">
                           <thead>
                             <tr>
@@ -3435,121 +3333,60 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             </tr>
                           </thead>
                           <tbody>
-                            {currentPatientSpecialists.length > 0 ? (
-                              currentPatientSpecialists.map((specialist) => (
-                                <tr key={specialist.id}>
-                                  <td>
-                                    <input 
-                                      type="text" 
-                                      className="med-input" 
-                                      value={specialist.doctors 
-                                        ? `${specialist.doctors.first_name} ${specialist.doctors.last_name}` 
-                                        : 'Unknown Doctor'} 
-                                      readOnly 
-                                    />
-                                  </td>
-                                  <td>
-                                    <input 
-                                      type="text" 
-                                      className="med-input" 
-                                      value={specialist.doctors?.specialization || 'General'} 
-                                      readOnly 
-                                    />
-                                  </td>
-                                  <td>
-                                    <input 
-                                      type="text" 
-                                      className="med-input" 
-                                      value={new Date(specialist.assigned_at).toLocaleDateString()} 
-                                      readOnly 
-                                    />
-                                  </td>
-                                  <td className="med-actions">
-                                    <button 
-                                      type="button" 
-                                      className="remove-med-button" 
-                                      onClick={() => handleRemoveSpecialist(specialist.id)}
-                                      title="Remove Specialist"
-                                    >
-                                      <i className="fas fa-minus-circle"></i>
-                                    </button>
-                                    <button 
-                                      type="button" 
-                                      className="add-med-button" 
-                                      onClick={handleShowNewSpecialistForm}
-                                      title="Add New Specialist"
-                                    >
-                                      <i className="fas fa-plus-circle"></i>
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))
-                            ) : (
-                              <tr>
+                            {currentPatientSpecialists.map((specialist) => (
+                              <tr key={specialist.id}>
                                 <td>
-                                  <input type="text" className="med-input" placeholder="No specialists assigned" readOnly />
+                                  {specialist.doctors 
+                                    ? `${specialist.doctors.first_name} ${specialist.doctors.last_name}` 
+                                    : 'Unknown Doctor'}
                                 </td>
+                                <td>{specialist.doctors?.specialization || 'General'}</td>
+                                <td>{new Date(specialist.assigned_at).toLocaleDateString()}</td>
                                 <td>
-                                  <input type="text" className="med-input" placeholder="" readOnly />
-                                </td>
-                                <td>
-                                  <input type="text" className="med-input" placeholder="" readOnly />
-                                </td>
-                                <td className="med-actions">
                                   <button 
-                                    type="button" 
-                                    className="add-med-button" 
-                                    onClick={handleShowNewSpecialistForm}
-                                    title="Add New Specialist"
+                                    className="remove-specialist-button"
+                                    onClick={() => handleRemoveSpecialist(specialist.id)}
                                   >
-                                    <i className="fas fa-plus-circle"></i>
+                                    Remove
                                   </button>
                                 </td>
                               </tr>
-                            )}
+                            ))}
                           </tbody>
                         </table>
-                      </div>
+                      ) : (
+                        <p className="no-specialists-message">No specialists currently assigned to this patient.</p>
+                      )}
                     </div>
 
-                    {/* Add New Specialist Form - Conditionally Rendered */}
-                    {showNewSpecialistForm && (
-                      <div className="add-specialist-form-section">
-                        <h3>Select Specialist to Assign</h3>
-                        <div className="specialist-selection-form">
-                          <div className="form-group">
-                            <label>Choose Specialist:</label>
-                            <select 
-                              value={selectedSpecialistId} 
-                              onChange={(e) => setSelectedSpecialistId(e.target.value)}
-                              className="specialist-dropdown"
-                            >
-                              <option value="">Select a specialist...</option>
-                              {availableSpecialists.map((doctor) => (
-                                <option key={doctor.doctor_id} value={doctor.doctor_id}>
-                                  {doctor.first_name} {doctor.last_name} {doctor.specialization && `(${doctor.specialization})`}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="form-actions">
-                            <button 
-                              className="cancel-form-button"
-                              onClick={handleHideNewSpecialistForm}
-                            >
-                              Cancel
-                            </button>
-                            <button 
-                              className="confirm-assignment-button"
-                              onClick={handleConfirmSpecialistAssignment}
-                              disabled={!selectedSpecialistId}
-                            >
-                              Confirm Assignment
-                            </button>
-                          </div>
+                    {/* Add New Specialist Section */}
+                    <div className="add-specialist-section">
+                      <h3>Assign New Specialist</h3>
+                      <div className="specialist-selection-form">
+                        <div className="form-group">
+                          <label>Select Specialist:</label>
+                          <select 
+                            value={selectedSpecialistId} 
+                            onChange={(e) => setSelectedSpecialistId(e.target.value)}
+                            className="specialist-dropdown"
+                          >
+                            <option value="">Select a specialist...</option>
+                            {availableSpecialists.map((doctor) => (
+                              <option key={doctor.doctor_id} value={doctor.doctor_id}>
+                                {doctor.first_name} {doctor.last_name} {doctor.specialization && `(${doctor.specialization})`}
+                              </option>
+                            ))}
+                          </select>
                         </div>
+                        <button 
+                          className="assign-specialist-button"
+                          onClick={handleAssignSpecialist}
+                          disabled={!selectedSpecialistId}
+                        >
+                          Assign Specialist
+                        </button>
                       </div>
-                    )}
+                    </div>
                   </div>
 
                   {message && <p className="form-message">{message}</p>}
@@ -3658,7 +3495,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     {labEntryStep === 1 && (
                     <div className="lab-step-content">
                       <div className="lab-patient-search-header">
-                        <h3>Search for a Patient</h3>
+                        <h3>Patient List</h3>
                         <div className="search-bar">
                           <input
                             type="text"
