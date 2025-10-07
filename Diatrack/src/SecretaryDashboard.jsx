@@ -4,6 +4,8 @@ import { logAppointmentEvent, logPatientDataChange, logSystemAction } from "./au
 import Pagination from "./components/Pagination";
 import "./SecretaryDashboard.css";
 import logo from "../picture/logo.png"; // Import the logo image
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
 
 // Import Chart.js components - These will no longer be directly used for the bars but might be used elsewhere
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Filler } from'chart.js';
@@ -20,6 +22,40 @@ const formatTimeTo12Hour = (time24h) => {
   const displayHours = hours % 12 || 12; // Converts 0 (midnight) to 12 AM, 13 to 1 PM etc.
   const displayMinutes = String(minutes).padStart(2, '0');
   return `${displayHours}:${displayMinutes} ${ampm}`; // Corrected typo here (ampm instead of amppm)
+};
+
+// Helper function to format date to "Month Day, Year" format
+const formatDateToReadable = (dateString) => {
+  if (!dateString) return 'N/A';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
+    
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  } catch (error) {
+    return 'N/A';
+  }
+};
+
+// Helper function to format date for charts (MMM DD, YYYY)
+const formatDateForChart = (dateString) => {
+  if (!dateString) return 'N/A';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
+    
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  } catch (error) {
+    return 'N/A';
+  }
 };
 
 // Helper function to determine lab status
@@ -513,6 +549,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
   const [currentPageLabSearchPatients, setCurrentPageLabSearchPatients] = useState(1); // New state for this specific patient list
   const LAB_SEARCH_PATIENTS_PER_PAGE = 10; // New: Define how many patients per page (you can adjust this number)
+
+  const [currentPageHealthMetrics, setCurrentPageHealthMetrics] = useState(1); // New state for health metrics pagination
+  const HEALTH_METRICS_PER_PAGE = 7; // Define how many health metrics per page
   
   // State for patient count over the past 6 months
   const [patientCountHistory, setPatientCountHistory] = useState([]);
@@ -1384,7 +1423,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
  const fetchAllAppointments = async () => {
   const now = new Date();
-  const nowISO = now.toISOString();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Start of today
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1); // Start of tomorrow
 
   const { data, error } = await supabase
     .from("appointments")
@@ -1399,28 +1441,28 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       doctors (first_name, last_name)
     `)
     .eq("secretary_id", user.secretary_id)
+    .gte("appointment_datetime", today.toISOString())
+    .lt("appointment_datetime", tomorrow.toISOString())
     .order("appointment_datetime", { ascending: true });
 
   if (error) {
     console.error("Error fetching appointments:", error);
     setMessage(`Error fetching appointments: ${error.message}`);
   } else {
-    // Filter out finished/done/cancelled and past appointments
+    // Filter out finished/done/cancelled appointments, but keep all today's appointments
     const filtered = data.filter(app => {
       const state = (app.appointment_state || '').toLowerCase();
-      const isFuture = new Date(app.appointment_datetime) >= now;
       const isActive = state !== 'finished' && state !== 'done' && state !== 'cancelled';
-      return isFuture && isActive;
+      return isActive;
     });
 
     setAppointmentsToday(filtered.map(app => {
-      const formattedDatePart = app.appointment_datetime.split('T')[0];
       const formattedTimePart = app.appointment_datetime.substring(11, 16);
       return {
         ...app,
         patient_name: app.patients ? `${app.patients.first_name} ${app.patients.last_name}` : 'Unknown Patient',
         doctor_name: app.doctors ? `${app.doctors.first_name} ${app.doctors.last_name}` : 'Unknown Doctor',
-        dateTimeDisplay: `${formattedDatePart} ${formatTimeTo12Hour(formattedTimePart)}`,
+        timeDisplay: formatTimeTo12Hour(formattedTimePart),
       };
     }));
   }
@@ -1925,6 +1967,12 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     const startIndexLabSearchPatient = (currentPageLabSearchPatients - 1) * LAB_SEARCH_PATIENTS_PER_PAGE;
     const endIndexLabSearchPatient = startIndexLabSearchPatient + LAB_SEARCH_PATIENTS_PER_PAGE;
     const paginatedLabSearchPatients = filteredPatients.slice(startIndexLabSearchPatient, endIndexLabSearchPatient);
+
+    // Health Metrics pagination calculations
+    const totalHealthMetricsPages = Math.ceil(allPatientHealthMetrics.length / HEALTH_METRICS_PER_PAGE);
+    const startIndexHealthMetrics = (currentPageHealthMetrics - 1) * HEALTH_METRICS_PER_PAGE;
+    const endIndexHealthMetrics = startIndexHealthMetrics + HEALTH_METRICS_PER_PAGE;
+    const paginatedHealthMetrics = allPatientHealthMetrics.slice(startIndexHealthMetrics, endIndexHealthMetrics);
     
   const handleLabInputChange = (field, value) => {
     setLabResults(prev => ({ ...prev, [field]: value }));
@@ -1940,6 +1988,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
   // Function to open the patient detail view (not a modal anymore)
   const handleViewPatientDetails = (patient) => {
     setSelectedPatientForDetail(patient);
+    setCurrentPageHealthMetrics(1); // Reset health metrics pagination when viewing new patient
     setActivePage("patient-detail-view"); // Change to new page state
   };
 
@@ -1957,6 +2006,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
   const handleClosePatientDetailModal = () => {
     setActivePage("patient-list"); // Go back to patient list
     setSelectedPatientForDetail(null); // Clear the selected patient when closing
+    setCurrentPageHealthMetrics(1); // Reset health metrics pagination
     setLastLabDate('N/A'); // Reset last lab date
     setPatientLabResults({ // Reset lab results when closing
       hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
@@ -2361,7 +2411,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     <table className="appointment-list-table"> {/* Class added for potential styling */}
                       <thead>
                         <tr>
-                          <th>Date & Time</th> {/* Changed to Date & Time */}
+                          <th>Time</th> {/* Changed to Time only */}
                           <th>Patient Name</th>
                           <th>Status</th>
                           <th>Actions</th>
@@ -2376,7 +2426,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           )
                           .map((appointment) => (
                             <tr key={appointment.appointment_id}>
-                              <td>{appointment.dateTimeDisplay}</td> {/* Use the new dateTimeDisplay */}
+                              <td>{appointment.timeDisplay}</td> {/* Use the new timeDisplay */}
                               <td>{appointment.patient_name}</td>
                               <td className="appointment-status">
                                 <span className={`status-${(appointment.appointment_state || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
@@ -2761,7 +2811,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       {paginatedPatients.map.length > 0 ? (
                         paginatedPatients.map((pat) => (
                           <tr key={pat.patient_id}>
-                            <td>{pat.first_name} {pat.last_name}</td>
+                            <td className="patient-name-cell">
+                              <div className="patient-name-container">
+                                <img 
+                                  src={pat.patient_picture || "../picture/secretary.png"} 
+                                  alt="Patient Avatar" 
+                                  className="patient-avatar-table"
+                                  onError={(e) => e.target.src = "../picture/secretary.png"}
+                                />
+                                <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
+                              </div>
+                            </td>
                             <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
                             <td className={`patient-phase ${
                             pat.phase === 'Pre-Operative' ? 'phase-pre-operative' :
@@ -2782,12 +2842,16 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                             {pat.profile_status}
                           </td>
-                            <td>{pat.last_doctor_visit || 'N/A'}</td> {/* Corrected line */}
+                            <td>{formatDateToReadable(pat.last_doctor_visit)}</td> {/* Updated to use new date format */}
                             <td className="patient-actions-cell">
-                              {/* Updated View button to use the new handler */}
-                              <button className="view-button" onClick={() => handleViewPatientDetails(pat)}>View</button>
-                              <button className="edit-button" onClick={() => handleEditPatient(pat)}>Edit</button>
-                              <button className="delete-button" onClick={() => handleDeletePatient(pat.patient_id)}>Delete</button>
+                              {/* Enter Labs button to go to lab result entry */}
+                              <button className="enter-labs-button" onClick={() => {
+                                setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
+                                setLabEntryStep(2);
+                                setActivePage("lab-result-entry");
+                              }}>🧪 Enter Labs</button>
+                              {/* View button to view patient details */}
+                              <button className="view-button" onClick={() => handleViewPatientDetails(pat)}>👁️ View</button>
                             </td>
                           </tr>
                           
@@ -2855,10 +2919,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         </div>
                                         <div className="patient-details-grid">
                                             <div className="patient-detail-item">
-                                                <span className="detail-label">Patient ID:</span>
-                                                <span className="detail-value">{selectedPatientForDetail.id ? `PO${String(selectedPatientForDetail.id).padStart(4, '0')}` : 'N/A'}</span>
-                                            </div>
-                                            <div className="patient-detail-item">
                                                 <span className="detail-label">Diabetes Type:</span>
                                                 <span className="detail-value">{selectedPatientForDetail.diabetes_type || 'N/A'}</span>
                                             </div>
@@ -2879,18 +2939,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                                 </span>
                                             </div>
                                             <div className="patient-detail-item">
-                                                <span className="detail-label">Smoking History:</span>
-                                                <span className="detail-value">{selectedPatientForDetail.smoking_status || 'N/A'}</span>
+                                                <span className="detail-label">Hypertensive:</span>
+                                                <span className="detail-value">{selectedPatientForDetail.complication_history?.includes("Hypertensive") ? "Yes" : "No"}</span>
                                             </div>
                                             <div className="patient-detail-item">
                                                 <span className="detail-label">Heart Disease:</span>
                                                 <span className="detail-value">{selectedPatientForDetail.complication_history?.includes("Heart Attack") ? "Yes" : "None"}</span>
                                             </div>
-                                            <div className="patient-detail-item">
-                                                <span className="detail-label">Hypertensive:</span>
-                                                <span className="detail-value">{selectedPatientForDetail.complication_history?.includes("Hypertensive") ? "Yes" : "No"}</span>
-                                            </div>
                                         </div>
+                                         <div className="patient-detail-item">
+                                                <span className="detail-label">Smoking History:</span>
+                                                <span className="detail-value">{selectedPatientForDetail.smoking_status || 'N/A'}</span>
+                                            </div>
                                     </div>
                                 </div>
                             </div>
@@ -2898,7 +2958,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             {/* Laboratory Result Section */}
                             <div className="laboratory-results-section">
                                 <h3>Laboratory Results (Latest)</h3>
-                                <p><strong>Date Submitted:</strong> {lastLabDate}</p>
+                                <p><strong>Date Submitted:</strong> {formatDateToReadable(lastLabDate)}</p>
                                 <p><strong>HbA1c:</strong> {patientLabResults.hba1c}</p>
                                 <p><strong>Creatinine:</strong> {patientLabResults.creatinine}</p>
                                 <p><strong>GOT (AST):</strong> {patientLabResults.gotAst}</p>
@@ -2927,7 +2987,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 <div className="chart-wrapper">
                                   <Line
                                     data={{
-                                      labels: allPatientHealthMetrics.slice(-5).map(entry => new Date(entry.submission_date).toLocaleDateString()),
+                                      labels: allPatientHealthMetrics.slice(-5).map(entry => formatDateForChart(entry.submission_date)),
                                       datasets: [{
                                         label: 'Blood Glucose',
                                         data: allPatientHealthMetrics.slice(-5).map(entry => parseFloat(entry.blood_glucose) || 0),
@@ -3008,32 +3068,55 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 <div className="chart-wrapper">
                                   <Bar
                                     data={{
-                                      labels: allPatientHealthMetrics.slice(-5).map(entry => new Date(entry.submission_date).toLocaleDateString()),
+                                      labels: allPatientHealthMetrics.slice(-5).map(entry => formatDateForChart(entry.submission_date)),
                                       datasets: [
-                                        {
-                                          label: 'Systolic',
-                                          data: allPatientHealthMetrics.slice(-5).map(entry => parseFloat(entry.bp_systolic) || 0),
-                                          backgroundColor: 'rgba(255, 99, 132, 0.6)',
-                                          borderColor: 'rgba(255, 99, 132, 1)',
-                                          borderWidth: 1,
-                                          barThickness: 10,
-                                        },
                                         {
                                           label: 'Diastolic',
                                           data: allPatientHealthMetrics.slice(-5).map(entry => parseFloat(entry.bp_diastolic) || 0),
-                                          backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                                          borderColor: 'rgba(54, 162, 235, 1)',
+                                          backgroundColor: 'rgba(134, 239, 172, 0.8)', // Light green for diastolic
+                                          borderColor: 'rgba(134, 239, 172, 1)',
                                           borderWidth: 1,
-                                          barThickness: 10,
+                                          barThickness: 25,
+                                          borderRadius: {
+                                            topLeft: 0,
+                                            topRight: 0,
+                                            bottomLeft: 8,
+                                            bottomRight: 8
+                                          },
+                                          borderSkipped: false,
+                                        },
+                                        {
+                                          label: 'Systolic',
+                                          data: allPatientHealthMetrics.slice(-5).map(entry => parseFloat(entry.bp_systolic) || 0),
+                                          backgroundColor: 'rgba(34, 197, 94, 0.8)', // Dark green for systolic
+                                          borderColor: 'rgba(34, 197, 94, 1)',
+                                          borderWidth: 1,
+                                          barThickness: 25,
+                                          borderRadius: {
+                                            topLeft: 8,
+                                            topRight: 8,
+                                            bottomLeft: 0,
+                                            bottomRight: 0
+                                          },
+                                          borderSkipped: false,
                                         },
                                       ],
                                     }}
                                     options={{
                                       responsive: true,
                                       maintainAspectRatio: false,
+                                      interaction: {
+                                        intersect: false,
+                                        mode: 'index',
+                                      },
                                       plugins: {
                                         legend: {
-                                          display: false,
+                                          display: true,
+                                          position: 'top',
+                                          labels: {
+                                            usePointStyle: true,
+                                            padding: 20,
+                                          }
                                         },
                                         tooltip: {
                                           callbacks: {
@@ -3044,7 +3127,20 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         }
                                       },
                                       scales: {
+                                        x: {
+                                          stacked: true,
+                                          grid: {
+                                            display: false
+                                          },
+                                          title: {
+                                            display: true,
+                                            text: 'Date'
+                                          },
+                                          categoryPercentage: 0.8,
+                                          barPercentage: 0.9,
+                                        },
                                         y: {
+                                          stacked: true,
                                           beginAtZero: true,
                                           title: {
                                             display: true,
@@ -3060,15 +3156,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                               }
                                               return null;
                                             }
-                                          }
-                                        },
-                                        x: {
-                                          grid: {
-                                            display: false
-                                          },
-                                          title: {
-                                            display: true,
-                                            text: 'Date'
                                           }
                                         }
                                       }
@@ -3151,8 +3238,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             
                             {/* Current Medications Section */}
                             <div className="current-medications-section">
-                                <h3>Current Medications:</h3>
                                 <div className="medications-table-container">
+                                  <label>Current Medications:</label>
                                   <table className="medications-table">
                                     <thead>
                                       <tr>
@@ -3160,21 +3247,38 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         <th>Dosage</th>
                                         <th>Frequency</th>
                                         <th>Prescribed by</th>
+                                        <th>Actions</th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       {patientMedications.length > 0 ? (
                                         patientMedications.map((med, idx) => (
                                           <tr key={med.id || idx}>
-                                            <td>{med.name || 'N/A'}</td>
-                                            <td>{med.dosage || 'N/A'}</td>
-                                            <td>{med.medication_frequencies && med.medication_frequencies.length > 0 ? med.medication_frequencies.map(f => `${f.frequency}`).join(', ') : 'N/A'}</td>
-                                            <td>{(med.doctors && med.doctors.first_name) ? `${med.doctors.first_name} ${med.doctors.last_name}` : 'N/A'}</td>
+                                            <td><input type="text" className="med-input" value={med.name || ''} readOnly /></td>
+                                            <td><input type="text" className="med-input" value={med.dosage || ''} readOnly /></td>
+                                            <td><input type="text" className="med-input" value={med.medication_frequencies && med.medication_frequencies.length > 0 ? med.medication_frequencies.map(f => `${f.frequency}`).join(', ') : ''} readOnly /></td>
+                                            <td><input type="text" className="med-input" value={(med.doctors && med.doctors.first_name) ? `${med.doctors.first_name} ${med.doctors.last_name}` : ''} readOnly /></td>
+                                            <td className="med-actions">
+                                              <button type="button" className="add-med-button" title="Add medication">
+                                                <i className="fas fa-plus-circle"></i>
+                                              </button>
+                                              <button type="button" className="remove-med-button" title="Remove medication">
+                                                <i className="fas fa-minus-circle"></i>
+                                              </button>
+                                            </td>
                                           </tr>
                                         ))
                                       ) : (
                                         <tr>
-                                          <td colSpan="4">No medications listed.</td>
+                                          <td><input type="text" className="med-input" placeholder="No medications" readOnly /></td>
+                                          <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
+                                          <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
+                                          <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
+                                          <td className="med-actions">
+                                            <button type="button" className="add-med-button" title="Add medication">
+                                              <i className="fas fa-plus-circle"></i>
+                                            </button>
+                                          </td>
                                         </tr>
                                       )}
                                     </tbody>
@@ -3182,34 +3286,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 </div>
                             </div>
                             
-                            {/* Appointment Schedule Section */}
-                            <div className="appointment-schedule-section">
-                                <h3>Appointment Schedule</h3>
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>Date</th>
-                                            <th>Time</th>
-                                            <th>Notes</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {patientAppointments.length > 0 ? (
-                                            patientAppointments.map((appointment, idx) => (
-                                                <tr key={idx}>
-                                                    <td>{appointment.appointment_datetime.split('T')[0]}</td>
-                                                    <td>{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</td>
-                                                    <td>{appointment.notes || 'N/A'}</td>
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr>
-                                                <td colSpan="3">No appointments scheduled for this patient.</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                           
 
                             {/* Health Metrics History Table */}
                             <div className="health-metrics-history-section">
@@ -3224,10 +3301,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {allPatientHealthMetrics.length > 0 ? (
-                                            allPatientHealthMetrics.map((metric, index) => (
+                                        {paginatedHealthMetrics.length > 0 ? (
+                                            paginatedHealthMetrics.map((metric, index) => (
                                                 <tr key={index}>
-                                                    <td>{new Date(metric.submission_date).toLocaleString()}</td>
+                                                    <td>{formatDateToReadable(metric.submission_date) + ' ' + formatTimeTo12Hour(new Date(metric.submission_date).toTimeString().substring(0, 5))}</td>
                                                     <td>{metric.blood_glucose || 'N/A'}</td>
                                                     <td>
                                                         {metric.bp_systolic !== null && metric.bp_diastolic !== null
@@ -3246,6 +3323,105 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         )}
                                     </tbody>
                                 </table>
+                                
+                                {/* Health Metrics Pagination */}
+                                {allPatientHealthMetrics.length > HEALTH_METRICS_PER_PAGE && (
+                                    <Pagination
+                                        currentPage={currentPageHealthMetrics}
+                                        totalPages={totalHealthMetricsPages}
+                                        onPageChange={setCurrentPageHealthMetrics}
+                                        itemsPerPage={HEALTH_METRICS_PER_PAGE}
+                                        totalItems={allPatientHealthMetrics.length}
+                                        showPageInfo={false}
+                                    />
+                                )}
+                            </div>
+                             {/* Appointment Schedule Section */}
+                            <div className="appointment-schedule-section">
+                                <h3>Appointment Schedule</h3>
+                                <div className="appointment-schedule-container">
+                                  <div className="appointment-calendar-container">
+                                    <Calendar
+                                      value={new Date()}
+                                      tileClassName={({ date, view }) => {
+                                        if (view === 'month') {
+                                          // Check if this date has an appointment
+                                          const hasAppointment = patientAppointments.some(appointment => {
+                                            const appointmentDate = new Date(appointment.appointment_datetime);
+                                            return (
+                                              appointmentDate.getDate() === date.getDate() &&
+                                              appointmentDate.getMonth() === date.getMonth() &&
+                                              appointmentDate.getFullYear() === date.getFullYear()
+                                            );
+                                          });
+                                          return hasAppointment ? 'appointment-date' : null;
+                                        }
+                                      }}
+                                      tileContent={({ date, view }) => {
+                                        if (view === 'month') {
+                                          const dayAppointments = patientAppointments.filter(appointment => {
+                                            const appointmentDate = new Date(appointment.appointment_datetime);
+                                            return (
+                                              appointmentDate.getDate() === date.getDate() &&
+                                              appointmentDate.getMonth() === date.getMonth() &&
+                                              appointmentDate.getFullYear() === date.getFullYear()
+                                            );
+                                          });
+                                  
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                  
+                                  {/* Appointment Details List */}
+                                  <div className="appointment-details-list">
+                                    <h4>
+                                      {(() => {
+                                        const now = new Date();
+                                        const futureAppointments = patientAppointments.filter(appointment => 
+                                          new Date(appointment.appointment_datetime) > now
+                                        );
+                                        return futureAppointments.length > 0 ? 'Upcoming Appointments' : 'Recent Appointments';
+                                      })()}
+                                    </h4>
+                                    {(() => {
+                                      const now = new Date();
+                                      const futureAppointments = patientAppointments.filter(appointment => 
+                                        new Date(appointment.appointment_datetime) > now
+                                      );
+                                      
+                                      let appointmentsToShow = [];
+                                      if (futureAppointments.length > 0) {
+                                        appointmentsToShow = futureAppointments.slice(0, 3);
+                                      } else {
+                                        // Show 3 most recent appointments
+                                        appointmentsToShow = patientAppointments
+                                          .sort((a, b) => new Date(b.appointment_datetime) - new Date(a.appointment_datetime))
+                                          .slice(0, 3);
+                                      }
+                                      
+                                      if (appointmentsToShow.length > 0) {
+                                        return (
+                                          <ul className="appointment-list">
+                                            {appointmentsToShow.map((appointment, idx) => (
+                                              <li key={idx} className="appointment-item">
+                                                <div className="appointment-date-time">
+                                                  <strong>{formatDateToReadable(appointment.appointment_datetime.split('T')[0])}</strong>
+                                                  <span className="appointment-time">{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</span>
+                                                </div>
+                                                <div className="appointment-notes">
+                                                  {appointment.notes || 'No notes'}
+                                                </div>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        );
+                                      } else {
+                                        return <p className="no-appointments">No appointments scheduled for this patient.</p>;
+                                      }
+                                    })()}
+                                  </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3270,11 +3446,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         
                                         <div className="photo-info">
                                             <div className="photo-timestamp">
-                                                <span className="photo-date">{new Date(photo.date).toLocaleDateString('en-US', { 
-                                                    month: 'short', 
-                                                    day: 'numeric', 
-                                                    year: 'numeric' 
-                                                })}</span>
+                                                <span className="photo-date">{formatDateToReadable(photo.date)}</span>
                                                 <span className="photo-time">| {new Date(photo.date).toLocaleTimeString('en-US', { 
                                                     hour: 'numeric', 
                                                     minute: '2-digit', 
@@ -3341,7 +3513,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                     : 'Unknown Doctor'}
                                 </td>
                                 <td>{specialist.doctors?.specialization || 'General'}</td>
-                                <td>{new Date(specialist.assigned_at).toLocaleDateString()}</td>
+                                <td>{formatDateToReadable(specialist.assigned_at)}</td>
                                 <td>
                                   <button 
                                     className="remove-specialist-button"
@@ -3524,7 +3696,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             {paginatedLabSearchPatients.length > 0 ? (
                               paginatedLabSearchPatients.map((pat) => (
                                 <tr key={pat.patient_id}>
-                                  <td>{pat.first_name} {pat.last_name}</td>
+                                  <td className="patient-name-cell">
+                                    <div className="patient-name-container">
+                                      <img 
+                                        src={pat.patient_picture || "../picture/secretary.png"} 
+                                        alt="Patient Avatar" 
+                                        className="patient-avatar-table"
+                                        onError={(e) => e.target.src = "../picture/secretary.png"}
+                                      />
+                                      <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
+                                    </div>
+                                  </td>
                                   <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
                                   <td className={`risk-classification-${(pat.risk_classification || 'N/A').toLowerCase()}`}>
                                     {pat.risk_classification || 'N/A'}
@@ -3753,7 +3935,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         {allPatientLabResultsHistory.length > 0 ? (
                           allPatientLabResultsHistory.map((labEntry, index) => (
                             <tr key={index}>
-                              <td>{labEntry.date_submitted || 'N/A'}</td>
+                              <td>{formatDateToReadable(labEntry.date_submitted)}</td>
                               <td>{labEntry.Hba1c || 'N/A'}</td>
                               <td>{labEntry.creatinine || 'N/A'}</td>
                               <td>{labEntry.got_ast || 'N/A'}</td>
@@ -3867,7 +4049,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
               .map((patient) => (
                 <tr key={patient.patient_id}>
                   <td>{patient.first_name} {patient.last_name}</td>
-                  <td>{patient.latest_lab_date}</td>
+                  <td>{formatDateToReadable(patient.latest_lab_date)}</td>
                 </tr>
               ))}
             {/* Display message if no patients meet the criteria */}
