@@ -787,6 +787,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   });
   // NEW STATE FOR WOUND PHOTO URL and its date
   const [allWoundPhotos, setAllWoundPhotos] = useState([]);
+  const [woundPhotosLoading, setWoundPhotosLoading] = useState(false);
 
   // NEW STATE FOR ALL PATIENT HEALTH METRICS HISTORY (FOR CHARTS)
   const [allPatientHealthMetrics, setAllPatientHealthMetrics] = useState([]);
@@ -1060,11 +1061,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
   // NEW function to fetch wound photos separately
   const fetchAllWoundPhotos = async (patientId) => {
-    setAllWoundPhotos([]); // Clear previous wound photos
     if (!patientId) {
       console.log("WOUND PHOTOS FETCH: No patient ID provided.");
+      setAllWoundPhotos([]); // Only clear if no patient ID
+      setWoundPhotosLoading(false);
       return;
     }
+    
+    setWoundPhotosLoading(true);
     console.log(`WOUND PHOTOS FETCH: Attempting to fetch for patient ID: ${patientId}`);
   
     try {
@@ -1081,6 +1085,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       if (healthError) {
         console.error("WOUND PHOTOS FETCH: Error fetching wound photo URLs from DB:", healthError.message);
         setAllWoundPhotos([]);
+        setWoundPhotosLoading(false);
         return;
       }
   
@@ -1114,8 +1119,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             });
           }
         }
+        
+        // Only update state if we have actual photos or if it's different from current state
         setAllWoundPhotos(photosArray);
-        console.log("WOUND PHOTOS FETCH: Successfully set all wound photos:", photosArray);
+        if (photosArray.length > 0) {
+          console.log("WOUND PHOTOS FETCH: Successfully set all wound photos:", photosArray);
+        } else {
+          console.log("WOUND PHOTOS FETCH: No wound photos found for this patient.");
+        }
       } else {
         setAllWoundPhotos([]);
         console.log("WOUND PHOTOS FETCH: No healthData found for this patient or healthData is empty.");
@@ -1123,17 +1134,32 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     } catch (error) {
       console.error("WOUND PHOTOS FETCH: Unexpected error during wound photo fetch:", error);
       setAllWoundPhotos([]);
+    } finally {
+      setWoundPhotosLoading(false);
     }
   };
 
-  // NEW useEffect for fetching wound photos
+  // NEW useEffect for fetching wound photos (with debouncing to prevent flickering)
   useEffect(() => {
-    if (selectedPatientForDetail && selectedPatientForDetail.patient_id) {
-      fetchAllWoundPhotos(selectedPatientForDetail.patient_id);
-    } else {
-      setAllWoundPhotos([]); // Reset all wound photos when no patient is selected
-    }
-  }, [selectedPatientForDetail]);
+    let isMounted = true; // Flag to prevent state updates if component unmounts
+    
+    const fetchWoundPhotosDebounced = async () => {
+      if (selectedPatientForDetail && selectedPatientForDetail.patient_id && isMounted) {
+        await fetchAllWoundPhotos(selectedPatientForDetail.patient_id);
+      } else if (isMounted) {
+        setAllWoundPhotos([]); // Reset wound photos when no patient is selected
+      }
+    };
+
+    // Add a small delay to prevent rapid successive calls
+    const timeoutId = setTimeout(fetchWoundPhotosDebounced, 100);
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [selectedPatientForDetail?.patient_id]); // Only depend on patient_id, not the entire object
 
 
   // Updated useEffect to fetch other patient details and ALL health metrics
@@ -1200,7 +1226,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         // --- Fetch Latest Health Metrics (Blood Glucose, Blood Pressure) for text display ---
         const { data: currentHealthData, error: currentHealthError } = await supabase
           .from('health_metrics')
-          .select('blood_glucose, bp_systolic, bp_diastolic')
+          .select('blood_glucose, bp_systolic, bp_diastolic, risk_classification')
           .eq('patient_id', selectedPatientForDetail.patient_id)
           .order('submission_date', { ascending: false })
           .limit(1);
@@ -1214,15 +1240,19 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             bloodGlucoseLevel: latestHealth.blood_glucose || 'N/A',
             bloodPressure: (latestHealth.bp_systolic !== null && latestHealth.bp_diastolic !== null) ? `${latestHealth.bp_systolic}/${latestHealth.bp_diastolic}` : 'N/A'
           });
+          // Update the selected patient's risk classification with the latest from health_metrics
+          setSelectedPatientForDetail(prev => ({
+            ...prev,
+            risk_classification: latestHealth.risk_classification
+          }));
         } else {
           setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' });
         }
 
         // --- Fetch ALL Health Metrics for Charts and Table ---
-        // Also fetch the patient's current risk classification for the table
         const { data: historyHealthData, error: historyHealthError } = await supabase
           .from('health_metrics')
-          .select('blood_glucose, bp_systolic, bp_diastolic, submission_date')
+          .select('blood_glucose, bp_systolic, bp_diastolic, submission_date, risk_classification')
           .eq('patient_id', selectedPatientForDetail.patient_id)
           .order('submission_date', { ascending: true });
 
@@ -1230,12 +1260,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             console.error("Error fetching historical health metrics for charts:", historyHealthError.message);
             setAllPatientHealthMetrics([]);
         } else if (historyHealthData) {
-            // For the history table, we'll use the *current* risk classification
-            const healthMetricsWithRisk = historyHealthData.map(entry => ({
-                ...entry,
-                risk_classification: selectedPatientForDetail.risk_classification // Attach current risk classification
-            }));
-            setAllPatientHealthMetrics(healthMetricsWithRisk);
+            // Use the actual risk classification from each health metric entry
+            setAllPatientHealthMetrics(historyHealthData);
         } else {
             setAllPatientHealthMetrics([]);
         }
@@ -1350,10 +1376,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             .eq('patient_id', patient.patient_id)
             .order('date_submitted', { ascending: false })
             .limit(1);
-  
+
           let labStatus = 'Awaiting';
           let latestLabDate = null;
-  
+
           if (labError) {
             console.error(`Error fetching lab results for patient ${patient.patient_id}:`, labError.message);
             labStatus = 'Error'; // Handle error case
@@ -1365,19 +1391,33 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
               latestLabDate = latestLabData[0].date_submitted;
             }
           }
-  
+
+          // Fetch the latest risk classification from health_metrics table
+          const { data: latestHealthData, error: healthError } = await supabase
+            .from('health_metrics')
+            .select('risk_classification')
+            .eq('patient_id', patient.patient_id)
+            .order('submission_date', { ascending: false })
+            .limit(1);
+
+          let riskClassification = null;
+          if (healthError) {
+            console.error(`Error fetching health metrics for patient ${patient.patient_id}:`, healthError.message);
+          } else if (latestHealthData && latestHealthData.length > 0) {
+            riskClassification = latestHealthData[0].risk_classification;
+          }
+
           const processedPatient = {
             ...patient,
             lab_status: labStatus,
             latest_lab_date: latestLabDate,
-            profile_status: getProfileStatus(patient), // Add this line
+            profile_status: getProfileStatus(patient),
+            risk_classification: riskClassification, // Use the risk classification from health_metrics
           };
           console.log(`Patient ${patient.patient_id} - Processed Patient Object:`, processedPatient); // Debug log
           return processedPatient;
         })
-    );
-  
-    setPatients(filteredAndProcessedPatients);
+    );    setPatients(filteredAndProcessedPatients);
     console.log("Final patients state after fetch:", filteredAndProcessedPatients); // Debug log
     setTotalPatientsCount(filteredAndProcessedPatients.length);
   
@@ -1401,7 +1441,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       const risk = (patient.risk_classification || '').toLowerCase();
       if (risk === 'low') {
         lowRisk++;
-      } else if (risk === 'medium') {
+      } else if (risk === 'moderate') {
         moderateRisk++;
       } else if (risk === 'high') {
         highRisk++;
@@ -2053,6 +2093,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' }); // Reset health metrics
     setAllPatientHealthMetrics([]); // Reset historical data
     setWoundPhotoData({ url: '', date: '' }); // Reset wound photo URL
+    setAllWoundPhotos([]); // Reset wound photos
+    setWoundPhotosLoading(false); // Reset wound photos loading state
     setPatientAppointments([]);
   };
 
@@ -3581,7 +3623,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     <div className="wound-gallery-section">
                         <h3>Wound Gallery</h3>
                         <div className="wound-gallery-grid">
-                            {allWoundPhotos.length > 0 ? (
+                            {woundPhotosLoading ? (
+                                <div className="loading-message">
+                                    <p>Loading wound photos...</p>
+                                </div>
+                            ) : allWoundPhotos.length > 0 ? (
                                 allWoundPhotos.map((photo, index) => (
                                     <div key={index} className="wound-gallery-card">
                                         <div className="wound-photo-container">
@@ -3589,6 +3635,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                                 src={photo.url}
                                                 alt={`Wound Photo - ${photo.date}`}
                                                 className="wound-photo-image"
+                                                onLoad={() => console.log(`Wound photo ${index} loaded successfully`)}
+                                                onError={(e) => {
+                                                    console.error(`Failed to load wound photo ${index}:`, photo.url);
+                                                    e.target.style.display = 'none';
+                                                }}
                                             />
                                             <button className="photo-expand-btn">
                                                 <i className="fas fa-expand"></i>

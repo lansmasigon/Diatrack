@@ -74,7 +74,32 @@ const Dashboard = ({ user, onLogout }) => {
         .order("patient_id", { ascending: true });
 
       if (error) throw error;
-      setPatients([...data]);
+
+      // Fetch latest risk classification for each patient from health_metrics
+      const patientsWithRisk = await Promise.all(
+        data.map(async (patient) => {
+          const { data: healthData, error: healthError } = await supabase
+            .from('health_metrics')
+            .select('risk_classification')
+            .eq('patient_id', patient.patient_id)
+            .order('submission_date', { ascending: false })
+            .limit(1);
+
+          let riskClassification = null;
+          if (healthError) {
+            console.error(`Error fetching health metrics for patient ${patient.patient_id}:`, healthError.message);
+          } else if (healthData && healthData.length > 0) {
+            riskClassification = healthData[0].risk_classification;
+          }
+
+          return {
+            ...patient,
+            risk_classification: riskClassification
+          };
+        })
+      );
+
+      setPatients(patientsWithRisk);
     } catch (err) {
       setError("Error fetching patients: " + err.message);
     } finally {
@@ -733,7 +758,7 @@ const handleConfirmAction = async () => {
 
   // NEW: Function to get counts of patients by risk classification
   const getPatientRiskCounts = () => {
-    const counts = { Low: 0, Medium: 0, High: 0 };
+    const counts = { Low: 0, Moderate: 0, High: 0 };
     patients.forEach(patient => {
       if (counts.hasOwnProperty(patient.risk_classification)) {
         counts[patient.risk_classification]++;
@@ -757,7 +782,7 @@ const getPatientPhaseCounts = () => {
   // NEW: Render Reports Content
 const renderReportsContent = () => {
   const riskCounts = getPatientRiskCounts();
-  const maxRiskCount = Math.max(riskCounts.Low, riskCounts.Medium, riskCounts.High); // Renamed from maxCount for clarity
+  const maxRiskCount = Math.max(riskCounts.Low, riskCounts.Moderate, riskCounts.High); // Renamed from maxCount for clarity
 
   const phaseCounts = getPatientPhaseCounts(); // Get phase counts inside the function
   const maxPhaseCount = Math.max(phaseCounts['Pre-Operative'], phaseCounts['Post-Operative']); // Define maxPhaseCount here
