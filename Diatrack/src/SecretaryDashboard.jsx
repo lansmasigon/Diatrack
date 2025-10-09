@@ -1422,11 +1422,19 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
   };
 
  const fetchAllAppointments = async () => {
+  // Since we're storing appointments as UTC, we need to adjust our date range
+  // to account for the fact that a "today" appointment might be stored as tomorrow in UTC
   const now = new Date();
   const today = new Date();
-  today.setHours(0, 0, 0, 0); // Start of today
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1); // Start of tomorrow
+  today.setHours(0, 0, 0, 0); // Start of today in local time
+  
+  // Expand the search range to include appointments that might appear as different dates due to UTC storage
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - 1); // Start from yesterday
+  const endDate = new Date(today);
+  endDate.setDate(endDate.getDate() + 2); // Go to day after tomorrow
+
+  console.log("Fetching appointments in expanded range:", startDate.toISOString(), "to", endDate.toISOString());
 
   const { data, error } = await supabase
     .from("appointments")
@@ -1441,30 +1449,52 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       doctors (first_name, last_name)
     `)
     .eq("secretary_id", user.secretary_id)
-    .gte("appointment_datetime", today.toISOString())
-    .lt("appointment_datetime", tomorrow.toISOString())
+    .gte("appointment_datetime", startDate.toISOString())
+    .lt("appointment_datetime", endDate.toISOString())
     .order("appointment_datetime", { ascending: true });
+
+  console.log("Raw appointment data fetched:", data);
+  console.log("Appointment fetch error:", error);
 
   if (error) {
     console.error("Error fetching appointments:", error);
     setMessage(`Error fetching appointments: ${error.message}`);
   } else {
-    // Filter out finished/done/cancelled appointments, but keep all today's appointments
-    const filtered = data.filter(app => {
+    // Filter to only show appointments that are actually "today" when we extract the date
+    const todayDateString = today.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+    
+    const todaysAppointments = data.filter(app => {
       const state = (app.appointment_state || '').toLowerCase();
       const isActive = state !== 'finished' && state !== 'done' && state !== 'cancelled';
-      return isActive;
+      
+      // Extract the date part from the stored datetime and compare with today
+      const appointmentDateString = app.appointment_datetime.substring(0, 10); // Gets YYYY-MM-DD
+      const isToday = appointmentDateString === todayDateString;
+      
+      console.log("Checking appointment:", app.appointment_id, "Date:", appointmentDateString, "Today:", todayDateString, "IsToday:", isToday, "IsActive:", isActive);
+      
+      return isActive && isToday;
     });
 
-    setAppointmentsToday(filtered.map(app => {
-      const formattedTimePart = app.appointment_datetime.substring(11, 16);
+    console.log("Filtered appointments for today:", todaysAppointments);
+
+    const processedAppointments = todaysAppointments.map(app => {
+      // Extract time directly from the ISO string (HH:MM format)
+      // Since we stored it as UTC, we just extract the time part
+      const timeString = app.appointment_datetime.substring(11, 16); // Gets HH:MM
+      
+      console.log("Processing appointment:", app.appointment_id, "Raw datetime:", app.appointment_datetime, "Extracted time:", timeString);
+      
       return {
         ...app,
         patient_name: app.patients ? `${app.patients.first_name} ${app.patients.last_name}` : 'Unknown Patient',
         doctor_name: app.doctors ? `${app.doctors.first_name} ${app.doctors.last_name}` : 'Unknown Doctor',
-        timeDisplay: formatTimeTo12Hour(formattedTimePart),
+        timeDisplay: formatTimeTo12Hour(timeString),
       };
-    }));
+    });
+
+    console.log("Final processed appointments for today table:", processedAppointments);
+    setAppointmentsToday(processedAppointments);
   }
 };
 
@@ -1801,10 +1831,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       return;
     }
 
-    // IMPORTANT FIX: Append 'Z' to the time string to ensure it's treated as UTC.
-    // This makes sure the entered HH:MM is preserved in the ISO string
-    // and displayed correctly without timezone shifts.
-    const appointmentDateTime = new Date(`${appointmentForm.date}T${appointmentForm.time}:00.000Z`);
+    // Create appointment datetime without timezone conversion - store exactly what user enters
+    // We'll treat the input as if it's in UTC to avoid any timezone issues
+    const dateTimeString = `${appointmentForm.date}T${appointmentForm.time}:00.000Z`; // Force UTC
+    const appointmentDateTime = new Date(dateTimeString);
+    
+    console.log("Creating appointment - User input:", `${appointmentForm.date} ${appointmentForm.time}`);
+    console.log("Storing as UTC:", dateTimeString);
+    console.log("DateTime object:", appointmentDateTime);
 
     let error;
     let appointmentData;
@@ -1866,6 +1900,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       error = insertError;
       appointmentData = data;
 
+      console.log("New appointment created:", appointmentData);
+
       // Log new appointment creation
       if (!error) {
         await logAppointmentEvent(
@@ -1889,6 +1925,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       // Reset form and editing state
       setAppointmentForm({ doctorId: "", patientId: "", date: "", time: "", notes: "" });
       setEditingAppointmentId(null);
+      console.log("About to fetch all appointments to refresh the list...");
       fetchAllAppointments(); // Refresh appointment list
     }
   };
@@ -1933,16 +1970,16 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
   // Handler for "Edit" button
   const handleEditAppointment = (appointment) => {
-    // Format date toYYYY-MM-DD for input type="date"
-    const formattedDate = appointment.appointment_datetime.split('T')[0];
-    // Extract time to HH:MM directly from the ISO string.
-    // NOTE: input type="time" expects 24-hour format, so no 12-hour conversion here.
-    const formattedTime = appointment.appointment_datetime.substring(11, 16);
+    // Extract date and time directly from the ISO string
+    const [datePart, timePart] = appointment.appointment_datetime.split('T');
+    const formattedTime = timePart.substring(0, 5); // Gets HH:MM
+
+    console.log("Editing appointment - Raw datetime:", appointment.appointment_datetime, "Extracted date:", datePart, "Extracted time:", formattedTime);
 
     setAppointmentForm({
       doctorId: appointment.doctor_id,
       patientId: appointment.patient_id,
-      date: formattedDate,
+      date: datePart,
       time: formattedTime,
       notes: appointment.notes,
     });
@@ -3032,19 +3069,16 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         y: {
                                           beginAtZero: true,
                                           title: {
-                                            display: true,
-                                            text: 'mg/dL'
+                                            display: false, // Hide y-axis title
                                           },
                                           min: 0,
-                                          max: 200,
+                                          max: 300,
                                           ticks: {
-                                            stepSize: 40,
-                                            callback: function(value) {
-                                              if (value % 40 === 0 && value >= 40 && value <= 200) {
-                                                return value;
-                                              }
-                                              return null;
-                                            }
+                                            display: false, // Hide y-axis values
+                                          },
+                                          grid: {
+                                            display: true,
+                                            color: 'rgba(0, 0, 0, 0.1)',
                                           }
                                         },
                                         x: {
@@ -3052,8 +3086,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             display: false
                                           },
                                           title: {
-                                            display: true,
-                                            text: 'Date'
+                                            display: false, // Hide x-axis title
+                                          },
+                                          ticks: {
+                                            display: false, // Hide x-axis values
                                           }
                                         }
                                       }
@@ -3068,33 +3104,33 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 <div className="chart-wrapper">
                                   <Bar
                                     data={{
-                                      labels: allPatientHealthMetrics.slice(-5).map(entry => formatDateForChart(entry.submission_date)),
+                                      labels: allPatientHealthMetrics.slice(-10).map(entry => formatDateForChart(entry.submission_date)),
                                       datasets: [
                                         {
                                           label: 'Diastolic',
-                                          data: allPatientHealthMetrics.slice(-5).map(entry => parseFloat(entry.bp_diastolic) || 0),
+                                          data: allPatientHealthMetrics.slice(-10).map(entry => parseFloat(entry.bp_diastolic) || 0),
                                           backgroundColor: 'rgba(134, 239, 172, 0.8)', // Light green for diastolic
                                           borderColor: 'rgba(134, 239, 172, 1)',
                                           borderWidth: 1,
-                                          barThickness: 25,
+                                          barThickness: 15, // Made thinner - reduced from 25
                                           borderRadius: {
                                             topLeft: 0,
                                             topRight: 0,
-                                            bottomLeft: 8,
-                                            bottomRight: 8
+                                            bottomLeft: 15, // Increased border radius for more rounded corners
+                                            bottomRight: 15
                                           },
                                           borderSkipped: false,
                                         },
                                         {
                                           label: 'Systolic',
-                                          data: allPatientHealthMetrics.slice(-5).map(entry => parseFloat(entry.bp_systolic) || 0),
+                                          data: allPatientHealthMetrics.slice(-10).map(entry => parseFloat(entry.bp_systolic) || 0),
                                           backgroundColor: 'rgba(34, 197, 94, 0.8)', // Dark green for systolic
                                           borderColor: 'rgba(34, 197, 94, 1)',
                                           borderWidth: 1,
-                                          barThickness: 25,
+                                          barThickness: 15, // Made thinner - reduced from 25
                                           borderRadius: {
-                                            topLeft: 8,
-                                            topRight: 8,
+                                            topLeft: 15, // Increased border radius for more rounded corners
+                                            topRight: 15,
                                             bottomLeft: 0,
                                             bottomRight: 0
                                           },
@@ -3133,29 +3169,144 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             display: false
                                           },
                                           title: {
-                                            display: true,
-                                            text: 'Date'
+                                            display: false, // Hide x-axis title
                                           },
-                                          categoryPercentage: 0.8,
-                                          barPercentage: 0.9,
+                                          ticks: {
+                                            display: false, // Hide x-axis values
+                                          },
+                                          categoryPercentage: 0.95, // Increased to compress gaps - was 0.8
+                                          barPercentage: 0.95, // Increased to compress gaps - was 0.9
                                         },
                                         y: {
                                           stacked: true,
                                           beginAtZero: true,
                                           title: {
-                                            display: true,
-                                            text: 'mmHg'
+                                            display: false, // Hide y-axis title
                                           },
                                           min: 0,
-                                          max: 200,
+                                          max: 350, // Increased to accommodate higher blood pressure values
                                           ticks: {
-                                            stepSize: 40,
-                                            callback: function(value) {
-                                              if (value % 40 === 0 && value >= 40 && value <= 200) {
-                                                return value;
-                                              }
-                                              return null;
+                                            display: false, // Hide y-axis values
+                                          },
+                                          grid: {
+                                            display: true,
+                                            color: 'rgba(0, 0, 0, 0.1)',
+                                          }
+                                        }
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Risk Classification History Chart - New */}
+                              <div className="risk-classification-chart-container">
+                                <h4>Risk Classification History</h4>
+                                
+                                {/* Risk Classification Legend */}
+                                <div className="risk-legend-container">
+                                  <div className="risk-legend-item">
+                                    <div className="risk-legend-color low-risk"></div>
+                                    <span>Low Risk</span>
+                                  </div>
+                                  <div className="risk-legend-item">
+                                    <div className="risk-legend-color moderate-risk"></div>
+                                    <span>Moderate Risk</span>
+                                  </div>
+                                  <div className="risk-legend-item">
+                                    <div className="risk-legend-color high-risk"></div>
+                                    <span>High Risk</span>
+                                  </div>
+                                </div>
+
+                                <div className="chart-wrapper">
+                                  <Bar
+                                    data={{
+                                      labels: allPatientHealthMetrics.slice(-10).map(entry => formatDateForChart(entry.submission_date)),
+                                      datasets: [
+                                        {
+                                          label: 'Risk Classification',
+                                          data: allPatientHealthMetrics.slice(-10).map(entry => {
+                                            const risk = entry.risk_classification?.toLowerCase();
+                                            if (risk === 'low') return 1;
+                                            if (risk === 'moderate') return 2;
+                                            if (risk === 'high') return 3;
+                                            return 0; // For unknown/null values
+                                          }),
+                                          backgroundColor: allPatientHealthMetrics.slice(-10).map(entry => {
+                                            const risk = entry.risk_classification?.toLowerCase();
+                                            if (risk === 'low') return 'rgba(34, 197, 94, 0.8)'; // Green
+                                            if (risk === 'moderate') return 'rgba(255, 193, 7, 0.8)'; // Yellow
+                                            if (risk === 'high') return 'rgba(244, 67, 54, 0.8)'; // Red
+                                            return 'rgba(156, 163, 175, 0.8)'; // Gray for unknown
+                                          }),
+                                          borderColor: allPatientHealthMetrics.slice(-10).map(entry => {
+                                            const risk = entry.risk_classification?.toLowerCase();
+                                            if (risk === 'low') return 'rgba(34, 197, 94, 1)';
+                                            if (risk === 'moderate') return 'rgba(255, 193, 7, 1)';
+                                            if (risk === 'high') return 'rgba(244, 67, 54, 1)';
+                                            return 'rgba(156, 163, 175, 1)';
+                                          }),
+                                          borderWidth: 1,
+                                          barThickness: 15,
+                                          borderRadius: {
+                                            topLeft: 8,
+                                            topRight: 8,
+                                            bottomLeft: 8,
+                                            bottomRight: 8
+                                          },
+                                          borderSkipped: false,
+                                        },
+                                      ],
+                                    }}
+                                    options={{
+                                      responsive: true,
+                                      maintainAspectRatio: false,
+                                      interaction: {
+                                        intersect: false,
+                                        mode: 'index',
+                                      },
+                                      plugins: {
+                                        legend: {
+                                          display: false, // Hide legend since colors are self-explanatory
+                                        },
+                                        tooltip: {
+                                          callbacks: {
+                                            label: function(context) {
+                                              const entry = allPatientHealthMetrics.slice(-10)[context.dataIndex];
+                                              return `Risk: ${entry.risk_classification || 'Unknown'}`;
                                             }
+                                          }
+                                        }
+                                      },
+                                      scales: {
+                                        x: {
+                                          grid: {
+                                            display: false
+                                          },
+                                          title: {
+                                            display: false,
+                                          },
+                                          ticks: {
+                                            display: false,
+                                          },
+                                          categoryPercentage: 0.95,
+                                          barPercentage: 0.95,
+                                        },
+                                        y: {
+                                          beginAtZero: true,
+                                          title: {
+                                            display: false,
+                                          },
+                                          min: 0,
+                                          max: 3, // 0=Unknown, 1=Low, 2=Moderate, 3=High
+                                          ticks: {
+                                            display: false,
+                                            stepSize: 1,
+                                          },
+                                          grid: {
+                                            display: true,
+                                            color: 'rgba(0, 0, 0, 0.1)',
                                           }
                                         }
                                       }
