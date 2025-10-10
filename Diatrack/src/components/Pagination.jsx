@@ -63,16 +63,10 @@ const Pagination = ({
 
   return (
     <div className="pagination-container">
-      {showPageInfo && (
-        <div className="pagination-info">
-          Showing {startItem} to {endItem} of {totalItems} entries
-        </div>
-      )}
-      
       <div className="pagination">
         {/* Previous Button */}
         <button
-          className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`}
+          className={`pagination-btn prev-btn ${currentPage === 1 ? 'disabled' : ''}`}
           onClick={handlePreviousClick}
           disabled={currentPage === 1}
           aria-label="Go to previous page"
@@ -85,7 +79,7 @@ const Pagination = ({
         {visiblePages[0] > 1 && (
           <>
             <button
-              className="pagination-btn"
+              className="pagination-btn page-number"
               onClick={() => handlePageClick(1)}
             >
               1
@@ -100,7 +94,7 @@ const Pagination = ({
         {visiblePages.map(page => (
           <button
             key={page}
-            className={`pagination-btn ${currentPage === page ? 'active' : ''}`}
+            className={`pagination-btn page-number ${currentPage === page ? 'active' : ''}`}
             onClick={() => handlePageClick(page)}
             aria-label={`Go to page ${page}`}
           >
@@ -115,7 +109,7 @@ const Pagination = ({
               <span className="pagination-ellipsis">...</span>
             )}
             <button
-              className="pagination-btn"
+              className="pagination-btn page-number"
               onClick={() => handlePageClick(totalPages)}
             >
               {totalPages}
@@ -125,7 +119,7 @@ const Pagination = ({
 
         {/* Next Button */}
         <button
-          className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
+          className={`pagination-btn next-btn ${currentPage === totalPages ? 'disabled' : ''}`}
           onClick={handleNextClick}
           disabled={currentPage === totalPages}
           aria-label="Go to next page"

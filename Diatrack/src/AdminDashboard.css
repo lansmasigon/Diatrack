@@ -694,7 +694,7 @@ body {
 }
 
 /* Masterlist Pagination Styles - Simple and clean */
-.pagination button {
+.admin-pagination button {
   padding: 6px 12px;
   border: 1px solid #3b82f6;
   background: #3b82f6;
@@ -707,12 +707,12 @@ body {
   min-width: 60px;
 }
 
-.pagination button:hover:not(:disabled) {
+.admin-pagination button:hover:not(:disabled) {
   background: #2563eb;
   border-color: #2563eb;
 }
 
-.pagination button:disabled {
+.admin-pagination button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   background: #6b7280;
@@ -721,29 +721,29 @@ body {
 }
 
 /* Page number buttons - white background with blue border */
-.pagination button:not(:first-child):not(:last-child) {
+.admin-pagination button:not(:first-child):not(:last-child) {
   background: white;
   color: #3b82f6;
 }
 
-.pagination button:not(:first-child):not(:last-child):hover:not(:disabled) {
+.admin-pagination button:not(:first-child):not(:last-child):hover:not(:disabled) {
   background: #3b82f6;
   color: white;
 }
 
 /* Active state for page number buttons */
-.pagination button.active {
+.admin-pagination button.active {
   background: #3b82f6 !important;
   color: white !important;
   border-color: #3b82f6 !important;
 }
 
-.pagination button.active:hover {
+.admin-pagination button.active:hover {
   background: #2563eb !important;
   border-color: #2563eb !important;
 }
 
-.pagination span {
+.admin-pagination span {
   padding: 6px 12px;
   color: #475569;
   font-weight: 500;
