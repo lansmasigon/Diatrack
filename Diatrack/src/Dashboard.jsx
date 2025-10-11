@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
 import { logMedicationChange, logPatientDataChange, logSystemAction } from "./auditLogger";
+import Header from "./components/Header";
 import "./Dashboard.css";
 import logo from '../picture/logo.png'; // Make sure this path is correct
 
@@ -1606,44 +1607,17 @@ const renderReportsContent = () => {
 
   return (
     <div className="dashboard-container-header-only3">
-      <header className="main-header3">
-        <div className="header-left3">
-          <img src={logo} alt="DiaTrack Logo" className="app-logo3" />
-          <span className="app-title3">
-            <span style={{ color: 'var(--primary-blue)' }}>Dia</span>
-            <span style={{ color: 'var(--secondary-orange)' }}>Track</span>
-          </span>
-        </div>
-
-        <nav className="header-nav3">
-          <ul>
-            <li className={activePage === "dashboard" ? "active3" : ""} onClick={() => setActivePage("dashboard")}>
-              <i className="fas fa-home"></i> <span>Dashboard</span>
-            </li>
-            <li className={activePage === "patient-list" ? "active3" : ""} onClick={() => setActivePage("patient-list")}>
-              <i className="fas fa-users"></i> <span>Patients</span>
-            </li>
-            <li className={activePage === "reports" ? "active3" : ""} onClick={() => setActivePage("reports")}>
-              <i className="fas fa-chart-line"></i> <span>Reports</span>
-            </li>
-          </ul>
-        </nav>
-
-        <div className="header-right3">
-            <div className="user-profile-header3">
-                <img src="https://placehold.co/40x40/aabbcc/ffffff?text=User" alt="User Avatar" className="user-avatar3" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/aabbcc/ffffff?text=User"; }}/>
-                <div className="user-info-header3">
-                  <span className="user-name3">{user ? `${user.first_name} ${user.last_name}` : 'Maria Batumbakal'}</span>
-                  <span className="user-role3">Doctor</span>
-                </div>
-            </div>
-            <div className="header-icons3">
-                <button className="fas fa-bell notification-icon3" onClick={() => setShowUsersPopup(true)}></button>
-                <button className="fas fa-envelope message-icon3" onClick={() => setShowMessagePopup(true)}></button>
-            </div>
-            <button className="signout-button-header3" onClick={handleLogout}><i className="fas fa-sign-out-alt"></i> <span>Logout</span></button>
-        </div>
-      </header>
+      <Header 
+        user={user}
+        activePage={activePage}
+        setActivePage={setActivePage}
+        onLogout={onLogout}
+        showUsersPopup={showUsersPopup}
+        setShowUsersPopup={setShowUsersPopup}
+        showMessagePopup={showMessagePopup}
+        setShowMessagePopup={setShowMessagePopup}
+        userRole="Doctor"
+      />
 
       <main className="content-area-full-width3">
         {activePage !== "patient-profile" && activePage !== "treatment-plan" && activePage !== "treatment-plan-next-step" && activePage !== "treatment-plan-summary" && (
@@ -1686,27 +1660,6 @@ const renderReportsContent = () => {
     </div>
   </div>
 )}
-      {/* Pop-up for Notification Icon */}
-      {showUsersPopup && (
-        <div className="popup-overlay3">
-          <div className="popup-content3">
-            <h3>Notifications</h3>
-            <p>You have new notifications!</p>
-            <button onClick={() => setShowUsersPopup(false)}>Close</button>
-          </div>
-        </div>
-      )}
-
-      {/* Pop-up for Message Icon */}
-      {showMessagePopup && (
-        <div className="popup-overlay3">
-          <div className="popup-content3">
-            <h3>Messages</h3>
-            <p>You have new messages!</p>
-            <button onClick={() => setShowMessagePopup(false)}>Close</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
