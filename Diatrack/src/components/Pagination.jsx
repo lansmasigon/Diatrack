@@ -128,6 +128,13 @@ const Pagination = ({
           <i className="fas fa-chevron-right"></i>
         </button>
       </div>
+      
+      {/* Page Information */}
+      {showPageInfo && totalItems > 0 && (
+        <div className="page-info">
+          Showing {startItem} to {endItem} of {totalItems} results
+        </div>
+      )}
     </div>
   );
 };

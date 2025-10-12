@@ -1,10 +1,20 @@
 /* Global Pagination Styles - Reusable Component */
 .pagination-container {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
     margin-top: 15px;
     padding: 15px 0;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* Page Information Styling */
+.page-info {
+    color: #666;
+    font-size: 13px;
+    font-weight: 500;
+    order: 2;
 }
 
 .pagination {
@@ -12,6 +22,7 @@
   gap: 1px;
   align-items: center;
   justify-content: center;
+  order: 1;
 }
 
 /* Pagination Button Base Styles */
@@ -126,10 +137,19 @@
 @media (max-width: 768px) {
   .pagination-container {
     padding: 15px 0;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .page-info {
+    order: 2;
+    font-size: 12px;
   }
   
   .pagination {
     gap: 1px;
+    order: 1;
   }
   
   .pagination-btn {

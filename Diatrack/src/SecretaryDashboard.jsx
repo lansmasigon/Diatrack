@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
 import { logAppointmentEvent, logPatientDataChange, logSystemAction } from "./auditLogger";
 import Pagination from "./components/Pagination";
+import RiskFilter from "./components/RiskFilter";
 import Header from "./components/Header";
 import "./SecretaryDashboard.css";
 import logo from "../picture/logo.png"; // Import the logo image
@@ -539,6 +540,8 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showPatientConfirmationModal, setShowPatientConfirmationModal] = useState(false);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
 
   const [currentPageAppointments, setCurrentPageAppointments] = useState(1);
   const APPOINTMENTS_PER_PAGE = 6; // Define how many appointments per page
@@ -553,6 +556,10 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
   const [currentPageHealthMetrics, setCurrentPageHealthMetrics] = useState(1); // New state for health metrics pagination
   const HEALTH_METRICS_PER_PAGE = 7; // Define how many health metrics per page
+  
+  // Risk filter states
+  const [selectedRiskFilter, setSelectedRiskFilter] = useState('all'); // For patient list
+  const [selectedLabRiskFilter, setSelectedLabRiskFilter] = useState('all'); // For lab entry search
   
   // State for patient count over the past 6 months
   const [patientCountHistory, setPatientCountHistory] = useState([]);
@@ -2158,9 +2165,30 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
   };
 
 
-  const filteredPatients = patients.filter((pat) =>
-    `${pat.first_name} ${pat.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredPatients = patients.filter((pat) => {
+    const nameMatch = `${pat.first_name} ${pat.last_name}`.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Risk classification filter
+    if (selectedRiskFilter === 'all') {
+      return nameMatch;
+    } else {
+      const patientRisk = (pat.risk_classification || '').toLowerCase();
+      return nameMatch && patientRisk === selectedRiskFilter;
+    }
+  });
+
+  // Filtered patients for lab entry search with separate risk filter
+  const filteredLabSearchPatients = patients.filter((pat) => {
+    const nameMatch = `${pat.first_name} ${pat.last_name}`.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Risk classification filter for lab search
+    if (selectedLabRiskFilter === 'all') {
+      return nameMatch;
+    } else {
+      const patientRisk = (pat.risk_classification || '').toLowerCase();
+      return nameMatch && patientRisk === selectedLabRiskFilter;
+    }
+  });
 
   const indexOfLastPatient = currentPagePatients * PATIENTS_PER_PAGE;
     const indexOfFirstPatient = indexOfLastPatient - PATIENTS_PER_PAGE;
@@ -2168,18 +2196,47 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     const totalPatientPages = Math.ceil(filteredPatients.length / PATIENTS_PER_PAGE);
 
 
-    const totalLabSearchPatients = filteredPatients.length;
-    const totalLabSearchPatientPages = Math.ceil(totalLabSearchPatients / LAB_SEARCH_PATIENTS_PER_PAGE);
+    const totalLabSearchPatients = filteredLabSearchPatients.length;
+    const totalLabSearchPatientPages = Math.ceil(filteredLabSearchPatients.length / LAB_SEARCH_PATIENTS_PER_PAGE);
   
     const startIndexLabSearchPatient = (currentPageLabSearchPatients - 1) * LAB_SEARCH_PATIENTS_PER_PAGE;
     const endIndexLabSearchPatient = startIndexLabSearchPatient + LAB_SEARCH_PATIENTS_PER_PAGE;
-    const paginatedLabSearchPatients = filteredPatients.slice(startIndexLabSearchPatient, endIndexLabSearchPatient);
+    const paginatedLabSearchPatients = filteredLabSearchPatients.slice(startIndexLabSearchPatient, endIndexLabSearchPatient);
 
     // Health Metrics pagination calculations
     const totalHealthMetricsPages = Math.ceil(allPatientHealthMetrics.length / HEALTH_METRICS_PER_PAGE);
     const startIndexHealthMetrics = (currentPageHealthMetrics - 1) * HEALTH_METRICS_PER_PAGE;
     const endIndexHealthMetrics = startIndexHealthMetrics + HEALTH_METRICS_PER_PAGE;
     const paginatedHealthMetrics = allPatientHealthMetrics.slice(startIndexHealthMetrics, endIndexHealthMetrics);
+    
+  // Risk filter handlers
+  const handleRiskFilterChange = (riskLevel) => {
+    setSelectedRiskFilter(riskLevel);
+    setCurrentPagePatients(1); // Reset to first page when filter changes
+  };
+
+  const handleLabRiskFilterChange = (riskLevel) => {
+    setSelectedLabRiskFilter(riskLevel);
+    setCurrentPageLabSearchPatients(1); // Reset to first page when filter changes
+  };
+
+  // Calculate risk counts for filter buttons
+  const calculateRiskCounts = (patientList) => {
+    const searchFilteredPatients = patientList.filter((pat) =>
+      `${pat.first_name} ${pat.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    return {
+      all: searchFilteredPatients.length,
+      low: searchFilteredPatients.filter(pat => (pat.risk_classification || '').toLowerCase() === 'low').length,
+      moderate: searchFilteredPatients.filter(pat => (pat.risk_classification || '').toLowerCase() === 'moderate').length,
+      high: searchFilteredPatients.filter(pat => (pat.risk_classification || '').toLowerCase() === 'high').length,
+      ppd: searchFilteredPatients.filter(pat => (pat.risk_classification || '').toLowerCase() === 'ppd').length
+    };
+  };
+
+  const patientRiskCounts = calculateRiskCounts(patients);
+  const labSearchRiskCounts = calculateRiskCounts(patients);
     
   const handleLabInputChange = (field, value) => {
     setLabResults(prev => ({ ...prev, [field]: value }));
@@ -2197,6 +2254,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setSelectedPatientForDetail(patient);
     setCurrentPageHealthMetrics(1); // Reset health metrics pagination when viewing new patient
     setActivePage("patient-detail-view"); // Change to new page state
+  };
+
+  // Function to handle photo expansion
+  const handleExpandPhoto = (photo) => {
+    setSelectedPhoto(photo);
+    setShowPhotoModal(true);
+  };
+
+  const handleClosePhotoModal = () => {
+    setShowPhotoModal(false);
+    setSelectedPhoto(null);
   };
 
 // ... rest of the component's functions and return statement ...
@@ -2968,15 +3036,25 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
               {activePage === "patient-list" && (
                 <div className="patient-list-section">
                   <h2>My Patients</h2>
-                  <div className="search-bar">
-                    <input
-                      type="text"
-                      placeholder="Search patients by name..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="patient-search-input"
+                  <div className="search-and-filter-row">
+                    <div className="search-bar">
+                      <input
+                        type="text"
+                        placeholder="Search patients by name..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="patient-search-input"
+                      />
+                      <i className="fas fa-search search-icon"></i>
+                    </div>
+                    
+                    {/* Risk Classification Filter */}
+                    <RiskFilter
+                      selectedRisk={selectedRiskFilter}
+                      onRiskChange={handleRiskFilterChange}
+                      showCounts={true}
+                      counts={patientRiskCounts}
                     />
-                    <i className="fas fa-search search-icon"></i>
                   </div>
                   <table className="patient-table">
                     <thead>
@@ -3372,6 +3450,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                     <div className="risk-legend-color high-risk"></div>
                                     <span>High Risk</span>
                                   </div>
+                                  <div className="risk-legend-item">
+                                    <div className="risk-legend-color ppd-risk"></div>
+                                    <span>PPD</span>
+                                  </div>
                                 </div>
 
                                 <div className="chart-wrapper">
@@ -3383,9 +3465,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                           label: 'Risk Classification',
                                           data: allPatientHealthMetrics.slice(-10).map(entry => {
                                             const risk = entry.risk_classification?.toLowerCase();
-                                            if (risk === 'low') return 1;
-                                            if (risk === 'moderate') return 2;
-                                            if (risk === 'high') return 3;
+                                            if (risk === 'low') return 2;
+                                            if (risk === 'moderate') return 3;
+                                            if (risk === 'high') return 4;
+                                            if (risk === 'ppd') return 1;
                                             return 0; // For unknown/null values
                                           }),
                                           backgroundColor: allPatientHealthMetrics.slice(-10).map(entry => {
@@ -3393,6 +3476,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             if (risk === 'low') return 'rgba(34, 197, 94, 0.8)'; // Green
                                             if (risk === 'moderate') return 'rgba(255, 193, 7, 0.8)'; // Yellow
                                             if (risk === 'high') return 'rgba(244, 67, 54, 0.8)'; // Red
+                                            if (risk === 'ppd') return 'rgba(103, 101, 105, 0.8)'; // Purple
                                             return 'rgba(156, 163, 175, 0.8)'; // Gray for unknown
                                           }),
                                           borderColor: allPatientHealthMetrics.slice(-10).map(entry => {
@@ -3400,6 +3484,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             if (risk === 'low') return 'rgba(34, 197, 94, 1)';
                                             if (risk === 'moderate') return 'rgba(255, 193, 7, 1)';
                                             if (risk === 'high') return 'rgba(244, 67, 54, 1)';
+                                            if (risk === 'ppd') return 'rgba(103, 101, 105, 1)'; // Purple
                                             return 'rgba(156, 163, 175, 1)';
                                           }),
                                           borderWidth: 1,
@@ -3454,7 +3539,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             display: false,
                                           },
                                           min: 0,
-                                          max: 3, // 0=Unknown, 1=Low, 2=Moderate, 3=High
+                                          max: 4, // 0=Unknown, 1=Low, 2=Moderate, 3=High
                                           ticks: {
                                             display: false,
                                             stepSize: 1,
@@ -3754,7 +3839,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                                     e.target.style.display = 'none';
                                                 }}
                                             />
-                                            <button className="photo-expand-btn">
+                                            <button 
+                                                className="photo-expand-btn"
+                                                onClick={() => handleExpandPhoto(photo)}
+                                            >
                                                 <i className="fas fa-expand"></i>
                                             </button>
                                         </div>
@@ -4013,15 +4101,25 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     <div className="lab-step-content">
                       <div className="lab-patient-search-header">
                         <h3>Patient List</h3>
-                        <div className="search-bar">
-                          <input
-                            type="text"
-                            placeholder="Search patients by name..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="patient-search-input"
+                        <div className="search-and-filter-row">
+                          <div className="search-bar">
+                            <input
+                              type="text"
+                              placeholder="Search patients by name..."
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className="patient-search-input"
+                            />
+                            <i className="fas fa-search search-icon"></i>
+                          </div>
+                          
+                          {/* Risk Classification Filter for Lab Entry */}
+                          <RiskFilter
+                            selectedRisk={selectedLabRiskFilter}
+                            onRiskChange={handleLabRiskFilterChange}
+                            showCounts={true}
+                            counts={labSearchRiskCounts}
                           />
-                          <i className="fas fa-search search-icon"></i>
                         </div>
                       </div>
                         <table className="patient-table">
@@ -4087,13 +4185,13 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         </table>
 
                         {/* Add Pagination Controls for this patient search table */}
-                        {totalLabSearchPatients > LAB_SEARCH_PATIENTS_PER_PAGE && (
+                        {filteredLabSearchPatients.length > LAB_SEARCH_PATIENTS_PER_PAGE && (
                           <Pagination
                             currentPage={currentPageLabSearchPatients}
                             totalPages={totalLabSearchPatientPages}
                             onPageChange={setCurrentPageLabSearchPatients}
                             itemsPerPage={LAB_SEARCH_PATIENTS_PER_PAGE}
-                            totalItems={totalLabSearchPatients}
+                            totalItems={filteredLabSearchPatients.length}
                           />
                         )}
                       </div>
@@ -5002,6 +5100,38 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 )}
               </div>
             </div>
+            
+            {/* Photo Expansion Modal */}
+            {showPhotoModal && selectedPhoto && (
+              <div className="modal-backdrop" onClick={handleClosePhotoModal}>
+                <div className="photo-modal-content" onClick={(e) => e.stopPropagation()}>
+                  <div className="photo-modal-header">
+                    <h3>Wound Photo - {formatDateToReadable(selectedPhoto.date)}</h3>
+                    <button className="modal-close" onClick={handleClosePhotoModal}>
+                      <i className="fas fa-times"></i>
+                    </button>
+                  </div>
+                  <div className="photo-modal-body">
+                    <img
+                      src={selectedPhoto.url}
+                      alt={`Wound Photo - ${selectedPhoto.date}`}
+                      className="photo-modal-image"
+                      onError={(e) => {
+                        console.error('Failed to load expanded photo:', selectedPhoto.url);
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                  <div className="photo-modal-footer">
+                    <p>Submitted on {formatDateToReadable(selectedPhoto.date)} at {new Date(selectedPhoto.date).toLocaleTimeString('en-US', { 
+                      hour: 'numeric', 
+                      minute: '2-digit', 
+                      hour12: true 
+                    })}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
       };
