@@ -1,11 +1,506 @@
 // ✅ FULL UPDATED Dashboard.jsx WITH HEADER NAVIGATION (Notes replaced with Appointment Schedule) AND TREATMENT PLAN SUMMARY
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import supabase from "./supabaseClient";
 import { logMedicationChange, logPatientDataChange, logSystemAction } from "./auditLogger";
 import Header from "./components/Header";
+import RiskFilter from "./components/RiskFilter";
+import Pagination from "./components/Pagination";
 import "./Dashboard.css";
 import logo from '../picture/logo.png'; // Make sure this path is correct
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
+
+// Import Chart.js components
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Filler } from 'chart.js';
+import { Doughnut, Bar, Line } from 'react-chartjs-2';
+
+// Register Chart.js components
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, LineElement, PointElement, Filler);
+
+// Helper function to convert 24-hour time to 12-hour format with AM/PM
+const formatTimeTo12Hour = (time24h) => {
+  if (!time24h) return 'N/A';
+  const [hours, minutes] = time24h.split(':').map(Number);
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12; // Converts 0 (midnight) to 12 AM, 13 to 1 PM etc.
+  const displayMinutes = String(minutes).padStart(2, '0');
+  return `${displayHours}:${displayMinutes} ${ampm}`;
+};
+
+// Helper function to format date for charts (MMM DD, YYYY)
+const formatDateForChart = (dateString) => {
+  if (!dateString) return 'N/A';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
+    
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  } catch (error) {
+    return 'N/A';
+  }
+};
+
+// Helper function to format date to "Month Day, Year" format
+const formatDateToReadable = (dateString) => {
+  if (!dateString) return 'N/A';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
+    
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  } catch (error) {
+    return 'N/A';
+  }
+};
+
+// Helper function to determine lab status
+const getLabStatus = (latestLabResult) => {
+  if (!latestLabResult) {
+    return 'Awaiting';
+  }
+
+  const requiredLabFields = [
+    'Hba1c', 'creatinine', 'got_ast', 'gpt_alt',
+    'cholesterol', 'triglycerides', 'hdl_cholesterol', 'ldl_cholesterol'
+  ];
+
+  let missingFields = false;
+  let hasAnyField = false;
+
+  for (const field of requiredLabFields) {
+    if (latestLabResult[field] === null || latestLabResult[field] === undefined || latestLabResult[field] === '') {
+      missingFields = true;
+    } else {
+      hasAnyField = true;
+    }
+  }
+
+  let status;
+  if (!hasAnyField && !missingFields) {
+      status = 'Awaiting';
+  } else if (missingFields) {
+      status = 'Submitted';
+  } else {
+      status = '✅Submitted';
+  }
+
+  return status;
+};
+
+// Helper function to determine profile status
+const getProfileStatus = (patient) => {
+  if (
+    patient &&
+    patient.first_name && patient.first_name.trim() !== '' &&
+    patient.last_name && patient.last_name.trim() !== '' &&
+    patient.email && patient.email.trim() !== '' &&
+    patient.date_of_birth && patient.date_of_birth.trim() !== '' &&
+    patient.contact_info && patient.contact_info.trim() !== '' &&
+    patient.gender && patient.gender.trim() !== '' &&
+    patient.address && patient.address.trim() !== '' &&
+    patient.allergies && patient.allergies.trim() !== '' &&
+    patient.diabetes_type && patient.diabetes_type.trim() !== '' &&
+    patient.smoking_status && patient.smoking_status.trim() !== ''
+  ) {
+    return 'Complete';
+  } else {
+    return 'Incomplete';
+  }
+};
+
+// Helper function to check patient compliance status for reports
+const getPatientComplianceStatus = (patient) => {
+  // Check if patient has submitted blood pressure, blood glucose, and wound photo
+  let submittedItems = 0;
+  
+  // Check for blood pressure
+  if (patient.has_blood_pressure) {
+    submittedItems++;
+  }
+  
+  // Check for blood glucose
+  if (patient.has_blood_glucose) {
+    submittedItems++;
+  }
+  
+  // Check for wound photo
+  if (patient.has_wound_photo) {
+    submittedItems++;
+  }
+  
+  return {
+    submittedCount: submittedItems,
+    isFullCompliance: submittedItems === 3,
+    isMissingLogs: submittedItems === 1 || submittedItems === 2,
+    isNonCompliant: submittedItems === 0
+  };
+};
+
+// PatientSummaryWidget component for dashboard stats and charts
+const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp, lowRisk, moderateRisk, highRisk, patientCountHistory, pendingLabHistory }) => {
+
+  // Debug logging to see what data we're working with
+  console.log("PatientSummaryWidget - pendingLabResults:", pendingLabResults);
+  console.log("PatientSummaryWidget - pendingLabHistory:", pendingLabHistory);
+  console.log("PatientSummaryWidget - pendingLabHistory data length:", pendingLabHistory?.data?.length);
+  console.log("PatientSummaryWidget - pendingLabHistory labels length:", pendingLabHistory?.labels?.length);
+
+  // Calculate percentages for Patient Categories
+  const totalPatientCategories = preOp + postOp;
+  const preOpPercentage = totalPatientCategories > 0 ? (preOp / totalPatientCategories) * 100 : 0;
+  const postOpPercentage = totalPatientCategories > 0 ? (postOp / totalPatientCategories) * 100 : 0;
+
+  // Calculate percentages for Pre-Op Risk Classes
+  const totalRiskClasses = lowRisk + moderateRisk + highRisk;
+  const lowRiskPercentage = totalRiskClasses > 0 ? (lowRisk / totalRiskClasses) * 100 : 0;
+  const moderateRiskPercentage = totalRiskClasses > 0 ? (moderateRisk / totalRiskClasses) * 100 : 0;
+  const highRiskPercentage = totalRiskClasses > 0 ? (highRisk / totalRiskClasses) * 100 : 0;
+
+  // Prepare data for the area chart
+  const areaChartData = {
+    labels: patientCountHistory?.labels || [],
+    datasets: [
+      {
+        label: 'Total Patients',
+        data: patientCountHistory?.data || [],
+        fill: true,
+        backgroundColor: (context) => {
+          const chart = context.chart;
+          const {ctx, chartArea} = chart;
+          if (!chartArea) {
+            return null;
+          }
+          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          gradient.addColorStop(0, 'rgba(31, 170, 237, 0.6)');
+          gradient.addColorStop(0.5, 'rgba(31, 170, 237, 0.3)');
+          gradient.addColorStop(1, 'rgba(31, 170, 237, 0.1)');
+          return gradient;
+        },
+        borderColor: '#1FAAED', // Visible blue line
+        borderWidth: 2, // Line thickness
+        pointBackgroundColor: 'transparent',
+        pointBorderColor: 'transparent',
+        pointBorderWidth: 0,
+        pointRadius: 0,
+        pointHoverRadius: 0, // No points on hover
+        pointHoverBackgroundColor: '#1FAAED',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 3,
+        tension: 0.4, // Smooth curves
+        hoverBackgroundColor: 'rgba(31, 170, 237, 0.7)', // Slightly darker on hover
+      },
+    ],
+  };
+
+  // Prepare data for the submitted lab results area chart
+  // This chart displays how many patients submitted their lab results each month
+  const pendingLabChartData = {
+    labels: pendingLabHistory?.labels?.length > 0 ? pendingLabHistory.labels : ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
+    datasets: [
+      {
+        label: 'Submitted Lab Results',
+        data: pendingLabHistory?.data?.length > 0 ? pendingLabHistory.data : [0, 0, 0, 0, 0, 0],
+        fill: true,
+        backgroundColor: (context) => {
+          const chart = context.chart;
+          const {ctx, chartArea} = chart;
+          if (!chartArea) {
+            return null;
+          }
+          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          gradient.addColorStop(0, 'rgba(217, 19, 65, 0.6)');
+          gradient.addColorStop(0.5, 'rgba(217, 19, 65, 0.3)');
+          gradient.addColorStop(1, 'rgba(217, 19, 65, 0.1)');
+          return gradient;
+        },
+        borderColor: '#D91341', // Visible red line
+        borderWidth: 2, // Line thickness
+        pointBackgroundColor: 'transparent',
+        pointBorderColor: 'transparent',
+        pointBorderWidth: 0,
+        pointRadius: 0,
+        pointHoverRadius: 0, // No points on hover
+        pointHoverBackgroundColor: '#D91341',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 3,
+        tension: 0.5, // Smooth curves (same as total patients chart)
+        hoverBackgroundColor: 'rgba(217, 19, 65, 0.7)', // Slightly darker on hover
+      },
+    ],
+  };
+
+  const pendingLabChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    layout: {
+      padding: {
+        top: 5,
+        bottom: 5,
+        left: 2,
+        right: 2
+      }
+    },
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        enabled: true, // Ensure tooltips are enabled
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        borderColor: '#D91341',
+        borderWidth: 1,
+        cornerRadius: 4,
+        displayColors: false, // Remove color box in tooltip
+        callbacks: {
+          title: function(context) {
+            return `Month: ${context[0].label}`;
+          },
+          label: function(context) {
+            return `Submitted Labs: ${context.raw}`;
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        display: false, // Hide y-axis
+        beginAtZero: true,
+        grid: {
+          display: false
+        }
+      },
+      x: {
+        display: false, // Hide x-axis
+        grid: {
+          display: false
+        }
+      },
+    },
+    elements: {
+      point: {
+        radius: 0, // Hide points normally
+        hoverRadius: 0, // No hover points
+      },
+      line: {
+        borderWidth: 2, // Line thickness
+      }
+    },
+    interaction: {
+      intersect: false,
+      mode: 'index',
+    },
+  };
+
+  const areaChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    layout: {
+      padding: {
+        top: 5,
+        bottom: 5,
+        left: 2,
+        right: 2
+      }
+    },
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        enabled: true, // Ensure tooltips are enabled
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        borderColor: '#1FAAED',
+        borderWidth: 1,
+        cornerRadius: 4,
+        displayColors: false, // Remove color box in tooltip
+        callbacks: {
+          title: function(context) {
+            return `Month: ${context[0].label}`;
+          },
+          label: function(context) {
+            return `Total Patients: ${context.raw}`;
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        display: false, // Hide y-axis
+        beginAtZero: true,
+        grid: {
+          display: false
+        }
+      },
+      x: {
+        display: false, // Hide x-axis
+        grid: {
+          display: false
+        }
+      },
+    },
+    elements: {
+      point: {
+        radius: 0, // Hide points normally
+        hoverRadius: 0, // No hover points
+      },
+      line: {
+        borderWidth: 2, // Line thickness
+      }
+    },
+    interaction: {
+      intersect: false,
+      mode: 'index',
+    },
+  };
+
+   return (
+    <>
+      <div className="summary-widget-grid">
+        <div className="summary-widget total-patients">
+          <div className="summary-widget-header">
+            <img src="../picture/total.png" alt="Total Patients" className="summary-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=👥"; }}/>
+            <h4>Total Patients</h4>
+          </div>
+          <div className="summary-widget-content">
+            <div className="summary-widget-left">
+              <p className="summary-number">{totalPatients}</p>
+            </div>
+            <div className="summary-widget-right">
+              <p className="summary-subtitle">Patients who have been registered to the system</p>
+            </div>
+          </div>
+          {/* Mini Area Chart for Patient Count History */}
+          <div className="mini-chart-container">
+            {patientCountHistory?.labels?.length > 0 ? (
+              <Line 
+                key={`patient-count-chart-${patientCountHistory?.data?.join('-') || 'empty'}`}
+                data={areaChartData} 
+                options={areaChartOptions} 
+              />
+            ) : (
+              <div className="no-chart-data">
+                <p>No patient data available</p>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="summary-widget pending-lab-results">
+          <div className="summary-widget-header">
+            <img src="../picture/pending.png" alt="Pending Lab Results" className="summary-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ff9800/ffffff?text=⏳"; }}/>
+            <h4>Pending Lab Results</h4>
+          </div>
+          <div className="summary-widget-content">
+            <div className="summary-widget-left">
+              <p className="summary-number">{pendingLabResults}</p>
+            </div>
+            <div className="summary-widget-right">
+              <p className="summary-subtitle">Patients who have consulted the doctor, but still haven't turned over test results</p>
+            </div>
+          </div>
+          {/* Mini Area Chart for Submitted Lab Results History */}
+          <div className="mini-chart-container">
+            {pendingLabHistory?.labels?.length > 0 ? (
+              <Line 
+                key={`pending-lab-chart-${pendingLabHistory?.data?.join('-') || 'empty'}`}
+                data={pendingLabChartData} 
+                options={pendingLabChartOptions} 
+              />
+            ) : (
+              <div className="no-chart-data">
+                <p>No lab submission data available</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      <div className="widget-side-by-side-container">
+        <div className="patient-categories-widget small-widget">
+          <h3>
+            <i className="fas fa-users"></i> Patient Categories
+          </h3>
+          <div className="progress-bars-container">
+            <div className="progress-bar-row">
+              <span className="progress-count">{preOp}</span>
+              <div className="progress-bar-background">
+                <div className="progress-bar-fill progress-bar-pre-op" style={{ width: `${preOpPercentage}%` }}></div>
+              </div>
+            </div>
+            <div className="progress-bar-row">
+              <span className="progress-count">{postOp}</span>
+              <div className="progress-bar-background">
+                <div className="progress-bar-fill progress-bar-post-op" style={{ width: `${postOpPercentage}%` }}></div>
+              </div>
+            </div>
+          </div>
+          <div className="legend-container">
+            <div className="legend-item">
+              <span className="legend-color-box legend-color-pre-op"></span>
+              Pre-Op
+            </div>
+            <div className="legend-item">
+              <span className="legend-color-box legend-color-post-op"></span>
+              Post-Op
+            </div>
+          </div>
+        </div>
+
+        <div className="risk-classes-widget small-widget">
+          <h3>
+            <i className="fas fa-users"></i> Pre-Op Risk Classes
+          </h3>
+          <div className="progress-bars-container">
+            <div className="progress-bar-row">
+              <span className="progress-count">{lowRisk}</span>
+              <div className="progress-bar-background">
+                <div className="progress-bar-fill progress-bar-low-risk" style={{ width: `${lowRiskPercentage}%` }}></div>
+              </div>
+            </div>
+            <div className="progress-bar-row">
+              <span className="progress-count">{moderateRisk}</span>
+              <div className="progress-bar-background">
+                <div className="progress-bar-fill progress-bar-moderate-risk" style={{ width: `${moderateRiskPercentage}%` }}></div>
+              </div>
+            </div>
+            <div className="progress-bar-row">
+              <span className="progress-count">{highRisk}</span>
+              <div className="progress-bar-background">
+                <div className="progress-bar-fill progress-bar-high-risk" style={{ width: `${highRiskPercentage}%` }}></div>
+              </div>
+            </div>
+          </div>
+          <div className="legend-container">
+            <div className="legend-item">
+              <span className="legend-color-box legend-color-low-risk"></span>
+              Low Risk
+            </div>
+            <div className="legend-item">
+              <span className="legend-color-box legend-color-moderate-risk"></span>
+              Moderate Risk
+            </div>
+            <div className="legend-item">
+              <span className="legend-color-box legend-color-high-risk"></span>
+              High Risk
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
 
 
 const Dashboard = ({ user, onLogout }) => {
@@ -25,6 +520,47 @@ const Dashboard = ({ user, onLogout }) => {
   const [showUsersPopup, setShowUsersPopup] = useState(false);
   const [showMessagePopup, setShowMessagePopup] = useState(false);
 
+  // Dashboard analytics states
+  const [totalPatientsCount, setTotalPatientsCount] = useState(0);
+  const [pendingLabResultsCount, setPendingLabResultsCount] = useState(0);
+  const [preOpCount, setPreOpCount] = useState(0);
+  const [postOpCount, setPostOpCount] = useState(0);
+  const [lowRiskCount, setLowRiskCount] = useState(0);
+  const [moderateRiskCount, setModerateRiskCount] = useState(0);
+  const [highRiskCount, setHighRiskCount] = useState(0);
+
+  // Chart data states for dashboard widgets
+  const [appointmentChartData, setAppointmentChartData] = useState({
+    labels: [],
+    data: [],
+  });
+  const [labSubmissionChartData, setLabSubmissionChartData] = useState({
+    labels: [],
+    data: [],
+  });
+
+  // Patient list filtering and pagination states
+  const [selectedRiskFilter, setSelectedRiskFilter] = useState('all');
+  const [currentPagePatients, setCurrentPagePatients] = useState(1);
+  const PATIENTS_PER_PAGE = 10;
+
+  // Health metrics pagination states
+  const [currentPageHealthMetrics, setCurrentPageHealthMetrics] = useState(1);
+  const HEALTH_METRICS_PER_PAGE = 7;
+
+  // Appointment management states
+  const [appointmentForm, setAppointmentForm] = useState({
+    doctorId: "",
+    patientId: "",
+    date: "",
+    time: "",
+    notes: ""
+  });
+  const [editingAppointmentId, setEditingAppointmentId] = useState(null);
+  const [message, setMessage] = useState("");
+  const [appointmentsToday, setAppointmentsToday] = useState([]);
+  const [currentPageAppointments, setCurrentPageAppointments] = useState(1);
+  const APPOINTMENTS_PER_PAGE = 5;
 
   const [showModal, setShowModal] = useState(false);
   const [appointmentToConfirm, setAppointmentToConfirm] = useState(null);
@@ -51,6 +587,15 @@ const Dashboard = ({ user, onLogout }) => {
   const [importantNotes, setImportantNotes] = useState([{ id: Date.now() + 4, text: '' }]);
   const [followUpDetails, setFollowUpDetails] = useState([{ id: Date.now() + 5, text: '' }]);
 
+  // NEW: State for enhanced patient profile features
+  const [allPatientHealthMetrics, setAllPatientHealthMetrics] = useState([]); // For charts
+  const [allWoundPhotos, setAllWoundPhotos] = useState([]); // For wound gallery
+  const [woundPhotosLoading, setWoundPhotosLoading] = useState(false);
+  const [expandedPhoto, setExpandedPhoto] = useState(null); // For photo expansion
+  const [calendarDate, setCalendarDate] = useState(new Date()); // For calendar
+  const [currentPatientSpecialists, setCurrentPatientSpecialists] = useState([]); // For specialist assignments
+  const [fetchingPatientDetails, setFetchingPatientDetails] = useState(false); // To prevent multiple fetches
+
 
   useEffect(() => {
     if (activePage === "dashboard" || activePage === "patient-list") {
@@ -59,10 +604,10 @@ const Dashboard = ({ user, onLogout }) => {
     if (activePage === "dashboard" || activePage === "appointments" || activePage === "reports") { // Added 'reports' here
         fetchAppointments();
     }
-    if (activePage === "patient-profile" && selectedPatient) {
+    if (activePage === "patient-profile" && selectedPatient?.patient_id) {
       fetchPatientDetails(selectedPatient.patient_id);
     }
-  }, [activePage, user.doctor_id, selectedPatient]);
+  }, [activePage, user.doctor_id, selectedPatient?.patient_id]); // Only depend on patient_id, not the full object
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -81,31 +626,123 @@ const Dashboard = ({ user, onLogout }) => {
         data.map(async (patient) => {
           const { data: healthData, error: healthError } = await supabase
             .from('health_metrics')
-            .select('risk_classification')
+            .select('risk_classification, blood_glucose, bp_systolic, bp_diastolic, wound_photo_url, submission_date')
             .eq('patient_id', patient.patient_id)
             .order('submission_date', { ascending: false })
             .limit(1);
 
           let riskClassification = null;
+          let hasBloodGlucose = false;
+          let hasBloodPressure = false;
+          let hasWoundPhoto = false;
+
           if (healthError) {
             console.error(`Error fetching health metrics for patient ${patient.patient_id}:`, healthError.message);
           } else if (healthData && healthData.length > 0) {
-            riskClassification = healthData[0].risk_classification;
+            const latestMetric = healthData[0];
+            riskClassification = latestMetric.risk_classification;
+            
+            // Check for compliance data - improved checking
+            hasBloodGlucose = latestMetric.blood_glucose !== null && latestMetric.blood_glucose !== undefined && latestMetric.blood_glucose !== '';
+            hasBloodPressure = (latestMetric.bp_systolic !== null && latestMetric.bp_systolic !== undefined && latestMetric.bp_systolic !== '') ||
+                              (latestMetric.bp_diastolic !== null && latestMetric.bp_diastolic !== undefined && latestMetric.bp_diastolic !== '');
+            hasWoundPhoto = latestMetric.wound_photo_url !== null && latestMetric.wound_photo_url !== undefined && latestMetric.wound_photo_url !== '';
           }
 
           return {
             ...patient,
-            risk_classification: riskClassification
+            risk_classification: riskClassification,
+            has_blood_glucose: hasBloodGlucose,
+            has_blood_pressure: hasBloodPressure,
+            has_wound_photo: hasWoundPhoto
           };
         })
       );
 
       setPatients(patientsWithRisk);
+      
+      // Calculate dashboard metrics
+      setTotalPatientsCount(patientsWithRisk.length);
+      
+      // Calculate counts for charts based on the new data
+      let preOp = 0;
+      let postOp = 0;
+      let lowRisk = 0;
+      let moderateRisk = 0;
+      let highRisk = 0;
+      let pendingLabs = 0;
+      
+      patientsWithRisk.forEach(patient => {
+        // Patient Categories
+        if (patient.phase === 'Pre-Operative') {
+          preOp++;
+        } else if (patient.phase === 'Post-Operative') {
+          postOp++;
+        }
+        
+        // Risk Classification  
+        const risk = (patient.risk_classification || '').toLowerCase();
+        if (risk === 'low') {
+          lowRisk++;
+        } else if (risk === 'moderate') {
+          moderateRisk++;
+        } else if (risk === 'high') {
+          highRisk++;
+        }
+        
+        // Pending Lab Results (patients who need lab work)
+        // This can be determined by checking if they have recent lab results
+        // For now, we'll use a simple check - you can modify this logic based on your needs
+        if (!patient.latest_lab_result || patient.lab_status === 'Awaiting' || patient.lab_status === 'N/A') {
+          pendingLabs++;
+        }
+      });
+      
+      setPreOpCount(preOp);
+      setPostOpCount(postOp);
+      setLowRiskCount(lowRisk);
+      setModerateRiskCount(moderateRisk);
+      setHighRiskCount(highRisk);
+      setPendingLabResultsCount(pendingLabs);
+
+      // Generate sample chart data for dashboard widgets
+      generateChartData(patientsWithRisk.length, pendingLabs);
     } catch (err) {
       setError("Error fetching patients: " + err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Function to generate sample chart data for dashboard widgets
+  const generateChartData = (totalPatients, pendingLabs) => {
+    // Generate last 6 months of data
+    const months = [];
+    const patientData = [];
+    const labData = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      months.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
+      
+      // Generate mock progressive data (growing over time)
+      const basePatients = Math.max(1, totalPatients - (i * 2));
+      const baseLabs = Math.max(0, pendingLabs - (i * 1));
+      
+      patientData.push(Math.max(0, basePatients + Math.floor(Math.random() * 3)));
+      labData.push(Math.max(0, baseLabs + Math.floor(Math.random() * 2)));
+    }
+    
+    setAppointmentChartData({
+      labels: months,
+      data: patientData,
+    });
+    
+    setLabSubmissionChartData({
+      labels: months,
+      data: labData,
+    });
   };
 
   const fetchAppointments = async () => {
@@ -127,9 +764,44 @@ const Dashboard = ({ user, onLogout }) => {
   };
 
   const fetchPatientDetails = async (patientId) => {
+    // Prevent multiple simultaneous fetches
+    if (loading || fetchingPatientDetails) return;
+    
+    setFetchingPatientDetails(true);
     setLoading(true);
     setError("");
     try {
+      // Fetch the patient with their assigned doctor information
+      const { data: patientWithDoctor, error: patientError } = await supabase
+        .from("patients")
+        .select(`
+          *,
+          doctors!preferred_doctor_id (
+            doctor_id,
+            first_name,
+            last_name,
+            specialization
+          )
+        `)
+        .eq("patient_id", patientId)
+        .single();
+
+      if (patientError) {
+        console.error("Error fetching patient details:", patientError);
+        // If there's a relationship error, try fetching without the relationship
+        const { data: patientOnly, error: simplePatientError } = await supabase
+          .from("patients")
+          .select("*")
+          .eq("patient_id", patientId)
+          .single();
+        
+        if (simplePatientError) throw simplePatientError;
+        setSelectedPatient(patientOnly);
+      } else {
+        // Update selected patient with doctor information
+        setSelectedPatient(patientWithDoctor);
+      }
+
       const { data: metrics, error: metricsError } = await supabase
         .from("health_metrics")
         .select("*")
@@ -138,6 +810,7 @@ const Dashboard = ({ user, onLogout }) => {
 
       if (metricsError) throw metricsError;
       setPatientMetrics(metrics);
+      setAllPatientHealthMetrics(metrics); // Store all metrics for charts
 
       // Filter for wound photos and set the state
       const photos = metrics.filter(metric => metric.wound_photo_url).map(metric => ({
@@ -146,7 +819,7 @@ const Dashboard = ({ user, onLogout }) => {
         notes: metric.notes,
       }));
       setWoundPhotos(photos);
-
+      setAllWoundPhotos(photos); // Store all wound photos for gallery
 
       // Fetch lab results for the patient
       const { data: labs, error: labsError } = await supabase
@@ -212,13 +885,71 @@ const Dashboard = ({ user, onLogout }) => {
       if (patientApptsError) throw patientApptsError;
       setPatientAppointments(patientAppts);
 
+      // --- NEW: Fetch specialist assignments for the selected patient ---
+      console.log(`Fetching specialists for patient ID: ${patientId}`);
+      const { data: specialists, error: specialistsError } = await supabase
+        .from("patient_specialists")
+        .select(`
+          id,
+          doctor_id,
+          specialization,
+          assigned_at,
+          doctors!doctor_id (
+            doctor_id,
+            first_name,
+            last_name,
+            specialization
+          )
+        `)
+        .eq("patient_id", patientId)
+        .order("assigned_at", { ascending: false });
+
+      if (specialistsError) {
+        console.error("Error fetching specialists:", specialistsError);
+        // Try fetching without the relationship if there's an error
+        const { data: simpleSpecialists, error: simpleSpecialistsError } = await supabase
+          .from("patient_specialists")
+          .select("id, doctor_id, specialization, assigned_at")
+          .eq("patient_id", patientId)
+          .order("assigned_at", { ascending: false });
+        
+        if (simpleSpecialistsError) {
+          console.error("Error fetching simple specialists:", simpleSpecialistsError);
+          setCurrentPatientSpecialists([]);
+        } else {
+          console.log("Fetched simple specialists:", simpleSpecialists);
+          setCurrentPatientSpecialists(simpleSpecialists || []);
+        }
+      } else {
+        console.log("Fetched specialists:", specialists);
+        setCurrentPatientSpecialists(specialists || []);
+      }
+
     } catch (err) {
       setError("Error fetching patient details: " + err.message);
     } finally {
       setLoading(false);
+      setFetchingPatientDetails(false);
     }
   };
 
+  // Helper function to handle photo expansion
+  const handleExpandPhoto = (photo) => {
+    setExpandedPhoto(photo);
+  };
+
+  // Helper function to close expanded photo
+  const handleCloseExpandedPhoto = () => {
+    setExpandedPhoto(null);
+  };
+
+  // Helper function to check if date has appointments for calendar
+  const getAppointmentsForDate = (date) => {
+    return patientAppointments.filter(appointment => {
+      const appointmentDate = new Date(appointment.appointment_datetime).toDateString();
+      return appointmentDate === date.toDateString();
+    });
+  };
 
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to log out?")) {
@@ -230,10 +961,16 @@ const Dashboard = ({ user, onLogout }) => {
     setSearchTerm(event.target.value);
   };
 
-  const handleViewClick = (patient) => {
+  const handleViewClick = useCallback((patient) => {
+    // Reset loading states when selecting a new patient
+    setLoading(false);
+    setFetchingPatientDetails(false);
+    setError("");
+    // Reset pagination when selecting new patient
+    setCurrentPageHealthMetrics(1);
     setSelectedPatient(patient);
     setActivePage("patient-profile");
-  };
+  }, []);
 
   const handleDeleteClick = async (patient) => {
     if (window.confirm(`Are you sure you want to delete patient ${patient.first_name} ${patient.last_name}?`)) {
@@ -555,69 +1292,698 @@ const Dashboard = ({ user, onLogout }) => {
     setEditMedicationFrequencyData({ timeOfDay: [], startDate: '' });
   };
 
+  // Appointment handling functions
+  const handleAppointmentChange = (field, value) => {
+    setAppointmentForm({ ...appointmentForm, [field]: value });
+  };
+
+  const createAppointment = async () => {
+    if (!appointmentForm.doctorId || !appointmentForm.patientId || !appointmentForm.date || !appointmentForm.time) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+    
+    try {
+      const appointmentDateTime = `${appointmentForm.date}T${appointmentForm.time}:00`;
+      
+      if (editingAppointmentId) {
+        // Update existing appointment
+        const { error } = await supabase
+          .from("appointments")
+          .update({
+            doctor_id: appointmentForm.doctorId,
+            patient_id: appointmentForm.patientId,
+            appointment_datetime: appointmentDateTime,
+            notes: appointmentForm.notes,
+          })
+          .eq("appointment_id", editingAppointmentId);
+
+        if (error) throw error;
+        setMessage("Appointment updated successfully!");
+        setEditingAppointmentId(null);
+      } else {
+        // Create new appointment
+        const { error } = await supabase
+          .from("appointments")
+          .insert({
+            doctor_id: appointmentForm.doctorId,
+            patient_id: appointmentForm.patientId,
+            appointment_datetime: appointmentDateTime,
+            notes: appointmentForm.notes,
+            appointment_state: "pending"
+          });
+
+        if (error) throw error;
+        setMessage("Appointment scheduled successfully!");
+      }
+
+      // Reset form
+      setAppointmentForm({ doctorId: "", patientId: "", date: "", time: "", notes: "" });
+      
+      // Refresh appointments
+      fetchAppointments();
+      
+    } catch (err) {
+      setMessage("Error with appointment: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelAppointment = async (appointmentId) => {
+    if (window.confirm("Are you sure you want to cancel this appointment?")) {
+      try {
+        const { error } = await supabase
+          .from("appointments")
+          .update({ appointment_state: "cancelled" })
+          .eq("appointment_id", appointmentId);
+
+        if (error) throw error;
+        
+        setMessage("Appointment cancelled successfully!");
+        fetchAppointments();
+      } catch (err) {
+        setMessage("Error cancelling appointment: " + err.message);
+      }
+    }
+  };
+
+  const handleInQueueAppointment = async (appointmentId) => {
+    try {
+      const { error } = await supabase
+        .from("appointments")
+        .update({ appointment_state: "in queue" })
+        .eq("appointment_id", appointmentId);
+
+      if (error) throw error;
+      
+      setMessage("Appointment moved to queue!");
+      fetchAppointments();
+    } catch (err) {
+      setMessage("Error updating appointment: " + err.message);
+    }
+  };
+
   const filteredPatients = patients.filter((patient) =>
     `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const renderPatientList = () => (
-    <div className="card3 patient-list-card3">
+  // Patient filtering and pagination functions
+  const handleRiskFilterChange = (riskLevel) => {
+    setSelectedRiskFilter(riskLevel);
+    setCurrentPagePatients(1); // Reset to first page when filter changes
+  };
+
+  // Filter patients based on search term and risk filter
+  const getFilteredPatients = () => {
+    let filtered = patients.filter((patient) =>
+      `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // Apply risk filter
+    if (selectedRiskFilter !== 'all') {
+      filtered = filtered.filter(patient => {
+        const risk = (patient.risk_classification || '').toLowerCase();
+        return risk === selectedRiskFilter;
+      });
+    }
+
+    return filtered;
+  };
+
+  // Get patients for current page
+  const getPaginatedPatients = () => {
+    const filtered = getFilteredPatients();
+    const startIndex = (currentPagePatients - 1) * PATIENTS_PER_PAGE;
+    const endIndex = startIndex + PATIENTS_PER_PAGE;
+    return filtered.slice(startIndex, endIndex);
+  };
+
+  // Calculate risk counts for filter display
+  const getPatientRiskCounts = () => {
+    const filtered = patients.filter((patient) =>
+      `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const counts = {
+      all: filtered.length,
+      low: 0,
+      moderate: 0,
+      high: 0,
+      ppd: 0
+    };
+
+    filtered.forEach(patient => {
+      const risk = (patient.risk_classification || '').toLowerCase();
+      if (counts.hasOwnProperty(risk)) {
+        counts[risk]++;
+      }
+    });
+
+    return counts;
+  };
+
+  // Calculate total pages
+  const getTotalPatientPages = () => {
+    const filtered = getFilteredPatients();
+    return Math.ceil(filtered.length / PATIENTS_PER_PAGE);
+  };
+
+  // Health metrics pagination functions
+  const getPaginatedHealthMetrics = () => {
+    const startIndex = (currentPageHealthMetrics - 1) * HEALTH_METRICS_PER_PAGE;
+    const endIndex = startIndex + HEALTH_METRICS_PER_PAGE;
+    return allPatientHealthMetrics.slice(startIndex, endIndex);
+  };
+
+  const getTotalHealthMetricsPages = () => {
+    return Math.ceil(allPatientHealthMetrics.length / HEALTH_METRICS_PER_PAGE);
+  };
+
+  const renderPatientList = () => {
+    const paginatedPatients = getPaginatedPatients();
+    const patientRiskCounts = getPatientRiskCounts();
+    const totalPatientPages = getTotalPatientPages();
+
+    return (
+      <div className="patient-list-section">
         <h2>My Patients</h2>
-        <div className="search-bar-patients3">
+        <div className="search-and-filter-row">
+          <div className="search-bar">
             <input
               type="text"
-              placeholder="Search patients..."
+              placeholder="Search patients by name..."
               value={searchTerm}
-              onChange={handleSearchChange}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="patient-search-input"
             />
-            <i className="fas fa-search search-icon3"></i>
+            <i className="fas fa-search search-icon"></i>
           </div>
-        <div className="table-responsive3">
-            <table className="patient-list-table3">
-              <thead>
-                <tr>
-                  <th>Patient Name</th>
-                  <th>Date of Birth</th>
-                  <th>Contact Info</th>
-                  <th>Risk</th>
-                  <th>Phase</th>
-                  <th>Actions</th>
+          
+          {/* Risk Classification Filter */}
+          <RiskFilter
+            selectedRisk={selectedRiskFilter}
+            onRiskChange={handleRiskFilterChange}
+            showCounts={true}
+            counts={patientRiskCounts}
+          />
+        </div>
+        
+        <table className="patient-table">
+          <thead>
+            <tr>
+              <th>Patient Name</th>
+              <th>Age/Sex</th>
+              <th>Phase</th>
+              <th>Classification</th>
+              <th>Lab Status</th>
+              <th>Profile Status</th>
+              <th>Last Visit</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedPatients.length > 0 ? (
+              paginatedPatients.map((patient) => (
+                <tr key={patient.patient_id}>
+                  <td className="patient-name-cell">
+                    <div className="patient-name-container">
+                      <img 
+                        src={patient.patient_picture || "../picture/secretary.png"} 
+                        alt="Patient Avatar" 
+                        className="patient-avatar-table"
+                        onError={(e) => e.target.src = "../picture/secretary.png"}
+                      />
+                      <span className="patient-name-text">{patient.first_name} {patient.last_name}</span>
+                    </div>
+                  </td>
+                  <td>{patient.date_of_birth ? `${Math.floor((new Date() - new Date(patient.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${patient.gender}` : 'N/A'}</td>
+                  <td className="phase-toggle-container">
+                    <span className={`patient-phase ${
+                      patient.phase === 'Pre-Operative' ? 'phase-pre-operative' :
+                      patient.phase === 'Post-Operative' ? 'phase-post-operative' : ''
+                    }`}>
+                      {patient.phase}
+                    </span>
+                    <button 
+                      className="phase-toggle-button" 
+                      onClick={() => handlePhaseToggle(patient)}
+                      title={`Change to ${patient.phase === 'Pre-Operative' ? 'Post-Operative' : 'Pre-Operative'}`}
+                    >
+                      <i className="fas fa-exchange-alt"></i>
+                    </button>
+                  </td>
+                  <td className={`risk-classification-${(patient.risk_classification || 'N/A').toLowerCase()}`}>
+                    {patient.risk_classification || 'N/A'}
+                  </td>
+                  <td className={
+                    getLabStatus(patient.latest_lab_result) === '✅Submitted' ? 'lab-status-complete' :
+                    getLabStatus(patient.latest_lab_result) === 'Awaiting' ? 'lab-status-awaiting' : 
+                    'lab-status-submitted'
+                  }>
+                    {getLabStatus(patient.latest_lab_result)}
+                  </td>
+                  <td className={getProfileStatus(patient) === 'Complete' ? 'status-complete' : 'status-incomplete'}>
+                    {getProfileStatus(patient)}
+                  </td>
+                  <td>{formatDateToReadable(patient.last_doctor_visit)}</td>
+                  <td className="patient-actions-cell">
+                    <button className="view-button" onClick={() => handleViewClick(patient)}>👁️ View</button>
+                    <button className="delete-button" onClick={() => handleDeleteClick(patient)}>🗑️ Delete</button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredPatients.map((patient) => (
-                  <tr key={patient.patient_id}>
-                    <td>{patient.first_name} {patient.last_name}</td>
-                    <td>{patient.date_of_birth}</td>
-                    <td>{patient.contact_info}</td>
-                    <td>
-                      <span className={`risk-classification3 ${patient.risk_classification}`}>
-                        {patient.risk_classification}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="phase-toggle-container">
-                        <span className={`phase3 ${patient.phase}`}>
-                          {patient.phase}
-                        </span>
-                        <button 
-                          className="phase-toggle-button" 
-                          onClick={() => handlePhaseToggle(patient)}
-                          title={`Change to ${patient.phase === 'Pre-Operative' ? 'Post-Operative' : 'Pre-Operative'}`}
-                        >
-                          <i className="fas fa-exchange-alt"></i>
-                        </button>
-                      </div>
-                    </td>
-                    <td>
-                      <button className="action-button3 view-button3" onClick={() => handleViewClick(patient)}>View</button>
-                      <button className="action-button3 delete-button3" onClick={() => handleDeleteClick(patient)}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="8">No patients found.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        {/* Pagination */}
+        {totalPatientPages > 1 && (
+          <Pagination
+            currentPage={currentPagePatients}
+            totalPages={totalPatientPages}
+            onPageChange={setCurrentPagePatients}
+            itemsPerPage={PATIENTS_PER_PAGE}
+            totalItems={getFilteredPatients().length}
+            showPageInfo={true}
+          />
+        )}
       </div>
+    );
+  };
+
+  const renderAppointmentsSection = () => (
+    <div className="appointments-section">
+      <h2>{editingAppointmentId ? "Edit Appointment" : "Schedule New Appointment"}</h2>
+
+      <div className="form-columns">
+        <div className="form-group">
+          <label>Select Doctor:</label>
+          <select value={appointmentForm.doctorId} onChange={(e) => handleAppointmentChange("doctorId", e.target.value)}>
+            <option value="">Select Doctor</option>
+            <option value={user.doctor_id}>{user.first_name} {user.last_name}</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Select Patient:</label>
+          <select value={appointmentForm.patientId} onChange={(e) => handleAppointmentChange("patientId", e.target.value)}>
+            <option value="">Select Patient</option>
+            {patients.map(pat => (
+              <option key={pat.patient_id} value={pat.patient_id}>{pat.first_name} {pat.last_name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Date:</label>
+          <input type="date" value={appointmentForm.date} onChange={(e) => handleAppointmentChange("date", e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label>Time:</label>
+          <input type="time" value={appointmentForm.time} onChange={(e) => handleAppointmentChange("time", e.target.value)} />
+        </div>
+      </div>
+
+      <div className="form-group full-width">
+        <label>Notes:</label>
+        <textarea placeholder="Notes" value={appointmentForm.notes} onChange={(e) => handleAppointmentChange("notes", e.target.value)} />
+      </div>
+
+      <div className="button-group">
+        <button onClick={createAppointment}>{editingAppointmentId ? "Update Appointment" : "Schedule Appointment"}</button>
+        {editingAppointmentId && (
+          <button
+            className="cancel-button"
+            onClick={() => {
+              setEditingAppointmentId(null);
+              setAppointmentForm({ doctorId: "", patientId: "", date: "", time: "", notes: "" });
+              setActivePage("appointments");
+            }}
+          >
+            Cancel Edit
+          </button>
+        )}
+      </div>
+
+      {message && <p className="form-message">{message}</p>}
+
+      {/* Display existing appointments */}
+      <div className="appointments-list">
+        <h3>Existing Appointments</h3>
+        <table className="appointment-list-table">
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {appointments.length === 0 ? (
+              <tr><td colSpan="5">No appointments found.</td></tr>
+            ) : (
+              appointments.map((appt) => (
+                <tr key={appt.appointment_id}>
+                  <td>{appt.patients ? `${appt.patients.first_name} ${appt.patients.last_name}` : "Unknown"}</td>
+                  <td>{new Date(appt.appointment_datetime).toLocaleDateString()}</td>
+                  <td>{new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                  <td className="appointment-status">
+                    <span className={`status-${(appt.appointment_state || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
+                      {(() => {
+                        const state = appt.appointment_state || 'pending';
+                        if (state === 'in queue') return 'In Queue';
+                        if (state === 'cancelled') return 'Cancelled';
+                        if (state === 'pending') return 'Pending';
+                        return state.charAt(0).toUpperCase() + state.slice(1);
+                      })()}
+                    </span>
+                  </td>
+                  <td className="appointment-actions">
+                    <button onClick={() => handleCancelAppointment(appt.appointment_id)} className="action-btn5 cancel-btn5">
+                      Cancel
+                    </button>
+                    <button onClick={() => handleInQueueAppointment(appt.appointment_id)} className="action-btn5 done-btn5">
+                      In Queue
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const renderReportsSection = () => (
+    <div className="reports-section">
+      <h2>Reports Overview</h2>
+      
+      {/* Reports Widgets Grid */}
+      <div className="reports-widgets-grid">
+        {/* Total Patients Report Widget */}
+        <div className="report-widget report-total-patients">
+          <div className="report-widget-header">
+            <img src="../picture/total.png" alt="Total Patients" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=👥"; }}/>
+            <h4>Total Patients</h4>
+          </div>
+          <div className="report-widget-content">
+            <div className="report-widget-left">
+              <p className="report-number">{patients.length}</p>
+            </div>
+            <div className="report-widget-right">
+              <p className="report-subtitle">Patients registered in the system</p>
+            </div>
+          </div>
+          <div className="mini-chart-container">
+            {appointmentChartData?.labels?.length > 0 ? (
+              <Line 
+                key={`report-patient-count-chart-${patients.length}`}
+                data={{
+                  labels: appointmentChartData.labels,
+                  datasets: [
+                    {
+                      label: 'Total Patients',
+                      data: appointmentChartData.data,
+                      fill: true,
+                      backgroundColor: (context) => {
+                        const chart = context.chart;
+                        const {ctx, chartArea} = chart;
+                        if (!chartArea) return null;
+                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                        gradient.addColorStop(0, 'rgba(31, 170, 237, 0.6)');
+                        gradient.addColorStop(0.5, 'rgba(31, 170, 237, 0.3)');
+                        gradient.addColorStop(1, 'rgba(31, 170, 237, 0.1)');
+                        return gradient;
+                      },
+                      borderColor: '#1FAAED',
+                      borderWidth: 2,
+                      pointBackgroundColor: 'transparent',
+                      pointBorderColor: 'transparent',
+                      pointBorderWidth: 0,
+                      pointRadius: 0,
+                      pointHoverRadius: 0,
+                      pointHoverBackgroundColor: '#1FAAED',
+                      pointHoverBorderColor: '#fff',
+                      pointHoverBorderWidth: 3,
+                      tension: 0.4,
+                      hoverBackgroundColor: 'rgba(31, 170, 237, 0.7)',
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  layout: {
+                    padding: { top: 5, bottom: 5, left: 2, right: 2 }
+                  },
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      enabled: true,
+                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                      titleColor: '#fff',
+                      bodyColor: '#fff',
+                      borderColor: '#1FAAED',
+                      borderWidth: 1,
+                      cornerRadius: 4,
+                      displayColors: false,
+                      callbacks: {
+                        title: function(context) { return `Month: ${context[0].label}`; },
+                        label: function(context) { return `Total Patients: ${context.raw}`; }
+                      }
+                    }
+                  },
+                  scales: {
+                    y: { display: false, beginAtZero: true, grid: { display: false } },
+                    x: { display: false, grid: { display: false } }
+                  },
+                  elements: {
+                    point: { radius: 0, hoverRadius: 0 },
+                    line: { borderWidth: 2 }
+                  },
+                  interaction: { intersect: false, mode: 'index' }
+                }}
+              />
+            ) : (
+              <div className="no-chart-data"><p>No patient data available</p></div>
+            )}
+          </div>
+        </div>
+
+        {/* Full Compliance Report Widget */}
+        <div className="report-widget report-full-compliance">
+          <div className="report-widget-header">
+            <img src="../picture/full.svg" alt="Full Compliance" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/28a745/ffffff?text=✓"; }}/>
+            <h4>Full Compliance</h4>
+          </div>
+          <div className="report-widget-content">
+            <div className="report-widget-left">
+              <p className="report-number">
+                {patients.filter(pat => {
+                  const compliance = getPatientComplianceStatus(pat);
+                  return compliance.isFullCompliance;
+                }).length}
+              </p>
+            </div>
+            <div className="report-widget-right">
+              <p className="report-subtitle">Patients with complete metrics (Blood Glucose, Blood Pressure, Wound Photos)</p>
+            </div>
+          </div>
+          <div className="mini-chart-container">
+            <Line 
+              data={{
+                labels: appointmentChartData?.labels || ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
+                datasets: [
+                  {
+                    label: 'Full Compliance',
+                    data: appointmentChartData?.data?.map(count => {
+                      // Calculate realistic compliance progression
+                      const fullComplianceCount = patients.filter(pat => getPatientComplianceStatus(pat).isFullCompliance).length;
+                      return Math.max(0, Math.floor(fullComplianceCount * (count / Math.max(...(appointmentChartData?.data || [1])))));
+                    }) || [0, 1, 2, 3, 4, 5],
+                    fill: true,
+                    backgroundColor: (context) => {
+                      const chart = context.chart;
+                      const {ctx, chartArea} = chart;
+                      if (!chartArea) return null;
+                      const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                      gradient.addColorStop(0, 'rgba(40, 167, 69, 0.6)');
+                      gradient.addColorStop(0.5, 'rgba(40, 167, 69, 0.3)');
+                      gradient.addColorStop(1, 'rgba(40, 167, 69, 0.1)');
+                      return gradient;
+                    },
+                    borderColor: '#28a745',
+                    borderWidth: 2,
+                    pointBackgroundColor: 'transparent',
+                    pointBorderColor: 'transparent',
+                    pointBorderWidth: 0,
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    pointHoverBackgroundColor: '#28a745',
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 3,
+                    tension: 0.4,
+                    hoverBackgroundColor: 'rgba(40, 167, 69, 0.7)',
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { top: 5, bottom: 5, left: 2, right: 2 } },
+                plugins: {
+                  legend: { display: false },
+                  tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: '#28a745',
+                    borderWidth: 1,
+                    cornerRadius: 4,
+                    displayColors: false,
+                    callbacks: {
+                      title: function(context) { return `Month: ${context[0].label}`; },
+                      label: function(context) { return `Full Compliance: ${context.raw}`; }
+                    }
+                  }
+                },
+                scales: {
+                  y: { display: false, beginAtZero: true, grid: { display: false } },
+                  x: { display: false, grid: { display: false } }
+                },
+                elements: {
+                  point: { radius: 0, hoverRadius: 0 },
+                  line: { borderWidth: 2 }
+                },
+                interaction: { intersect: false, mode: 'index' }
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Missing Logs Report Widget */}
+        <div className="report-widget report-missing-logs">
+          <div className="report-widget-header">
+            <img src="../picture/missinglogs.svg" alt="Missing Logs" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ffc107/ffffff?text=⚠"; }}/>
+            <h4>Missing Logs</h4>
+          </div>
+          <div className="report-widget-content">
+            <div className="report-widget-left">
+              <p className="report-number">
+                {patients.filter(pat => {
+                  const compliance = getPatientComplianceStatus(pat);
+                  return compliance.isMissingLogs;
+                }).length}
+              </p>
+            </div>
+            <div className="report-widget-right">
+              <p className="report-subtitle">Patients with 1-2 missing metrics (Blood Glucose, Blood Pressure, Wound Photos)</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Non-Compliant Report Widget */}
+        <div className="report-widget report-non-compliant">
+          <div className="report-widget-header">
+            <img src="../picture/noncompliant.svg" alt="Non-Compliant" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/dc3545/ffffff?text=✗"; }}/>
+            <h4>Non-Compliant</h4>
+          </div>
+          <div className="report-widget-content">
+            <div className="report-widget-left">
+              <p className="report-number">
+                {patients.filter(pat => {
+                  const compliance = getPatientComplianceStatus(pat);
+                  const isHighRisk = (pat.risk_classification || '').toLowerCase() === 'high';
+                  return compliance.isNonCompliant && isHighRisk;
+                }).length}
+              </p>
+            </div>
+            <div className="report-widget-right">
+              <p className="report-subtitle">High risk patients with all 3 missing metrics (Blood Glucose, Blood Pressure, Wound Photos)</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Reports Content Row */}
+      <div className="reports-content-row">
+        {/* Table for Patients with Submitted Labs */}
+        <div className="submitted-labs-table-container">
+          <h3>Patients with Full Compliance</h3>
+          <table className="patient-list-table">
+            <thead>
+              <tr>
+                <th>Patient Name</th>
+                <th>Submitted Items</th>
+                <th>Risk Level</th>
+              </tr>
+            </thead>
+            <tbody>
+              {patients
+                .filter(pat => {
+                  const compliance = getPatientComplianceStatus(pat);
+                  return compliance.isFullCompliance;
+                })
+                .slice(0, 10) // Show only first 10
+                .map(pat => {
+                  const compliance = getPatientComplianceStatus(pat);
+                  return (
+                    <tr key={pat.patient_id}>
+                      <td>{pat.first_name} {pat.last_name}</td>
+                      <td>{compliance.submittedCount}/3 metrics</td>
+                      <td className={`risk-classification-${(pat.risk_classification || 'N/A').toLowerCase()}`}>
+                        {pat.risk_classification || 'N/A'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              {patients.filter(pat => getPatientComplianceStatus(pat).isFullCompliance).length === 0 && (
+                <tr><td colSpan="3">No patients with full compliance.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Summary Statistics */}
+        <div className="summary-stats-container">
+          <h3>Summary Statistics</h3>
+          <div className="stats-grid">
+            <div className="stat-card">
+              <h4>Pre-Operative Patients</h4>
+              <p className="stat-number">{preOpCount}</p>
+            </div>
+            <div className="stat-card">
+              <h4>Post-Operative Patients</h4>
+              <p className="stat-number">{postOpCount}</p>
+            </div>
+            <div className="stat-card">
+              <h4>Full Compliance</h4>
+              <p className="stat-number">
+                {patients.filter(pat => getPatientComplianceStatus(pat).isFullCompliance).length}
+              </p>
+            </div>
+            <div className="stat-card">
+              <h4>Missing Logs</h4>
+              <p className="stat-number">
+                {patients.filter(pat => getPatientComplianceStatus(pat).isMissingLogs).length}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 
 
@@ -750,24 +2116,104 @@ const handleConfirmAction = async () => {
   </div>
 )}
 
-  const renderDashboardContent = () => (
-    <div className="dashboard-grid3">
-      {renderPatientList()}
-      {renderAppointments()}
-    </div>
-  );
+  const renderDashboardContent = () => {
+    return (
+      <div className="dashboard-columns-container">
+        <div className="dashboard-left-column">
+          <div className="quick-links">
+            <h3>Quick links</h3>
+            <div className="quick-links-grid">
+              <div className="quick-link-item" onClick={() => setActivePage("patient-list")}>
+                <div className="quick-link-icon patient-list">
+                  <img src="../picture/secretary.png" alt="Patient List" className="quick-link-image" />
+                </div>
+                <span>Patient List</span>
+              </div>
+              <div className="quick-link-item" onClick={() => setActivePage("appointments")}>
+                <div className="quick-link-icon set-appointment">
+                  <img src="../picture/appointment.png" alt="Appointment" className="quick-link-image" />
+                </div>
+                <span>Appointments</span>
+              </div>
+            </div>
+          </div>
 
-  // NEW: Function to get counts of patients by risk classification
-  const getPatientRiskCounts = () => {
-    const counts = { Low: 0, Moderate: 0, High: 0 };
-    patients.forEach(patient => {
-      if (counts.hasOwnProperty(patient.risk_classification)) {
-        counts[patient.risk_classification]++;
-      }
-    });
-    return counts;
+          <div className="widgets">
+            <h3>Widgets</h3>
+            <PatientSummaryWidget
+              totalPatients={totalPatientsCount}
+              pendingLabResults={pendingLabResultsCount}
+              preOp={preOpCount}
+              postOp={postOpCount}
+              lowRisk={lowRiskCount}
+              moderateRisk={moderateRiskCount}
+              highRisk={highRiskCount}
+              patientCountHistory={appointmentChartData}
+              pendingLabHistory={labSubmissionChartData}
+            />
+          </div>
+        </div>
+
+        <div className="dashboard-right-column">
+          <div className="appointments-today">
+            <h3>Upcoming Appointments</h3>
+            <div className="appointment-list-container">
+              <table className="appointment-list-table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Patient Name</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {appointments.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" style={{ textAlign: "center" }}>
+                        No upcoming appointments.
+                      </td>
+                    </tr>
+                  ) : (
+                    appointments
+                      .filter(appt => appt.appointment_state !== 'Done' && appt.appointment_state !== 'cancelled')
+                      .slice(0, 5) // Show only first 5 appointments
+                      .map((appt) => (
+                        <tr key={appt.appointment_id}>
+                          <td>{new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                          <td>{appt.patients ? `${appt.patients.first_name} ${appt.patients.last_name}` : "Unknown"}</td>
+                          <td className="appointment-status">
+                            <span className={`status-${(appt.appointment_state || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
+                              {(() => {
+                                const state = appt.appointment_state || 'pending';
+                                if (state === 'in queue') return 'In Queue';
+                                if (state === 'cancelled') return 'Cancelled';
+                                if (state === 'pending') return 'Pending';
+                                return state.charAt(0).toUpperCase() + state.slice(1);
+                              })()}
+                            </span>
+                          </td>
+                          <td className="appointment-actions">
+                            <button onClick={() => handleShowModal(appt, "cancel")} className="action-btn5 cancel-btn5">
+                              Cancel
+                            </button>
+                            <button onClick={() => handleShowModal(appt, "done")} className="action-btn5 done-btn5">
+                              Done
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
-// NEW: Helper function to get patient phase counts
+
+  // NEW: Helper function to get patient phase counts
 const getPatientPhaseCounts = () => {
   const counts = { 'Pre-Operative': 0, 'Post-Operative': 0 };
   patients.forEach(patient => {
@@ -957,7 +2403,11 @@ const renderReportsContent = () => {
                         <p><strong>Diabetes Type:</strong> {selectedPatient.diabetes_type}</p>
                         <p><strong>Smoking Status:</strong> {selectedPatient.smoking_status}</p>
                         <p><strong>Last Doctor Visit:</strong> {selectedPatient.last_doctor_visit}</p>
-                        <p><strong>Risk Classification:</strong> <span className={`risk-classification3 ${selectedPatient.risk_classification}`}>{selectedPatient.risk_classification}</span></p>
+                        <p><strong>Risk Classification:</strong> 
+                          <span className={`risk-classification3 ${(latestMetric?.risk_classification || selectedPatient.risk_classification || 'n-a').toLowerCase()}`}>
+                            {latestMetric?.risk_classification || selectedPatient.risk_classification || 'N/A'}
+                          </span>
+                        </p>
                         <p><strong>Phase:</strong> <span className={`phase3 ${selectedPatient.phase}`}>{selectedPatient.phase}</span></p>
                       </div>
                     </div>
@@ -1231,376 +2681,975 @@ const renderReportsContent = () => {
   const renderPatientProfile = () => {
     if (loading) return <div className="loading-message3">Loading patient details...</div>;
     if (error) return <div className="error-message3">{error}</div>;
+    if (!selectedPatient?.patient_id) return <div className="error-message3">No patient selected</div>;
 
     const latestMetric = patientMetrics.length > 0 ? patientMetrics[0] : null;
     const latestLab = patientLabs.length > 0 ? patientLabs[0] : null; // Get the latest lab result
 
     return (
-      <div className="patient-profile-wrapper3">
-        <div className="patient-profile-header3">
-          <button className="back-button3" onClick={() => setActivePage("dashboard")}>Back to Dashboard</button>
+      <div key={selectedPatient.patient_id} className="patient-detail-view-section">
+        <div className="detail-view-header">
+          <button className="back-to-list-button" onClick={() => setActivePage("dashboard")}>
+            <i className="fas fa-arrow-left"></i> Back to Dashboard
+          </button>
+          <div className="patient-details-header-row">
+            <h2>Patient Details</h2>
+          </div>
         </div>
+        <div className="patient-details-content-container">
+          <div className="patient-details-left-column">
+            {/* Basic Patient Information Section */}
+            <div className="patient-basic-info-section">
+              <div className="patient-info-container">
+                <div className="patient-avatar-container">
+                  <img 
+                    src={selectedPatient?.patient_picture || "../picture/secretary.png"} 
+                    alt="Patient Avatar" 
+                    className="patient-avatar-large"
+                    onError={(e) => e.target.src = "../picture/secretary.png"}
+                  />
+                  <div className={`patient-phase-badge ${
+                    selectedPatient.phase === 'Post-Op' || selectedPatient.phase === 'Post-Operative' ? 'post-operative' :
+                    selectedPatient.phase === 'Pre-Op' || selectedPatient.phase === 'Pre-Operative' ? 'pre-operative' :
+                    'default'
+                  }`}>
+                    {selectedPatient.phase === 'Post-Op' || selectedPatient.phase === 'Post-Operative' ? 'Post-operative' : 
+                     selectedPatient.phase === 'Pre-Op' || selectedPatient.phase === 'Pre-Operative' ? 'Pre-operative' : 
+                     selectedPatient.phase || 'N/A'}
+                  </div>
+                </div>
+                <div className="patient-info-details">
+                  <div className="patient-name-section">
+                    <h2 className="patient-name-display">
+                      {selectedPatient.first_name} {selectedPatient.middle_name ? selectedPatient.middle_name + ' ' : ''}{selectedPatient.last_name}
+                    </h2>
+                  </div>
+                  <div className="patient-details-grid">
+                    <div className="patient-detail-item">
+                      <span className="detail-label">Diabetes Type:</span>
+                      <span className="detail-value">{selectedPatient.diabetes_type || 'N/A'}</span>
+                    </div>
+                    <div className="patient-detail-item">
+                      <span className="detail-label">Phone:</span>
+                      <span className="detail-value">{selectedPatient.contact_info || 'N/A'}</span>
+                    </div>
+                    <div className="patient-detail-item">
+                      <span className="detail-label">Gender:</span>
+                      <span className="detail-value">{selectedPatient.gender || 'N/A'}</span>
+                    </div>
+                    <div className="patient-detail-item">
+                      <span className="detail-label">Age:</span>
+                      <span className="detail-value">
+                        {selectedPatient.date_of_birth 
+                          ? new Date().getFullYear() - new Date(selectedPatient.date_of_birth).getFullYear() 
+                          : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="patient-detail-item">
+                      <span className="detail-label">Hypertensive:</span>
+                      <span className="detail-value">{selectedPatient.complication_history?.includes("Hypertensive") ? "Yes" : "No"}</span>
+                    </div>
+                    <div className="patient-detail-item">
+                      <span className="detail-label">Heart Disease:</span>
+                      <span className="detail-value">{selectedPatient.complication_history?.includes("Heart Attack") ? "Yes" : "None"}</span>
+                    </div>
+                  </div>
+                  <div className="patient-detail-item">
+                    <span className="detail-label">Smoking History:</span>
+                    <span className="detail-value">{selectedPatient.smoking_status || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Laboratory Result Section */}
+            <div className="laboratory-results-section">
+              <h3>Laboratory Results (Latest)</h3>
+              {latestLab ? (
+                <>
+                  <p><strong>Date Submitted:</strong> {new Date(latestLab.date_submitted).toLocaleDateString()}</p>
+                  <p><strong>HbA1c:</strong> {latestLab.Hba1c || 'N/A'}</p>
+                  <p><strong>Creatinine:</strong> {latestLab.creatinine || 'N/A'}</p>
+                  <p><strong>GOT (AST):</strong> {latestLab.got_ast || 'N/A'}</p>
+                  <p><strong>GPT (ALT):</strong> {latestLab.gpt_alt || 'N/A'}</p>
+                  <p><strong>Cholesterol:</strong> {latestLab.cholesterol || 'N/A'}</p>
+                  <p><strong>Triglycerides:</strong> {latestLab.triglycerides || 'N/A'}</p>
+                  <p><strong>HDL Cholesterol:</strong> {latestLab.hdl_cholesterol || 'N/A'}</p>
+                  <p><strong>LDL Cholesterol:</strong> {latestLab.ldl_cholesterol || 'N/A'}</p>
+                </>
+              ) : (
+                <p>No lab results available for this patient.</p>
+              )}
+            </div>
+            
+            {/* Latest Health Metrics Section */}
+            <div className="latest-health-metrics-section">
+              <h3>Latest Health Metrics</h3>
+              {latestMetric ? (
+                <>
+                  <p><strong>Blood Glucose Level:</strong> {latestMetric.blood_glucose || 'N/A'} {latestMetric.blood_glucose ? 'mg/dL' : ''}</p>
+                  <p><strong>Blood Pressure:</strong> {
+                    (latestMetric.bp_systolic && latestMetric.bp_diastolic) 
+                      ? `${latestMetric.bp_systolic}/${latestMetric.bp_diastolic} mmHg` 
+                      : 'N/A'
+                  }</p>
+                  <p><strong>Risk Classification:</strong> 
+                    <span className={`risk-classification-${(latestMetric.risk_classification || 'n-a').toLowerCase()}`}>
+                      {latestMetric.risk_classification || 'N/A'}
+                    </span>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p><strong>Blood Glucose Level:</strong> N/A</p>
+                  <p><strong>Blood Pressure:</strong> N/A</p>
+                  <p><strong>Risk Classification:</strong> 
+                    <span className={`risk-classification-${(selectedPatient.risk_classification || 'n-a').toLowerCase()}`}>
+                      {selectedPatient.risk_classification || 'N/A'}
+                    </span>
+                  </p>
+                </>
+              )}
+            </div>
 
-        <div className="patient-profile-content-grid3">
-          <div className="card3 patient-details-card3">
-              <h2>Patient Profile: {selectedPatient.first_name} {selectedPatient.last_name}</h2>
-            <div className="patient-info-display3">
-                <p><strong>Date of Birth:</strong> {selectedPatient.date_of_birth}</p>
-                <p><strong>Contact Info:</strong> {selectedPatient.contact_info}</p>
-                <p><strong>Gender:</strong> {selectedPatient.gender}</p>
-                <p><strong>Diabetes Type:</strong> {selectedPatient.diabetes_type}</p>
-                <p><strong>Smoking Status:</strong> {selectedPatient.smoking_status}</p>
-                <p><strong>Last Doctor Visit:</strong> {selectedPatient.last_doctor_visit}</p>
-                <p><strong>Risk Classification:</strong> <span className={`risk-classification3 ${selectedPatient.risk_classification}`}>{selectedPatient.risk_classification}</span></p>
-                <p><strong>Phase:</strong> <span className={`phase3 ${selectedPatient.phase}`}>{selectedPatient.phase}</span></p>
+            {/* History Charts Section */}
+            <div className="history-charts-section">
+              <h3>History Charts</h3>
+              
+              {/* Blood Glucose Chart */}
+              <div className="blood-glucose-chart-container">
+                <h4>Blood Glucose Level History</h4>
+                <div className="chart-wrapper">
+                  <Line
+                    data={{
+                      labels: allPatientHealthMetrics.slice(0, 5).reverse().map(entry => formatDateForChart(entry.submission_date)),
+                      datasets: [{
+                        label: 'Blood Glucose',
+                        data: allPatientHealthMetrics.slice(0, 5).reverse().map(entry => parseFloat(entry.blood_glucose) || 0),
+                        fill: true,
+                        backgroundColor: (context) => {
+                          const chart = context.chart;
+                          const {ctx, chartArea} = chart;
+                          if (!chartArea) {
+                            return null;
+                          }
+                          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                          gradient.addColorStop(0, 'rgba(34, 197, 94, 0.8)');
+                          gradient.addColorStop(1, 'rgba(34, 197, 94, 0.1)');
+                          return gradient;
+                        },
+                        borderColor: '#22c55e',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#22c55e',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        tension: 0.4,
+                      }],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          display: false,
+                        },
+                        tooltip: {
+                          callbacks: {
+                            label: function(context) {
+                              return `Glucose: ${context.raw} mg/dL`;
+                            }
+                          }
+                        }
+                      },
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                          title: {
+                            display: false,
+                          },
+                          min: 0,
+                          max: 300,
+                          ticks: {
+                            display: false,
+                          },
+                          grid: {
+                            display: true,
+                            color: 'rgba(0, 0, 0, 0.1)',
+                          }
+                        },
+                        x: {
+                          grid: {
+                            display: false
+                          },
+                          title: {
+                            display: false,
+                          },
+                          ticks: {
+                            display: false,
+                          }
+                        }
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Blood Pressure Chart */}
+              <div className="blood-pressure-chart-container">
+                <h4>Blood Pressure History</h4>
+                <div className="chart-wrapper">
+                  <Bar
+                    data={{
+                      labels: allPatientHealthMetrics.slice(0, 10).reverse().map(entry => formatDateForChart(entry.submission_date)),
+                      datasets: [
+                        {
+                          label: 'Diastolic',
+                          data: allPatientHealthMetrics.slice(0, 10).reverse().map(entry => parseFloat(entry.bp_diastolic) || 0),
+                          backgroundColor: 'rgba(134, 239, 172, 0.8)',
+                          borderColor: 'rgba(134, 239, 172, 1)',
+                          borderWidth: 1,
+                          barThickness: 15,
+                          borderRadius: {
+                            topLeft: 0,
+                            topRight: 0,
+                            bottomLeft: 15,
+                            bottomRight: 15
+                          },
+                          borderSkipped: false,
+                        },
+                        {
+                          label: 'Systolic',
+                          data: allPatientHealthMetrics.slice(0, 10).reverse().map(entry => parseFloat(entry.bp_systolic) || 0),
+                          backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                          borderColor: 'rgba(34, 197, 94, 1)',
+                          borderWidth: 1,
+                          barThickness: 15,
+                          borderRadius: {
+                            topLeft: 15,
+                            topRight: 15,
+                            bottomLeft: 0,
+                            bottomRight: 0
+                          },
+                          borderSkipped: false,
+                        },
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      interaction: {
+                        intersect: false,
+                        mode: 'index',
+                      },
+                      plugins: {
+                        legend: {
+                          display: true,
+                          position: 'top',
+                          labels: {
+                            usePointStyle: true,
+                            padding: 20,
+                          }
+                        },
+                        tooltip: {
+                          callbacks: {
+                            label: function(context) {
+                              return `${context.dataset.label}: ${context.raw} mmHg`;
+                            }
+                          }
+                        }
+                      },
+                      scales: {
+                        x: {
+                          stacked: true,
+                          grid: {
+                            display: false
+                          },
+                          title: {
+                            display: false,
+                          },
+                          ticks: {
+                            display: false,
+                          },
+                          categoryPercentage: 0.95,
+                          barPercentage: 0.95,
+                        },
+                        y: {
+                          stacked: true,
+                          beginAtZero: true,
+                          title: {
+                            display: false,
+                          },
+                          min: 0,
+                          max: 350,
+                          ticks: {
+                            display: false,
+                          },
+                          grid: {
+                            display: true,
+                            color: 'rgba(0, 0, 0, 0.1)',
+                          }
+                        }
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Risk Classification History Chart */}
+              <div className="risk-classification-chart-container">
+                <h4>Risk Classification History</h4>
+                
+                <div className="risk-legend-container">
+                  <div className="risk-legend-item">
+                    <div className="risk-legend-color low-risk"></div>
+                    <span>Low Risk</span>
+                  </div>
+                  <div className="risk-legend-item">
+                    <div className="risk-legend-color moderate-risk"></div>
+                    <span>Moderate Risk</span>
+                  </div>
+                  <div className="risk-legend-item">
+                    <div className="risk-legend-color high-risk"></div>
+                    <span>High Risk</span>
+                  </div>
+                  <div className="risk-legend-item">
+                    <div className="risk-legend-color ppd-risk"></div>
+                    <span>PPD</span>
+                  </div>
+                </div>
+
+                <div className="chart-wrapper">
+                  <Bar
+                    data={{
+                      labels: allPatientHealthMetrics.slice(0, 10).reverse().map(entry => formatDateForChart(entry.submission_date)),
+                      datasets: [
+                        {
+                          label: 'Risk Classification',
+                          data: allPatientHealthMetrics.slice(0, 10).reverse().map(entry => {
+                            const risk = entry.risk_classification?.toLowerCase();
+                            if (risk === 'low') return 2;
+                            if (risk === 'moderate') return 3;
+                            if (risk === 'high') return 4;
+                            if (risk === 'ppd') return 1;
+                            return 0;
+                          }),
+                          backgroundColor: allPatientHealthMetrics.slice(0, 10).reverse().map(entry => {
+                            const risk = entry.risk_classification?.toLowerCase();
+                            if (risk === 'low') return 'rgba(34, 197, 94, 0.8)';
+                            if (risk === 'moderate') return 'rgba(255, 193, 7, 0.8)';
+                            if (risk === 'high') return 'rgba(244, 67, 54, 0.8)';
+                            if (risk === 'ppd') return 'rgba(103, 101, 105, 0.8)';
+                            return 'rgba(156, 163, 175, 0.8)';
+                          }),
+                          borderColor: allPatientHealthMetrics.slice(0, 10).reverse().map(entry => {
+                            const risk = entry.risk_classification?.toLowerCase();
+                            if (risk === 'low') return 'rgba(34, 197, 94, 1)';
+                            if (risk === 'moderate') return 'rgba(255, 193, 7, 1)';
+                            if (risk === 'high') return 'rgba(244, 67, 54, 1)';
+                            if (risk === 'ppd') return 'rgba(103, 101, 105, 1)';
+                            return 'rgba(156, 163, 175, 1)';
+                          }),
+                          borderWidth: 1,
+                          barThickness: 15,
+                          borderRadius: {
+                            topLeft: 8,
+                            topRight: 8,
+                            bottomLeft: 8,
+                            bottomRight: 8
+                          },
+                          borderSkipped: false,
+                        },
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      interaction: {
+                        intersect: false,
+                        mode: 'index',
+                      },
+                      plugins: {
+                        legend: {
+                          display: false,
+                        },
+                        tooltip: {
+                          callbacks: {
+                            label: function(context) {
+                              const entry = allPatientHealthMetrics.slice(0, 10).reverse()[context.dataIndex];
+                              return `Risk: ${entry.risk_classification || 'Unknown'}`;
+                            }
+                          }
+                        }
+                      },
+                      scales: {
+                        x: {
+                          grid: {
+                            display: false
+                          },
+                          title: {
+                            display: false,
+                          },
+                          ticks: {
+                            display: false,
+                          },
+                          categoryPercentage: 0.95,
+                          barPercentage: 0.95,
+                        },
+                        y: {
+                          beginAtZero: true,
+                          title: {
+                            display: false,
+                          },
+                          min: 0,
+                          max: 4,
+                          ticks: {
+                            display: false,
+                            stepSize: 1,
+                          },
+                          grid: {
+                            display: true,
+                            color: 'rgba(0, 0, 0, 0.1)',
+                          }
+                        }
+                      }
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="card3 latest-metrics-card3">
-            <h3>Latest Health Metrics & Lab Results</h3>
-            {(latestMetric && (latestMetric.blood_glucose || latestMetric.bp_systolic || latestMetric.bp_diastolic)) || latestLab ? (
-              <div className="metric-cards-container3">
-                {latestMetric && (latestMetric.blood_glucose || latestMetric.bp_systolic || latestMetric.bp_diastolic) ? (
-                    <>
-                        <div className="metric-card3 blood-glucose3">
-                        <h4>Blood Glucose</h4>
-                        <p className="metric-value3">{latestMetric.blood_glucose || 'No available data'}</p>
-                        <span className="metric-unit3">mg/dL</span>
-                        </div>
-                        <div className="metric-card3 blood-pressure3">
-                        <h4>Blood Pressure</h4>
-                        <p className="metric-value3">
-                            {(latestMetric.bp_systolic && latestMetric.bp_diastolic) ?
-                            `${latestMetric.bp_systolic} / ${latestMetric.bp_diastolic}` :
-                            'No available data'
-                            }
+          <div className="patient-details-right-column">
+            {/* Doctor Assigned Section */}
+            <div className="doctor-assigned-section">
+              <div className="doctors-grid">
+                {/* Assigned Doctor Card */}
+                <div className="doctor-card">
+                  <div className="doctor-avatar">
+                    <img 
+                      src="../picture/secretary.png" 
+                      alt="Doctor Avatar"
+                    />
+                  </div>
+                  <div className="doctor-info">
+                    <span className="doctor-label">Assigned Doctor:</span>
+                    <h4 className="doctor-name">
+                      {loading ? 'Loading...' : 
+                        selectedPatient?.doctors 
+                          ? `${selectedPatient.doctors.first_name} ${selectedPatient.doctors.last_name}` 
+                          : user ? `${user.first_name} ${user.last_name}` : 'Dr. Name'}
+                    </h4>
+                    <p className="doctor-specialty">
+                      {loading ? 'Loading...' : 
+                        selectedPatient?.doctors?.specialization || user?.specialization || 'General Surgeon'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Assigned Specialists Cards */}
+                {loading ? (
+                  <div className="doctor-card specialist-card">
+                    <div className="doctor-info">
+                      <span className="doctor-label">Loading Specialists...</span>
+                    </div>
+                  </div>
+                ) : currentPatientSpecialists.length > 0 ? (
+                  currentPatientSpecialists.map((specialist, index) => (
+                    <div key={specialist.id || index} className="doctor-card specialist-card">
+                      <div className="doctor-avatar">
+                        <img 
+                          src="../picture/secretary.png" 
+                          alt="Specialist Avatar"
+                        />
+                      </div>
+                      <div className="doctor-info">
+                        <span className="doctor-label">Specialist Doctor</span>
+                        <h4 className="doctor-name">
+                          {specialist.doctors 
+                            ? `${specialist.doctors.first_name} ${specialist.doctors.last_name}` 
+                            : 'Unknown Doctor'}
+                        </h4>
+                        <p className="doctor-specialty">
+                          {specialist.doctors?.specialization || 'General'}
                         </p>
-                        <span className="metric-unit3">mmHg</span>
-                        </div>
-                    </>
-                ) : null}
-
-                {/* Display Latest Lab Results */}
-                {latestLab ? (
-                    <>
-                        <div className="metric-card3">
-                            <h4>Hba1c</h4>
-                            <p className="metric-value3">{latestLab.Hba1c || 'N/A'}</p>
-                            <span className="metric-unit3">%</span>
-                        </div>
-                        <div className="metric-card3">
-                            <h4>Creatinine</h4>
-                            <p className="metric-value3">{latestLab.creatinine || 'N/A'}</p>
-                            <span className="metric-unit3">mg/dL</span>
-                        </div>
-                        <div className="metric-card3">
-                            <h4>GOT (AST)</h4>
-                            <p className="metric-value3">{latestLab.got_ast || 'N/A'}</p>
-                            <span className="metric-unit3">U/L</span>
-                        </div>
-                        <div className="metric-card3">
-                            <h4>GPT (ALT)</h4>
-                            <p className="metric-value3">{latestLab.gpt_alt || 'N/A'}</p>
-                            <span className="metric-unit3">U/L</span>
-                        </div>
-                        <div className="metric-card3">
-                            <h4>Tryglycerides</h4>
-                            <p className="metric-value3">{latestLab.triglycerides || 'N/A'}</p>
-                            <span className="metric-unit3">mg/dL</span>
-                        </div>
-                        <div className="metric-card3">
-                            <h4>HDL Cholesterol</h4>
-                            <p className="metric-value3">{latestLab.hdl_cholesterol || 'N/A'}</p>
-                            <span className="metric-unit3">mg/dL</span>
-                        </div>
-                        <div className="metric-card3">
-                            <h4>LDL Cholesterol</h4>
-                            <p className="metric-value3">{latestLab.ldl_cholesterol || 'N/A'}</p>
-                            <span className="metric-unit3">mg/dL</span>
-                        </div>
-                        <div className="metric-card3">
-                            <h4>Cholesterol</h4>
-                            <p className="metric-value3">{latestLab.cholesterol || 'N/A'}</p>
-                            <span className="metric-unit3">mg/dL</span>
-                        </div>
-                    </>
-                ) : null}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="doctor-card specialist-card placeholder-card">
+                    <div className="doctor-avatar">
+                      <img 
+                        src="../picture/secretary.png" 
+                        alt="No Specialist"
+                      />
+                    </div>
+                    <div className="doctor-info">
+                      <span className="doctor-label">Specialist Doctor</span>
+                      <h4 className="doctor-name">No Specialist Assigned</h4>
+                      <p className="doctor-specialty">-</p>
+                    </div>
+                  </div>
+                )}
               </div>
-            ) : (
-              <p>No available data for health metrics or lab results.</p>
-            )}
-          </div>
-
-          {/* REPLACED NOTES WITH APPOINTMENT SCHEDULE */}
-          <div className="card3 appointment-schedule-card3">
-            <h3>Patient Appointment Schedule</h3>
-            {patientAppointments.filter(appt => 
-              appt.appointment_state !== 'Done' && 
-              appt.appointment_state !== 'cancelled' && 
-              appt.appointment_state !== null && 
-              appt.appointment_state !== undefined &&
-              appt.appointment_state !== 'N/A' &&
-              appt.appointment_state !== ''
-            ).length === 0 ? (
-              <p className="no-appointments-text3">No upcoming appointments scheduled for this patient.</p>
-            ) : (
-              <div className="table-responsive3">
-                <table className="appointment-list-table3">
+            </div>
+            
+            {/* Current Medications Section - Doctor-specific functionality preserved */}
+            <div className="current-medications-section">
+              <div className="medications-table-container">
+                <label>Current Medications:</label>
+                <table className="medications-table">
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>Time</th>
-                      <th>Notes</th>
-                      <th>State</th>
+                      <th>Drug Name</th>
+                      <th>Dosage</th>
+                      <th>Frequency</th>
+                      <th>Prescribed by</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {patientAppointments
-                      .filter(appt => 
-                        appt.appointment_state !== 'Done' && 
-                        appt.appointment_state !== 'cancelled' && 
-                        appt.appointment_state !== null && 
-                        appt.appointment_state !== undefined &&
-                        appt.appointment_state !== 'N/A' &&
-                        appt.appointment_state !== ''
-                      )
-                      .map((appt) => (
-                      <tr key={appt.appointment_id}>
-                        <td>{new Date(appt.appointment_datetime).toLocaleDateString()}</td>
-                        <td>{new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                        <td>{appt.notes || "N/A"}</td>
-                        <td>{appt.appointment_state || "N/A"}</td>
+                    {patientMedications.length > 0 ? (
+                      patientMedications.map((med, idx) => (
+                        <tr key={med.id || idx}>
+                          {editingMedicationId === med.id ? (
+                            <>
+                              <td>
+                                <input
+                                  type="text"
+                                  name="name"
+                                  value={editMedicationData.name}
+                                  onChange={handleEditMedicationInputChange}
+                                  className="med-input"
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="text"
+                                  name="dosage"
+                                  value={editMedicationData.dosage}
+                                  onChange={handleEditMedicationInputChange}
+                                  className="med-input"
+                                />
+                              </td>
+                              <td>
+                                <div className="medication-checkbox-group-edit3">
+                                  <label>
+                                    <input
+                                      type="checkbox"
+                                      name="timeOfDay"
+                                      value="morning"
+                                      checked={editMedicationFrequencyData.timeOfDay.includes('morning')}
+                                      onChange={handleEditMedicationFrequencyChange}
+                                    /> M
+                                  </label>
+                                  <label>
+                                    <input
+                                      type="checkbox"
+                                      name="timeOfDay"
+                                      value="noon"
+                                      checked={editMedicationFrequencyData.timeOfDay.includes('noon')}
+                                      onChange={handleEditMedicationFrequencyChange}
+                                    /> N
+                                  </label>
+                                  <label>
+                                    <input
+                                      type="checkbox"
+                                      name="timeOfDay"
+                                      value="dinner"
+                                      checked={editMedicationFrequencyData.timeOfDay.includes('dinner')}
+                                      onChange={handleEditMedicationFrequencyChange}
+                                    /> D
+                                  </label>
+                                </div>
+                              </td>
+                              <td>
+                                <input
+                                  type="date"
+                                  name="startDate"
+                                  value={editMedicationFrequencyData.startDate}
+                                  onChange={handleEditMedicationFrequencyChange}
+                                  className="med-input"
+                                />
+                              </td>
+                              <td className="med-actions">
+                                <button
+                                  className="action-button3 save-button3"
+                                  onClick={() => handleSaveMedication(med.id)}
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  className="action-button3 cancel-button3"
+                                  onClick={handleCancelEdit}
+                                >
+                                  Cancel
+                                </button>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td><input type="text" className="med-input" value={med.name || ''} readOnly /></td>
+                              <td><input type="text" className="med-input" value={med.dosage || ''} readOnly /></td>
+                              <td><input type="text" className="med-input" value={
+                                med.medication_frequencies && med.medication_frequencies.length > 0 ?
+                                  med.medication_frequencies.map((freq) => freq.time_of_day.join(', ')).join('; ')
+                                  : 'N/A'
+                              } readOnly /></td>
+                              <td><input type="text" className="med-input" value={
+                                (med.doctors && med.doctors.first_name) ? 
+                                  `${med.doctors.first_name} ${med.doctors.last_name}` : 
+                                  'Doctor'
+                              } readOnly /></td>
+                              <td className="med-actions">
+                                <button
+                                  type="button"
+                                  className="edit-medication-button3"
+                                  onClick={() => handleEditClick(med)}
+                                  title="Edit medication"
+                                >
+                                  <i className="fas fa-edit"></i>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="remove-medication-button3"
+                                  onClick={() => handleRemoveMedication(med.id)}
+                                  title="Remove medication"
+                                >
+                                  <i className="fas fa-minus-circle"></i>
+                                </button>
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td><input type="text" className="med-input" placeholder="No medications" readOnly /></td>
+                        <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
+                        <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
+                        <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
+                        <td className="med-actions">
+                          <button type="button" className="add-med-button" title="Add medication">
+                            <i className="fas fa-plus-circle"></i>
+                          </button>
+                        </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
-            )}
-          </div>
-
-          {/* New Medication Management Card */}
-          <div className="card3 medication-card3">
-            <h3>Medication Management</h3>
-            <div className="medication-input-group3">
+              
+              {/* Add New Medication Form - Doctor-specific functionality */}
+              <div className="medication-input-group3">
                 <input
-                    type="text"
-                    name="name"
-                    placeholder="Medication Name"
-                    value={newMedication.name}
-                    onChange={handleNewMedicationInputChange}
-                    className="medication-input3"
+                  type="text"
+                  name="name"
+                  placeholder="Medication Name"
+                  value={newMedication.name}
+                  onChange={handleNewMedicationInputChange}
+                  className="medication-input3"
                 />
                 <input
-                    type="text"
-                    name="dosage"
-                    placeholder="Dosage"
-                    value={newMedication.dosage}
-                    onChange={handleNewMedicationInputChange}
-                    className="medication-input3"
+                  type="text"
+                  name="dosage"
+                  placeholder="Dosage"
+                  value={newMedication.dosage}
+                  onChange={handleNewMedicationInputChange}
+                  className="medication-input3"
                 />
-                {/* Checkboxes for timeOfDay */}
                 <div className="medication-checkbox-group3">
-                    <label>
-                        <input
-                            type="checkbox"
-                            name="timeOfDay"
-                            value="morning"
-                            checked={newMedicationFrequency.timeOfDay.includes('morning')}
-                            onChange={handleNewMedicationFrequencyChange}
-                        /> Morning
-                    </label>
-                    <label>
-                        <input
-                            type="checkbox"
-                            name="timeOfDay"
-                            value="noon"
-                            checked={newMedicationFrequency.timeOfDay.includes('noon')}
-                            onChange={handleNewMedicationFrequencyChange}
-                        /> Noon
-                    </label>
-                    <label>
-                        <input
-                            type="checkbox"
-                            name="timeOfDay"
-                            value="dinner"
-                            checked={newMedicationFrequency.timeOfDay.includes('dinner')}
-                            onChange={handleNewMedicationFrequencyChange}
-                        /> Dinner
-                    </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="timeOfDay"
+                      value="morning"
+                      checked={newMedicationFrequency.timeOfDay.includes('morning')}
+                      onChange={handleNewMedicationFrequencyChange}
+                    /> Morning
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="timeOfDay"
+                      value="noon"
+                      checked={newMedicationFrequency.timeOfDay.includes('noon')}
+                      onChange={handleNewMedicationFrequencyChange}
+                    /> Noon
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="timeOfDay"
+                      value="dinner"
+                      checked={newMedicationFrequency.timeOfDay.includes('dinner')}
+                      onChange={handleNewMedicationFrequencyChange}
+                    /> Dinner
+                  </label>
                 </div>
                 <input
-                    type="date"
-                    name="startDate"
-                    value={newMedicationFrequency.startDate}
-                    onChange={handleNewMedicationFrequencyChange}
-                    className="medication-input3"
+                  type="date"
+                  name="startDate"
+                  value={newMedicationFrequency.startDate}
+                  onChange={handleNewMedicationFrequencyChange}
+                  className="medication-input3"
                 />
                 <button onClick={handleAddMedication} className="add-medication-button3">Add Medication</button>
+              </div>
             </div>
 
-            <div className="medication-list3 table-responsive3"> {/* Added table-responsive for overflow */}
-                {patientMedications.length === 0 ? (
-                    <p className="no-medication-text3">No medications listed for this patient.</p>
-                ) : (
-                    <table className="medication-list-table3">
-                        <thead>
-                            <tr>
-                                <th>Medication Name</th>
-                                <th>Dosage</th>
-                                <th>Frequency</th>
-                                <th>Start Date</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {patientMedications.map((med) => (
-                                <tr key={med.id}>
-                                    {editingMedicationId === med.id ? (
-                                        <>
-                                            <td>
-                                                <input
-                                                    type="text"
-                                                    name="name"
-                                                    value={editMedicationData.name}
-                                                    onChange={handleEditMedicationInputChange}
-                                                />
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="text"
-                                                    name="dosage"
-                                                    value={editMedicationData.dosage}
-                                                    onChange={handleEditMedicationInputChange}
-                                                />
-                                            </td>
-                                            <td>
-                                                <div className="medication-checkbox-group-edit3">
-                                                    <label>
-                                                        <input
-                                                            type="checkbox"
-                                                            name="timeOfDay"
-                                                            value="morning"
-                                                            checked={editMedicationFrequencyData.timeOfDay.includes('morning')}
-                                                            onChange={handleEditMedicationFrequencyChange}
-                                                        /> M
-                                                    </label>
-                                                    <label>
-                                                        <input
-                                                            type="checkbox"
-                                                            name="timeOfDay"
-                                                            value="noon"
-                                                            checked={editMedicationFrequencyData.timeOfDay.includes('noon')}
-                                                            onChange={handleEditMedicationFrequencyChange}
-                                                        /> N
-                                                    </label>
-                                                    <label>
-                                                        <input
-                                                            type="checkbox"
-                                                            name="timeOfDay"
-                                                            value="dinner"
-                                                            checked={editMedicationFrequencyData.timeOfDay.includes('dinner')}
-                                                            onChange={handleEditMedicationFrequencyChange}
-                                                        /> D
-                                                    </label>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="date"
-                                                    name="startDate"
-                                                    value={editMedicationFrequencyData.startDate}
-                                                    onChange={handleEditMedicationFrequencyChange}
-                                                />
-                                            </td>
-                                            <td>
-                                                {/* Empty cell to maintain column alignment in edit mode for the Status column */}
-                                            </td>
-                                            <td>
-                                                <button
-                                                    className="action-button3 save-button3"
-                                                    onClick={() => handleSaveMedication(med.id)}
-                                                >
-                                                    Save
-                                                </button>
-                                                <button
-                                                    className="action-button3 cancel-button3"
-                                                    onClick={handleCancelEdit}
-                                                >
-                                                    Cancel
-                                                </button>
-                                            </td>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <td>{med.name}</td>
-                                            <td>{med.dosage}</td>
-                                            <td>
-                                                {med.medication_frequencies && med.medication_frequencies.length > 0 ?
-                                                    med.medication_frequencies.map((freq) => freq.time_of_day.join(', ')).join('; ')
-                                                    : 'N/A'
-                                                }
-                                            </td>
-                                            <td>
-                                                {med.medication_frequencies && med.medication_frequencies.length > 0 ?
-                                                    new Date(med.medication_frequencies[0].start_date).toLocaleDateString()
-                                                    : 'N/A'
-                                                }
-                                            </td>
-                                            <td>
-                                                {med.overall_status || 'N/A'} {/* Use the new 'overall_status' property */}
-                                            </td>
-                                            <td>
-                                                <button
-                                                    className="remove-medication-button3"
-                                                    onClick={() => handleRemoveMedication(med.id)}
-                                                >
-                                                    Remove
-                                                </button>
-                                                <button
-                                                    className="edit-medication-button3"
-                                                    onClick={() => handleEditClick(med)}
-                                                >
-                                                    Edit
-                                                </button>
-                                            </td>
-                                        </>
-                                    )}
-                                </tr>
-                            ))}
-                        </tbody>
+            {/* Health Metrics History Section */}
+            <div className="health-metrics-history-section">
+              <h3>Health Metrics History</h3>
+              <div className="health-metrics-table-container">
+                {allPatientHealthMetrics.length > 0 ? (
+                  <>
+                    <table className="health-metrics-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Blood Glucose (mg/dL)</th>
+                          <th>Blood Pressure (mmHg)</th>
+                          <th>Risk Classification</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getPaginatedHealthMetrics().map((metric, index) => (
+                          <tr key={index}>
+                            <td>{formatDateToReadable(metric.submission_date)}</td>
+                            <td className="metric-value">
+                              {metric.blood_glucose || 'N/A'}
+                            </td>
+                            <td className="metric-value">
+                              {(metric.bp_systolic && metric.bp_diastolic) 
+                                ? `${metric.bp_systolic}/${metric.bp_diastolic}` 
+                                : metric.blood_pressure || 'N/A'}
+                            </td>
+                            <td className={`risk-classification-${(metric.risk_classification || 'N/A').toLowerCase()}`}>
+                              {metric.risk_classification || 'N/A'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
                     </table>
+
+                    {/* Health Metrics Pagination */}
+                    {getTotalHealthMetricsPages() > 1 && (
+                      <Pagination
+                        currentPage={currentPageHealthMetrics}
+                        totalPages={getTotalHealthMetricsPages()}
+                        onPageChange={setCurrentPageHealthMetrics}
+                        itemsPerPage={HEALTH_METRICS_PER_PAGE}
+                        totalItems={allPatientHealthMetrics.length}
+                        showPageInfo={true}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div className="no-metrics-message">
+                    <p>No health metrics available for this patient.</p>
+                  </div>
                 )}
+              </div>
+            </div>
+
+            {/* Appointment Schedule Section */}
+            <div className="appointment-schedule-section">
+              <h3>Appointment Schedule</h3>
+              <div className="dashboard-appointment-schedule-container">
+                <div className="dashboard-appointment-calendar-container">
+                  <Calendar
+                    value={calendarDate}
+                    onChange={setCalendarDate}
+                    tileClassName={({ date, view }) => {
+                      if (view === 'month') {
+                        // Check if this date has an appointment
+                        const hasAppointment = patientAppointments.some(appointment => {
+                          const appointmentDate = new Date(appointment.appointment_datetime);
+                          return (
+                            appointmentDate.getDate() === date.getDate() &&
+                            appointmentDate.getMonth() === date.getMonth() &&
+                            appointmentDate.getFullYear() === date.getFullYear()
+                          );
+                        });
+                        return hasAppointment ? 'dashboard-appointment-date' : null;
+                      }
+                    }}
+                    tileContent={({ date, view }) => {
+                      if (view === 'month') {
+                        const dayAppointments = patientAppointments.filter(appointment => {
+                          const appointmentDate = new Date(appointment.appointment_datetime);
+                          return (
+                            appointmentDate.getDate() === date.getDate() &&
+                            appointmentDate.getMonth() === date.getMonth() &&
+                            appointmentDate.getFullYear() === date.getFullYear()
+                          );
+                        });
+                      }
+                    }}
+                  />
+                </div>
+                
+                {/* Appointment Details List */}
+                <div className="dashboard-appointment-details-list">
+                  <h4>
+                    {(() => {
+                      const now = new Date();
+                      const futureAppointments = patientAppointments.filter(appointment => 
+                        new Date(appointment.appointment_datetime) > now
+                      );
+                      return futureAppointments.length > 0 ? 'Upcoming Appointments' : 'Recent Appointments';
+                    })()}
+                  </h4>
+                  {(() => {
+                    const now = new Date();
+                    const futureAppointments = patientAppointments.filter(appointment => 
+                      new Date(appointment.appointment_datetime) > now
+                    );
+                    
+                    let appointmentsToShow = [];
+                    if (futureAppointments.length > 0) {
+                      appointmentsToShow = futureAppointments.slice(0, 3);
+                    } else {
+                      // Show 3 most recent appointments
+                      appointmentsToShow = patientAppointments
+                        .sort((a, b) => new Date(b.appointment_datetime) - new Date(a.appointment_datetime))
+                        .slice(0, 3);
+                    }
+                    
+                    if (appointmentsToShow.length > 0) {
+                      return (
+                        <ul className="dashboard-appointment-list">
+                          {appointmentsToShow.map((appointment, idx) => (
+                            <li key={idx} className="dashboard-appointment-item">
+                              <div className="dashboard-appointment-date-time">
+                                <strong>{formatDateToReadable(appointment.appointment_datetime.split('T')[0])}</strong>
+                                <span className="dashboard-appointment-time">{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</span>
+                              </div>
+                              <div className="dashboard-appointment-notes">
+                                {appointment.notes || 'No notes'}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      );
+                    } else {
+                      return <p className="no-appointments">No appointments scheduled for this patient.</p>;
+                    }
+                  })()}
+                </div>
+              </div>
             </div>
           </div>
-          <div className="card3 assignments-card3">
-            <div className="wound-photo-button3"> {/* New div for header and button */}
-                <h3>Wound Photos </h3>
-                <button className="treatment-plan-button3" onClick={handleCreateTreatmentPlan}>
-                    Create Treatment Plan
-                </button>
-            </div>
-            {woundPhotos.length > 0 ? (
-              <div className="photo-gallery3">
-                {woundPhotos.map((photo, index) => (
-                  <div className="photo-card3" key={index}>
-                    <h4>Wound Photo</h4>
-                    <img src={photo.url} alt={`Wound ${index}`} />
-                    {photo.date && (
-                        <p className="photo-date">Date: {new Date(photo.date).toLocaleDateString()}</p>
-                    )}
+        </div>
+        
+        {/* Enhanced Wound Gallery Section */}
+        <div className="wound-gallery-section">
+          <h3>Wound Gallery</h3>
+          <div className="wound-gallery-grid">
+            {woundPhotosLoading ? (
+              <div className="loading-message">
+                <p>Loading wound photos...</p>
+              </div>
+            ) : allWoundPhotos.length > 0 ? (
+              allWoundPhotos.map((photo, index) => (
+                <div key={index} className="wound-gallery-card">
+                  <div className="wound-photo-container">
+                    <img
+                      src={photo.url}
+                      alt={`Wound Photo - ${photo.date}`}
+                      className="wound-photo-image"
+                      onLoad={() => console.log(`Wound photo ${index} loaded successfully`)}
+                      onError={(e) => {
+                        console.error(`Failed to load wound photo ${index}:`, photo.url);
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                    <button 
+                      className="photo-expand-btn"
+                      onClick={() => handleExpandPhoto(photo)}
+                    >
+                      <i className="fas fa-expand"></i>
+                    </button>
+                  </div>
+                  
+                  <div className="photo-info">
+                    <div className="photo-timestamp">
+                      <span className="photo-date">{formatDateToReadable(photo.date)}</span>
+                      <span className="photo-time">| {new Date(photo.date).toLocaleTimeString('en-US', { 
+                        hour: 'numeric', 
+                        minute: '2-digit', 
+                        hour12: true 
+                      })}</span>
+                    </div>
+                    
+                    <div className="photo-submitter">
+                      <img 
+                        src="../picture/secretary.png" 
+                        alt="Submitter Avatar" 
+                        className="submitter-avatar"
+                      />
+                      <span className="submitter-info">
+                        <span className="submitter-text">by</span> {selectedPatient.first_name} {selectedPatient.last_name}
+                      </span>
+                    </div>
+                    
+                    <div className="photo-actions">
+                      <button className="entry-btn">Entry ID: 00{allWoundPhotos.length - index}</button>
+                      <button className="view-details-btn">View Details</button>
+                    </div>
+                    
                     {photo.notes && (
-                        <p className="photo-notes">Notes: {photo.notes || 'Not Available'}</p>
+                      <div className="photo-notes">
+                        <strong>Notes:</strong> {photo.notes}
+                      </div>
                     )}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))
             ) : (
-              <p>No photos available for this patient.</p>
+              <div className="no-photos-message">
+                <p>No wound photos available for this patient.</p>
+              </div>
             )}
           </div>
-
+          
+          {/* Treatment Plan Button */}
+          <div className="wound-photo-button3">
+            <button className="treatment-plan-button3" onClick={handleCreateTreatmentPlan}>
+              Create Treatment Plan
+            </button>
+          </div>
         </div>
+
+        {/* Photo Expansion Modal */}
+        {expandedPhoto && (
+          <div className="photo-modal-overlay" onClick={handleCloseExpandedPhoto}>
+            <div className="photo-modal-content" onClick={(e) => e.stopPropagation()}>
+              <button className="photo-modal-close" onClick={handleCloseExpandedPhoto}>
+                <i className="fas fa-times"></i>
+              </button>
+              <img
+                src={expandedPhoto.url}
+                alt={`Expanded Wound Photo - ${expandedPhoto.date}`}
+                className="expanded-photo-image"
+              />
+              <div className="expanded-photo-info">
+                <h4>Wound Photo Details</h4>
+                <p><strong>Date:</strong> {formatDateToReadable(expandedPhoto.date)}</p>
+                <p><strong>Time:</strong> {new Date(expandedPhoto.date).toLocaleTimeString('en-US', { 
+                  hour: 'numeric', 
+                  minute: '2-digit', 
+                  hour12: true 
+                })}</p>
+                {expandedPhoto.notes && (
+                  <p><strong>Notes:</strong> {expandedPhoto.notes}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -1624,9 +3673,10 @@ const renderReportsContent = () => {
           <h1>Welcome, Dr. {user.first_name} 👋</h1>
         )}
         {activePage === "dashboard" && renderDashboardContent()}
-        {activePage === "patient-profile" && selectedPatient && renderPatientProfile()}
+        {activePage === "patient-profile" && selectedPatient?.patient_id && renderPatientProfile()}
         {activePage === "patient-list" && renderPatientList()}
-        {activePage === "reports" && renderReportsContent()}
+        {activePage === "appointments" && renderAppointmentsSection()}
+        {activePage === "reports" && renderReportsSection()}
         {activePage === "treatment-plan" && selectedPatient && renderTreatmentPlan()} {/* Render the first step of treatment plan */}
         {activePage === "treatment-plan-next-step" && selectedPatient && renderNextStepForms()} {/* Render the next step of treatment plan */}
         {activePage === "treatment-plan-summary" && selectedPatient && renderTreatmentPlanSummary()} {/* NEW: Render the summary page */}
