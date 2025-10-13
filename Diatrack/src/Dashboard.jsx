@@ -592,6 +592,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [allWoundPhotos, setAllWoundPhotos] = useState([]); // For wound gallery
   const [woundPhotosLoading, setWoundPhotosLoading] = useState(false);
   const [expandedPhoto, setExpandedPhoto] = useState(null); // For photo expansion
+  const [selectedWoundPhoto, setSelectedWoundPhoto] = useState(null); // For treatment plan specific photo
   const [calendarDate, setCalendarDate] = useState(new Date()); // For calendar
   const [currentPatientSpecialists, setCurrentPatientSpecialists] = useState([]); // For specialist assignments
   const [fetchingPatientDetails, setFetchingPatientDetails] = useState(false); // To prevent multiple fetches
@@ -2302,6 +2303,18 @@ const renderReportsContent = () => {
         }
     };
 
+    // NEW: Function to handle "Create Treatment Plan" for a specific wound photo
+    const handleCreateTreatmentPlanForPhoto = (photo) => {
+        if (photo) {
+            // Set the selected wound photo for the treatment plan
+            setSelectedWoundPhoto(photo);
+            // Navigate to treatment plan page
+            setActivePage("treatment-plan");
+        } else {
+            alert("No wound photo selected to create a treatment plan.");
+        }
+    };
+
     // NEW: Handlers for dynamic Diagnosis fields
     const handleAddDiagnosis = () => {
       setDiagnosisDetails([...diagnosisDetails, { id: Date.now(), text: '' }]);
@@ -2381,7 +2394,10 @@ const renderReportsContent = () => {
 
     // NEW: Render Treatment Plan Content (Step 1)
     const renderTreatmentPlan = () => {
-      const latestWoundPhoto = woundPhotos.length > 0 ? woundPhotos[0] : null;
+      // Use the selected wound photo if available, otherwise use the latest one
+      const latestWoundPhoto = selectedWoundPhoto || (woundPhotos.length > 0 ? woundPhotos[0] : null);
+      // Get the latest metric for risk classification display
+      const latestMetric = patientMetrics.length > 0 ? patientMetrics[0] : null;
 
       if (!selectedPatient) return <p>No patient selected for treatment plan.</p>;
 
@@ -2507,7 +2523,7 @@ const renderReportsContent = () => {
                
                 <h2>Additional Treatment Plan Details for {selectedPatient.first_name} {selectedPatient.last_name}</h2>
 
-                <div className="forms-container3"> {/* Using the same forms-container for consistent layout */}
+                <div className="three-column-forms3"> {/* Changed from forms-container3 to three-column-forms3 */}
                     <div className="card3 medication-treatment-form3">
                         <h3>Medication</h3>
                         {medicationTreatmentPlan.map((entry, index) => (
@@ -2585,9 +2601,62 @@ const renderReportsContent = () => {
             window.print();
         };
 
-        const handleSend = () => {
-            alert("Treatment Plan Sent!");
-            // Here you would implement actual sending logic (e.g., via email API)
+        const handleSend = async () => {
+            try {
+                // All fields should be arrays for the database
+                const diagnosisArray = diagnosisDetails.map(entry => entry.text).filter(Boolean);
+                const woundCareArray = woundCareDetails.map(entry => entry.text).filter(Boolean);
+                const dressingArray = dressingDetails.map(entry => entry.text).filter(Boolean);
+                const importantNotesArray = importantNotes.map(entry => entry.text).filter(Boolean);
+                const followUpArray = followUpDetails.map(entry => entry.text).filter(Boolean);
+                const medicationArray = medicationTreatmentPlan.map(entry => entry.text).filter(Boolean);
+
+                console.log('Diagnosis array:', diagnosisArray);
+                console.log('Wound care array:', woundCareArray);
+                console.log('Dressing array:', dressingArray);
+                console.log('Medication array:', medicationArray);
+                console.log('Important notes array:', importantNotesArray);
+                console.log('Follow-up array:', followUpArray);
+
+                // Get current timestamp
+                const now = new Date().toISOString();
+
+                // Prepare the data object - ALL fields are arrays
+                const treatmentPlanData = {
+                    patient_id: selectedPatient.patient_id,
+                    wound_diagnosis: diagnosisArray.length > 0 ? diagnosisArray : [],
+                    wound_care: woundCareArray.length > 0 ? woundCareArray : [],
+                    wound_dressing: dressingArray.length > 0 ? dressingArray : [],
+                    wound_medication: medicationArray.length > 0 ? medicationArray : [],
+                    'wound_important-notes': importantNotesArray.length > 0 ? importantNotesArray : [],
+                    'wound_follow-up': followUpArray.length > 0 ? followUpArray : [],
+                    submission_date: now,
+                    updated_at: now
+                };
+
+                console.log('Sending treatment plan data:', treatmentPlanData);
+
+                // Insert the treatment plan into the health_metrics table
+                const { data, error } = await supabase
+                    .from('health_metrics')
+                    .insert([treatmentPlanData]);
+
+                if (error) {
+                    console.error('Error saving treatment plan:', error);
+                    console.error('Error details:', JSON.stringify(error, null, 2));
+                    alert(`Failed to save treatment plan: ${error.message || JSON.stringify(error)}`);
+                    return;
+                }
+
+                alert("Treatment Plan saved successfully!");
+                
+                // Optionally navigate back or reset form
+                setActivePage("patient-details");
+                
+            } catch (err) {
+                console.error('Unexpected error:', err);
+                alert(`An unexpected error occurred: ${err.message}`);
+            }
         };
 
         return (
@@ -3597,7 +3666,12 @@ const renderReportsContent = () => {
                     
                     <div className="photo-actions">
                       <button className="entry-btn">Entry ID: 00{allWoundPhotos.length - index}</button>
-                      <button className="view-details-btn">View Details</button>
+                      <button 
+                        className="treatment-plan-btn"
+                        onClick={() => handleCreateTreatmentPlanForPhoto(photo)}
+                      >
+                        Treatment Plan
+                      </button>
                     </div>
                     
                     {photo.notes && (
@@ -3616,11 +3690,6 @@ const renderReportsContent = () => {
           </div>
           
           {/* Treatment Plan Button */}
-          <div className="wound-photo-button3">
-            <button className="treatment-plan-button3" onClick={handleCreateTreatmentPlan}>
-              Create Treatment Plan
-            </button>
-          </div>
         </div>
 
         {/* Photo Expansion Modal */}

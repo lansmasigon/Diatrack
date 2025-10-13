@@ -1,7 +1,7 @@
 /* Fallback if loaded via CSS */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css'); /* For Font Awesome icons */
-
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 /* Variables */
 :root {
   --primary-blue: #1FAAED; /* Slightly darker blue */
@@ -22,9 +22,13 @@
   --danger-color: #dc3545;
 }
 
+*{
+  font-family: 'poppins';
+}
+
 /* Base Styles */
 body {
-  font-family: "Inter", sans-serif;
+  font-family: "poppins", sans-serif;
   margin: 0;
   box-sizing: border-box;
   background-color: var(--background-light);
@@ -988,6 +992,13 @@ body {
   gap: 20px;
 }
 
+/* NEW: Three-column layout for additional treatment plan details (Step 2) */
+.three-column-forms3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr; /* Three equal columns */
+  gap: 20px;
+}
+
 .forms-container3 .card3 {
   padding: 20px;
   border: 1px solid var(--border-light);
@@ -1735,5 +1746,331 @@ body {
   .dashboard-appointment-details-list {
     min-width: 100%;
     width: 100%;
+  }
+}
+
+/* Wound Gallery Styles */
+.wound-gallery-section {
+  background-color: var(--background-white);
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 2px 8px var(--shadow-light);
+  margin-top: 25px;
+}
+
+.wound-gallery-section h3 {
+  color: var(--text-dark);
+  font-size: 1.4em;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--border-light);
+  padding-bottom: 10px;
+}
+
+.wound-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  max-height: 600px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.wound-gallery-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.wound-gallery-grid::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.wound-gallery-grid::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+.wound-gallery-grid::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.wound-gallery-card {
+  background-color: var(--background-white);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px var(--shadow-light);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.wound-gallery-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.wound-photo-container {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  background-color: #f5f5f5;
+}
+
+.wound-photo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-expand-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.photo-expand-btn:hover {
+  background-color: var(--primary-blue);
+  color: white;
+  transform: scale(1.1);
+}
+
+.photo-info {
+  padding: 15px;
+}
+
+.photo-timestamp {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #666;
+}
+
+.photo-date {
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.photo-time {
+  color: #999;
+}
+
+.photo-submitter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.submitter-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.submitter-info {
+  font-size: 13px;
+  color: #666;
+}
+
+.submitter-text {
+  color: #999;
+  font-size: 12px;
+}
+
+.photo-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.entry-btn,
+.treatment-plan-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.entry-btn {
+  background-color: #f8f9fa;
+  color: #666;
+  cursor: default;
+}
+
+.entry-btn:hover {
+  background-color: #e9ecef;
+}
+
+.treatment-plan-btn {
+  background-color: #28a745;
+  color: white;
+  border-color: #28a745;
+}
+
+.treatment-plan-btn:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+}
+
+.photo-notes {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e0e0e0;
+  font-size: 12px;
+  color: #666;
+}
+
+.loading-message,
+.no-photos-message {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+  font-style: italic;
+}
+
+/* Photo Expansion Modal */
+.photo-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.photo-modal-content {
+  background-color: var(--background-white);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px;
+}
+
+.photo-modal-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: var(--text-medium);
+  cursor: pointer;
+  transition: color 0.3s ease;
+  z-index: 10;
+}
+
+.photo-modal-close:hover {
+  color: var(--danger-color);
+}
+
+.expanded-photo-image {
+  max-width: 100%;
+  max-height: 60vh;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px var(--shadow-medium);
+  margin-bottom: 20px;
+}
+
+.expanded-photo-info {
+  width: 100%;
+  text-align: left;
+  padding: 20px;
+  background-color: var(--background-light);
+  border-radius: 8px;
+}
+
+.expanded-photo-info h4 {
+  color: var(--primary-blue);
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.3em;
+  border-bottom: 2px solid var(--border-light);
+  padding-bottom: 10px;
+}
+
+.expanded-photo-info p {
+  margin: 10px 0;
+  font-size: 1em;
+  color: var(--text-dark);
+  line-height: 1.6;
+}
+
+.expanded-photo-info p strong {
+  color: var(--text-medium);
+  margin-right: 8px;
+}
+
+/* Responsive styles for wound gallery */
+@media (max-width: 768px) {
+  .wound-gallery-grid {
+    grid-template-columns: 1fr;
+    max-height: 500px;
+  }
+
+  .photo-modal-content {
+    padding: 20px;
+    max-width: 95%;
+  }
+
+  .expanded-photo-image {
+    max-height: 50vh;
+  }
+
+  .expanded-photo-info {
+    padding: 15px;
+  }
+  
+  /* Responsive: Stack three-column forms on mobile */
+  .three-column-forms3 {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Also stack wound-dressing section on mobile */
+  .wound-dressing-section3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Responsive for tablets - two columns for three-column layout */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .three-column-forms3 {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .three-column-forms3 .card3:last-child {
+    grid-column: 1 / -1; /* Make the third item span full width */
   }
 }

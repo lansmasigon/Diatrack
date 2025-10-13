@@ -54,12 +54,15 @@ const AuditLogs = ({ onLogout, user }) => {
 
     // Search filter
     if (searchTerm) {
-      filtered = filtered.filter(log => 
-        log.actor_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.user_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.old_value?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.new_value?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      filtered = filtered.filter(log => {
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          log.actor_name?.toLowerCase().includes(searchLower) ||
+          String(log.user_id || '').toLowerCase().includes(searchLower) ||
+          String(log.old_value || '').toLowerCase().includes(searchLower) ||
+          String(log.new_value || '').toLowerCase().includes(searchLower)
+        );
+      });
     }
 
     // Module filter
@@ -110,65 +113,94 @@ const AuditLogs = ({ onLogout, user }) => {
   };
 
   const formatChangeValue = (oldValue, newValue) => {
-    if (!oldValue && !newValue) return <span>N/A</span>;
+    if (!oldValue && !newValue) return <span className="text-muted">N/A</span>;
+    
+    // Convert values to strings for safety
+    const safeOldValue = oldValue ? String(oldValue) : null;
+    const safeNewValue = newValue ? String(newValue) : null;
     
     // Handle simple text values
-    if (!oldValue) return <span className="added">Added: {newValue}</span>;
-    if (!newValue) return <span className="removed">Removed: {oldValue}</span>;
+    if (!safeOldValue) return <span className="added">+ New entry</span>;
+    if (!safeNewValue) return <span className="removed">✕ Deleted</span>;
     
     // Try to parse JSON values for object comparison
     try {
-      const oldObj = JSON.parse(oldValue);
-      const newObj = JSON.parse(newValue);
+      const oldObj = JSON.parse(safeOldValue);
+      const newObj = JSON.parse(safeNewValue);
       
-      // Handle different types of changes
+      // Handle arrays - just show that array was modified
       if (Array.isArray(oldObj) || Array.isArray(newObj)) {
-        return <span className="changed">{oldValue} → {newValue}</span>;
+        return <span className="changed">Array modified</span>;
       }
       
-      // Compare objects and show only changed fields
+      // Compare objects and show only the most important changed fields
       const changes = [];
       const allKeys = new Set([...Object.keys(oldObj || {}), ...Object.keys(newObj || {})]);
+      let changeCount = 0;
       
       for (const key of allKeys) {
         const oldVal = oldObj?.[key];
         const newVal = newObj?.[key];
         
-        if (oldVal !== newVal) {
+        if (oldVal !== newVal && changeCount < 3) { // Limit to 3 changes max
+          changeCount++;
+          
+          // Format field name nicely
+          const fieldName = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          
           if (oldVal === undefined) {
-            changes.push(<div key={`add-${key}`} className="added">{key}: Added "{newVal}"</div>);
+            changes.push(<div key={`add-${key}`} className="added">+ {fieldName}</div>);
           } else if (newVal === undefined) {
-            changes.push(<div key={`rem-${key}`} className="removed">{key}: Removed "{oldVal}"</div>);
+            changes.push(<div key={`rem-${key}`} className="removed">- {fieldName}</div>);
           } else {
             // Format specific fields for better readability
             if (key === 'password') {
-              changes.push(<div key={key} className="changed">{key}: Changed</div>);
-            } else if (typeof oldVal === 'string' && typeof newVal === 'string' && 
-                      (oldVal.length > 50 || newVal.length > 50)) {
-              changes.push(<div key={key} className="changed">{key}: Updated (long text)</div>);
+              changes.push(<div key={key} className="changed">Password changed</div>);
             } else {
-              changes.push(<div key={key} className="changed">{key}: "{oldVal}" → "{newVal}"</div>);
+              // Truncate values to max 30 characters
+              const formatVal = (val) => {
+                const str = String(val);
+                return str.length > 30 ? str.substring(0, 30) + '...' : str;
+              };
+              changes.push(
+                <div key={key} className="changed">
+                  {fieldName}: <span className="old-val">{formatVal(oldVal)}</span> → <span className="new-val">{formatVal(newVal)}</span>
+                </div>
+              );
             }
           }
         }
       }
       
-      return changes.length > 0 ? <div>{changes}</div> : <span>No changes detected</span>;
+      // Show count if more changes exist
+      const totalChanges = Array.from(allKeys).filter(key => oldObj?.[key] !== newObj?.[key]).length;
+      if (totalChanges > 3) {
+        changes.push(<div key="more" className="text-muted">+{totalChanges - 3} more changes</div>);
+      }
+      
+      return changes.length > 0 ? <div className="change-summary">{changes}</div> : <span className="text-muted">No changes</span>;
       
     } catch (e) {
       // If not JSON, handle as simple text
-      if (oldValue === newValue) return <span>No changes</span>;
+      if (safeOldValue === safeNewValue) return <span className="text-muted">No changes</span>;
       
-      // Truncate long values
-      const maxLength = 100;
+      // Truncate long values to 40 characters
+      const maxLength = 40;
       const truncateValue = (val) => {
-        if (typeof val === 'string' && val.length > maxLength) {
-          return val.substring(0, maxLength) + '...';
+        const str = String(val);
+        if (str.length > maxLength) {
+          return str.substring(0, maxLength) + '...';
         }
-        return val;
+        return str;
       };
       
-      return <span className="changed">"{truncateValue(oldValue)}" → "{truncateValue(newValue)}"</span>;
+      return (
+        <span className="changed">
+          <span className="old-val">{truncateValue(safeOldValue)}</span>
+          {' → '}
+          <span className="new-val">{truncateValue(safeNewValue)}</span>
+        </span>
+      );
     }
   };
 
@@ -334,7 +366,7 @@ const AuditLogs = ({ onLogout, user }) => {
                           </div>
                         </td>
                         <td className="user-id-cell">
-                          {log.user_id || 'N/A'}
+                          {String(log.user_id || 'N/A')}
                         </td>
                         <td className="module-cell">
                           <span className={`module-badge module-${log.module}`}>
