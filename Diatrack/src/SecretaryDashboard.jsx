@@ -117,6 +117,37 @@ const getProfileStatus = (patient) => {
   }
 };
 
+// Helper function to get classification display with colored circle and phase
+const getClassificationDisplay = (patient) => {
+  const phase = patient.phase || 'Pre-Operative';
+  const labStatus = patient.lab_status || 'Awaiting';
+  const riskClassification = (patient.risk_classification || '').toLowerCase();
+  
+  // Shorten phase names
+  const phaseDisplay = phase === 'Pre-Operative' ? 'Pre-Op' : phase === 'Post-Operative' ? 'Post-Op' : phase;
+  
+  // If lab status is Awaiting, show ⛔ with phase
+  if (labStatus === 'Awaiting') {
+    return `⛔${phaseDisplay}`;
+  }
+  
+  // Otherwise, show color based on risk classification (for Submitted or any other status)
+  if (riskClassification === 'low') {
+    return `🟢${phaseDisplay}`;
+  } else if (riskClassification === 'moderate') {
+    return `🟡${phaseDisplay}`;
+  } else if (riskClassification === 'high') {
+    return `🔴${phaseDisplay}`;
+  } else if (riskClassification === 'ppd') {
+    return `⚪${phaseDisplay}`;
+  } else if (riskClassification === 'n/a' || !riskClassification) {
+    return `⚫${phaseDisplay}`;
+  }
+  
+  // Default case (no risk classification available)
+  return `⚫${phaseDisplay}`;
+};
+
 const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp, lowRisk, moderateRisk, highRisk, patientCountHistory, pendingLabHistory }) => {
 
   // Debug logging to see what data we're working with
@@ -3061,7 +3092,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       <tr>
                       <th>Patient Name</th>
                       <th>Age/Sex</th>
-                      <th>Phase</th> {/* New Status column */}
                       <th>Classification</th>
                       <th>Lab Status</th>
                       <th>Profile Status</th>
@@ -3085,14 +3115,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               </div>
                             </td>
                             <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
-                            <td className={`patient-phase ${
-                            pat.phase === 'Pre-Operative' ? 'phase-pre-operative' :
-                            pat.phase === 'Post-Operative' ? 'phase-post-operative' : ''
-                          }`}>
-                            {pat.phase}
-                          </td>
-                            <td className={`risk-classification-${(pat.risk_classification || 'N/A').toLowerCase()}`}>
-                                {pat.risk_classification || 'N/A'}
+                            <td className={`classification-cell ${
+                              pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                              ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
+                              (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
+                              (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
+                              (pat.risk_classification || '').toLowerCase() === 'ppd' ? 'classification-ppd' : '')
+                            }`}>
+                              {getClassificationDisplay(pat)}
                             </td>
                             <td className={
                             pat.lab_status === 'Submitted' ? 'lab-status-complete' :
@@ -3120,7 +3150,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="9">No patients found.</td> {/* Updated colspan to 9 */}
+                          <td colSpan="7">No patients found.</td> {/* Updated colspan to 7 */}
                         </tr>
                       )}
                     </tbody>
@@ -4151,8 +4181,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                     </div>
                                   </td>
                                   <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
-                                  <td className={`risk-classification-${(pat.risk_classification || 'N/A').toLowerCase()}`}>
-                                    {pat.risk_classification || 'N/A'}
+                                  <td className={`classification-cell ${
+                                    pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                                    ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
+                                    (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
+                                    (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
+                                    (pat.risk_classification || '').toLowerCase() === 'ppd' ? 'classification-ppd' : '')
+                                  }`}>
+                                    {getClassificationDisplay(pat)}
                                   </td>
                                   <td className={
                                     pat.lab_status === 'Submitted' ? 'lab-status-submitted' :

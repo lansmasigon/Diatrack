@@ -73,27 +73,61 @@ const getLabStatus = (latestLabResult) => {
     'cholesterol', 'triglycerides', 'hdl_cholesterol', 'ldl_cholesterol'
   ];
 
-  let missingFields = false;
+  let allFieldsFilled = true;
   let hasAnyField = false;
 
   for (const field of requiredLabFields) {
-    if (latestLabResult[field] === null || latestLabResult[field] === undefined || latestLabResult[field] === '') {
-      missingFields = true;
+    const value = latestLabResult[field];
+    if (value === null || value === undefined || value === '') {
+      allFieldsFilled = false;
     } else {
       hasAnyField = true;
     }
   }
 
-  let status;
-  if (!hasAnyField && !missingFields) {
-      status = 'Awaiting';
-  } else if (missingFields) {
-      status = 'Submitted';
-  } else {
-      status = '✅Submitted';
+  // If no fields have any value, status is Awaiting
+  if (!hasAnyField) {
+    return 'Awaiting';
   }
+  
+  // If all fields are filled, status is Submitted
+  if (allFieldsFilled) {
+    return 'Submitted';
+  }
+  
+  // If some fields are filled but not all, status is Awaiting
+  return 'Awaiting';
+};
 
-  return status;
+// Helper function to get classification display with colored indicator and phase
+const getClassificationDisplay = (patient) => {
+  const phase = patient.phase || 'Pre-Operative';
+  const labStatus = getLabStatus(patient.latest_lab_result);
+  const riskClassification = (patient.risk_classification || '').toLowerCase();
+  
+  // Shorten phase names
+  const phaseDisplay = phase === 'Pre-Operative' ? 'Pre-Op' : phase === 'Post-Operative' ? 'Post-Op' : phase;
+  
+  // If lab status is Awaiting, show ⛔ with phase
+  if (labStatus === 'Awaiting') {
+    return `⛔${phaseDisplay}`;
+  }
+  
+  // Otherwise, show color based on risk classification (for Submitted status)
+  if (riskClassification === 'low') {
+    return `🟢${phaseDisplay}`;
+  } else if (riskClassification === 'moderate') {
+    return `🟡${phaseDisplay}`;
+  } else if (riskClassification === 'high') {
+    return `🔴${phaseDisplay}`;
+  } else if (riskClassification === 'ppd') {
+    return `⚪${phaseDisplay}`;
+  } else if (riskClassification === 'n/a' || !riskClassification) {
+    return `⚫${phaseDisplay}`;
+  }
+  
+  // Default case (no risk classification available)
+  return `⚫${phaseDisplay}`;
 };
 
 // Helper function to determine profile status
@@ -140,7 +174,7 @@ const getPatientComplianceStatus = (patient) => {
   return {
     submittedCount: submittedItems,
     isFullCompliance: submittedItems === 3,
-    isMissingLogs: submittedItems === 1 || submittedItems === 2,
+    isMissingLogs: submittedItems < 3, // Any patient missing at least one metric
     isNonCompliant: submittedItems === 0
   };
 };
@@ -538,6 +572,18 @@ const Dashboard = ({ user, onLogout }) => {
     labels: [],
     data: [],
   });
+  const [fullComplianceChartData, setFullComplianceChartData] = useState({
+    labels: [],
+    data: [],
+  });
+  const [missingLogsChartData, setMissingLogsChartData] = useState({
+    labels: [],
+    data: [],
+  });
+  const [nonCompliantChartData, setNonCompliantChartData] = useState({
+    labels: [],
+    data: [],
+  });
 
   // Patient list filtering and pagination states
   const [selectedRiskFilter, setSelectedRiskFilter] = useState('all');
@@ -625,12 +671,19 @@ const Dashboard = ({ user, onLogout }) => {
       // Fetch latest risk classification for each patient from health_metrics
       const patientsWithRisk = await Promise.all(
         data.map(async (patient) => {
+          // Get current month date range
+          const now = new Date();
+          const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+          // Fetch ALL health metrics for current month
           const { data: healthData, error: healthError } = await supabase
             .from('health_metrics')
             .select('risk_classification, blood_glucose, bp_systolic, bp_diastolic, wound_photo_url, submission_date')
             .eq('patient_id', patient.patient_id)
-            .order('submission_date', { ascending: false })
-            .limit(1);
+            .gte('submission_date', currentMonthStart.toISOString())
+            .lt('submission_date', currentMonthEnd.toISOString())
+            .order('submission_date', { ascending: false });
 
           let riskClassification = null;
           let hasBloodGlucose = false;
@@ -640,14 +693,37 @@ const Dashboard = ({ user, onLogout }) => {
           if (healthError) {
             console.error(`Error fetching health metrics for patient ${patient.patient_id}:`, healthError.message);
           } else if (healthData && healthData.length > 0) {
-            const latestMetric = healthData[0];
-            riskClassification = latestMetric.risk_classification;
-            
-            // Check for compliance data - improved checking
-            hasBloodGlucose = latestMetric.blood_glucose !== null && latestMetric.blood_glucose !== undefined && latestMetric.blood_glucose !== '';
-            hasBloodPressure = (latestMetric.bp_systolic !== null && latestMetric.bp_systolic !== undefined && latestMetric.bp_systolic !== '') ||
-                              (latestMetric.bp_diastolic !== null && latestMetric.bp_diastolic !== undefined && latestMetric.bp_diastolic !== '');
-            hasWoundPhoto = latestMetric.wound_photo_url !== null && latestMetric.wound_photo_url !== undefined && latestMetric.wound_photo_url !== '';
+            // Check across ALL metrics in current month
+            healthData.forEach(metric => {
+              if (!riskClassification && metric.risk_classification) {
+                riskClassification = metric.risk_classification;
+              }
+              if (!hasBloodGlucose && metric.blood_glucose !== null && metric.blood_glucose !== undefined && metric.blood_glucose !== '') {
+                hasBloodGlucose = true;
+              }
+              if (!hasBloodPressure && ((metric.bp_systolic !== null && metric.bp_systolic !== undefined && metric.bp_systolic !== '') ||
+                                       (metric.bp_diastolic !== null && metric.bp_diastolic !== undefined && metric.bp_diastolic !== ''))) {
+                hasBloodPressure = true;
+              }
+              if (!hasWoundPhoto && metric.wound_photo_url !== null && metric.wound_photo_url !== undefined && metric.wound_photo_url !== '') {
+                hasWoundPhoto = true;
+              }
+            });
+          }
+
+          // Fetch latest lab result from patient_labs table
+          const { data: labData, error: labError } = await supabase
+            .from('patient_labs')
+            .select('*')
+            .eq('patient_id', patient.patient_id)
+            .order('date_submitted', { ascending: false })
+            .limit(1);
+
+          let latestLabResult = null;
+          if (labError) {
+            console.error(`Error fetching lab results for patient ${patient.patient_id}:`, labError.message);
+          } else if (labData && labData.length > 0) {
+            latestLabResult = labData[0];
           }
 
           return {
@@ -655,7 +731,8 @@ const Dashboard = ({ user, onLogout }) => {
             risk_classification: riskClassification,
             has_blood_glucose: hasBloodGlucose,
             has_blood_pressure: hasBloodPressure,
-            has_wound_photo: hasWoundPhoto
+            has_wound_photo: hasWoundPhoto,
+            latest_lab_result: latestLabResult
           };
         })
       );
@@ -706,8 +783,8 @@ const Dashboard = ({ user, onLogout }) => {
       setHighRiskCount(highRisk);
       setPendingLabResultsCount(pendingLabs);
 
-      // Generate sample chart data for dashboard widgets
-      generateChartData(patientsWithRisk.length, pendingLabs);
+      // Generate chart data based on actual database records
+      await generateChartData(patientsWithRisk);
     } catch (err) {
       setError("Error fetching patients: " + err.message);
     } finally {
@@ -715,35 +792,273 @@ const Dashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Function to generate sample chart data for dashboard widgets
-  const generateChartData = (totalPatients, pendingLabs) => {
+  // Function to generate real chart data based on actual database records
+  const generateChartData = async (patientsWithRiskData) => {
     // Generate last 6 months of data
     const months = [];
-    const patientData = [];
-    const labData = [];
+    const monthKeys = [];
     
     for (let i = 5; i >= 0; i--) {
       const date = new Date();
       date.setMonth(date.getMonth() - i);
       months.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
-      
-      // Generate mock progressive data (growing over time)
-      const basePatients = Math.max(1, totalPatients - (i * 2));
-      const baseLabs = Math.max(0, pendingLabs - (i * 1));
-      
-      patientData.push(Math.max(0, basePatients + Math.floor(Math.random() * 3)));
-      labData.push(Math.max(0, baseLabs + Math.floor(Math.random() * 2)));
+      monthKeys.push(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
     }
     
-    setAppointmentChartData({
-      labels: months,
-      data: patientData,
-    });
-    
-    setLabSubmissionChartData({
-      labels: months,
-      data: labData,
-    });
+    try {
+      // Fetch all patients with their created_at dates
+      const { data: allPatients, error: patientsError } = await supabase
+        .from('patients')
+        .select('patient_id, created_at')
+        .eq('preferred_doctor_id', user.doctor_id);
+
+      if (patientsError) throw patientsError;
+
+      // Count patients registered per month (NOT cumulative)
+      const patientData = monthKeys.map((monthKey) => {
+        const [year, month] = monthKey.split('-');
+        return allPatients.filter(p => {
+          const createdDate = new Date(p.created_at);
+          return createdDate.getFullYear() === parseInt(year) && 
+                 (createdDate.getMonth() + 1) === parseInt(month);
+        }).length;
+      });
+
+      // Fetch all lab submissions with their dates
+      const { data: allLabs, error: labsError } = await supabase
+        .from('patient_labs')
+        .select('lab_id, date_submitted, patient_id')
+        .in('patient_id', allPatients.map(p => p.patient_id));
+
+      if (labsError) throw labsError;
+
+      // Count lab submissions per month
+      const labData = monthKeys.map((monthKey) => {
+        const [year, month] = monthKey.split('-');
+        return allLabs.filter(lab => {
+          const labDate = new Date(lab.date_submitted);
+          return labDate.getFullYear() === parseInt(year) && 
+                 (labDate.getMonth() + 1) === parseInt(month);
+        }).length;
+      });
+
+      setAppointmentChartData({
+        labels: months,
+        data: patientData,
+      });
+      
+      setLabSubmissionChartData({
+        labels: months,
+        data: labData,
+      });
+
+      // Calculate full compliance per month by checking health_metrics
+      const fullComplianceData = await Promise.all(monthKeys.map(async (monthKey) => {
+        const [year, month] = monthKey.split('-');
+        const monthStart = new Date(`${year}-${month}-01`);
+        const monthEnd = new Date(monthStart);
+        monthEnd.setMonth(monthEnd.getMonth() + 1);
+
+        // Get all health metrics for this month
+        const { data: monthMetrics, error: metricsError } = await supabase
+          .from('health_metrics')
+          .select('patient_id, blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
+          .in('patient_id', allPatients.map(p => p.patient_id))
+          .gte('submission_date', monthStart.toISOString())
+          .lt('submission_date', monthEnd.toISOString());
+
+        if (metricsError) {
+          console.error('Error fetching metrics for month:', metricsError);
+          return 0;
+        }
+
+        // Group metrics by patient and check for full compliance
+        const patientMetricsMap = {};
+        monthMetrics.forEach(metric => {
+          if (!patientMetricsMap[metric.patient_id]) {
+            patientMetricsMap[metric.patient_id] = {
+              hasBloodGlucose: false,
+              hasBloodPressure: false,
+              hasWoundPhoto: false
+            };
+          }
+          if (metric.blood_glucose) patientMetricsMap[metric.patient_id].hasBloodGlucose = true;
+          if (metric.bp_systolic || metric.bp_diastolic) patientMetricsMap[metric.patient_id].hasBloodPressure = true;
+          if (metric.wound_photo_url) patientMetricsMap[metric.patient_id].hasWoundPhoto = true;
+        });
+
+        // Count patients with full compliance
+        return Object.values(patientMetricsMap).filter(metrics => 
+          metrics.hasBloodGlucose && metrics.hasBloodPressure && metrics.hasWoundPhoto
+        ).length;
+      }));
+
+      setFullComplianceChartData({
+        labels: months,
+        data: fullComplianceData,
+      });
+
+      // Calculate missing logs per month (patients missing at least one metric)
+      const missingLogsData = await Promise.all(monthKeys.map(async (monthKey) => {
+        const [year, month] = monthKey.split('-');
+        const monthStart = new Date(`${year}-${month}-01`);
+        const monthEnd = new Date(monthStart);
+        monthEnd.setMonth(monthEnd.getMonth() + 1);
+
+        const { data: monthMetrics, error: metricsError } = await supabase
+          .from('health_metrics')
+          .select('patient_id, blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
+          .in('patient_id', allPatients.map(p => p.patient_id))
+          .gte('submission_date', monthStart.toISOString())
+          .lt('submission_date', monthEnd.toISOString());
+
+        if (metricsError) {
+          console.error('Error fetching metrics for month:', metricsError);
+          return 0;
+        }
+
+        // Check all patients registered to this doctor - not just those with metrics
+        const patientMetricsMap = {};
+        
+        // Initialize all patients with false flags
+        allPatients.forEach(patient => {
+          patientMetricsMap[patient.patient_id] = {
+            hasBloodGlucose: false,
+            hasBloodPressure: false,
+            hasWoundPhoto: false
+          };
+        });
+        
+        // Update flags based on submitted metrics (if any exist)
+        if (monthMetrics && monthMetrics.length > 0) {
+          monthMetrics.forEach(metric => {
+            if (patientMetricsMap[metric.patient_id]) {
+              if (metric.blood_glucose) patientMetricsMap[metric.patient_id].hasBloodGlucose = true;
+              if (metric.bp_systolic || metric.bp_diastolic) patientMetricsMap[metric.patient_id].hasBloodPressure = true;
+              if (metric.wound_photo_url) patientMetricsMap[metric.patient_id].hasWoundPhoto = true;
+            }
+          });
+        }
+
+        // Count patients who are missing ANY of the three metrics
+        const missingLogsCount = Object.values(patientMetricsMap).filter(metrics => {
+          const submittedCount = (metrics.hasBloodGlucose ? 1 : 0) + 
+                                (metrics.hasBloodPressure ? 1 : 0) + 
+                                (metrics.hasWoundPhoto ? 1 : 0);
+          
+          // Patient has missing logs if they have less than 3 metrics (missing at least one)
+          return submittedCount < 3;
+        }).length;
+
+        console.log(`Missing logs for ${monthKey}:`, missingLogsCount);
+        return missingLogsCount;
+      }));
+
+      console.log('Missing Logs Chart Data:', { labels: months, data: missingLogsData });
+
+      setMissingLogsChartData({
+        labels: months,
+        data: missingLogsData,
+      });
+
+      // Calculate non-compliant per month (high risk patients with all 3 metrics missing)
+      const nonCompliantData = await Promise.all(monthKeys.map(async (monthKey) => {
+        const [year, month] = monthKey.split('-');
+        const monthStart = new Date(`${year}-${month}-01`);
+        const monthEnd = new Date(monthStart);
+        monthEnd.setMonth(monthEnd.getMonth() + 1);
+
+        // Get high risk patients
+        const highRiskPatients = allPatients.filter(p => {
+          const patient = patients.find(pat => pat.patient_id === p.patient_id);
+          return patient && (patient.risk_classification || '').toLowerCase() === 'high';
+        });
+
+        console.log(`High risk patients for ${monthKey}:`, highRiskPatients.length);
+
+        if (highRiskPatients.length === 0) return 0;
+
+        const { data: monthMetrics, error: metricsError } = await supabase
+          .from('health_metrics')
+          .select('patient_id, blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
+          .in('patient_id', highRiskPatients.map(p => p.patient_id))
+          .gte('submission_date', monthStart.toISOString())
+          .lt('submission_date', monthEnd.toISOString());
+
+        if (metricsError) {
+          console.error('Error fetching metrics for month:', metricsError);
+          return 0;
+        }
+
+        // Initialize all high-risk patients with false flags
+        const patientMetricsMap = {};
+        highRiskPatients.forEach(patient => {
+          patientMetricsMap[patient.patient_id] = {
+            hasBloodGlucose: false,
+            hasBloodPressure: false,
+            hasWoundPhoto: false
+          };
+        });
+
+        // Update flags based on submitted metrics (if any exist)
+        if (monthMetrics && monthMetrics.length > 0) {
+          monthMetrics.forEach(metric => {
+            if (patientMetricsMap[metric.patient_id]) {
+              if (metric.blood_glucose) patientMetricsMap[metric.patient_id].hasBloodGlucose = true;
+              if (metric.bp_systolic || metric.bp_diastolic) patientMetricsMap[metric.patient_id].hasBloodPressure = true;
+              if (metric.wound_photo_url) patientMetricsMap[metric.patient_id].hasWoundPhoto = true;
+            }
+          });
+        }
+
+        // Count high risk patients with 0 metrics (all 3 missing - non-compliant)
+        const nonCompliantCount = Object.values(patientMetricsMap).filter(metrics => {
+          const submittedCount = (metrics.hasBloodGlucose ? 1 : 0) + 
+                                (metrics.hasBloodPressure ? 1 : 0) + 
+                                (metrics.hasWoundPhoto ? 1 : 0);
+          // Non-compliant = 0 metrics submitted (all 3 missing)
+          return submittedCount === 0;
+        }).length;
+        
+        console.log(`Non-compliant for ${monthKey}:`, nonCompliantCount);
+        return nonCompliantCount;
+      }));
+
+      console.log('Non-Compliant Chart Data:', { labels: months, data: nonCompliantData });
+
+      setNonCompliantChartData({
+        labels: months,
+        data: nonCompliantData,
+      });
+
+    } catch (error) {
+      console.error('Error generating chart data:', error);
+      // Fallback to empty data
+      setAppointmentChartData({
+        labels: months,
+        data: new Array(6).fill(0),
+      });
+      
+      setLabSubmissionChartData({
+        labels: months,
+        data: new Array(6).fill(0),
+      });
+
+      setFullComplianceChartData({
+        labels: months,
+        data: new Array(6).fill(0),
+      });
+
+      setMissingLogsChartData({
+        labels: months,
+        data: new Array(6).fill(0),
+      });
+
+      setNonCompliantChartData({
+        labels: months,
+        data: new Array(6).fill(0),
+      });
+    }
   };
 
   const fetchAppointments = async () => {
@@ -815,6 +1130,7 @@ const Dashboard = ({ user, onLogout }) => {
 
       // Filter for wound photos and set the state
       const photos = metrics.filter(metric => metric.wound_photo_url).map(metric => ({
+        metric_id: metric.metric_id, // Include metric_id to identify the row
         url: metric.wound_photo_url,
         date: metric.submission_date,
         notes: metric.notes,
@@ -1498,7 +1814,6 @@ const Dashboard = ({ user, onLogout }) => {
             <tr>
               <th>Patient Name</th>
               <th>Age/Sex</th>
-              <th>Phase</th>
               <th>Classification</th>
               <th>Lab Status</th>
               <th>Profile Status</th>
@@ -1522,28 +1837,20 @@ const Dashboard = ({ user, onLogout }) => {
                     </div>
                   </td>
                   <td>{patient.date_of_birth ? `${Math.floor((new Date() - new Date(patient.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${patient.gender}` : 'N/A'}</td>
-                  <td className="phase-toggle-container">
-                    <span className={`patient-phase ${
-                      patient.phase === 'Pre-Operative' ? 'phase-pre-operative' :
-                      patient.phase === 'Post-Operative' ? 'phase-post-operative' : ''
-                    }`}>
-                      {patient.phase}
-                    </span>
-                    <button 
-                      className="phase-toggle-button" 
-                      onClick={() => handlePhaseToggle(patient)}
-                      title={`Change to ${patient.phase === 'Pre-Operative' ? 'Post-Operative' : 'Pre-Operative'}`}
-                    >
-                      <i className="fas fa-exchange-alt"></i>
-                    </button>
-                  </td>
-                  <td className={`risk-classification-${(patient.risk_classification || 'N/A').toLowerCase()}`}>
-                    {patient.risk_classification || 'N/A'}
+                  <td className={`doctor-classification-cell ${
+                    getLabStatus(patient.latest_lab_result) === 'Awaiting' ? 'doctor-classification-awaiting' :
+                    ((patient.risk_classification || '').toLowerCase() === 'low' ? 'doctor-classification-low' :
+                    (patient.risk_classification || '').toLowerCase() === 'moderate' ? 'doctor-classification-moderate' :
+                    (patient.risk_classification || '').toLowerCase() === 'high' ? 'doctor-classification-high' :
+                    (patient.risk_classification || '').toLowerCase() === 'ppd' ? 'doctor-classification-ppd' : 
+                    'doctor-classification-default')
+                  }`}>
+                    {getClassificationDisplay(patient)}
                   </td>
                   <td className={
-                    getLabStatus(patient.latest_lab_result) === '✅Submitted' ? 'lab-status-complete' :
+                    getLabStatus(patient.latest_lab_result) === 'Submitted' ? 'lab-status-complete' :
                     getLabStatus(patient.latest_lab_result) === 'Awaiting' ? 'lab-status-awaiting' : 
-                    'lab-status-submitted'
+                    'lab-status-awaiting'
                   }>
                     {getLabStatus(patient.latest_lab_result)}
                   </td>
@@ -1559,7 +1866,7 @@ const Dashboard = ({ user, onLogout }) => {
               ))
             ) : (
               <tr>
-                <td colSpan="8">No patients found.</td>
+                <td colSpan="7">No patients found.</td>
               </tr>
             )}
           </tbody>
@@ -1636,53 +1943,6 @@ const Dashboard = ({ user, onLogout }) => {
 
       {message && <p className="form-message">{message}</p>}
 
-      {/* Display existing appointments */}
-      <div className="appointments-list">
-        <h3>Existing Appointments</h3>
-        <table className="appointment-list-table">
-          <thead>
-            <tr>
-              <th>Patient</th>
-              <th>Date</th>
-              <th>Time</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {appointments.length === 0 ? (
-              <tr><td colSpan="5">No appointments found.</td></tr>
-            ) : (
-              appointments.map((appt) => (
-                <tr key={appt.appointment_id}>
-                  <td>{appt.patients ? `${appt.patients.first_name} ${appt.patients.last_name}` : "Unknown"}</td>
-                  <td>{new Date(appt.appointment_datetime).toLocaleDateString()}</td>
-                  <td>{new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                  <td className="appointment-status">
-                    <span className={`status-${(appt.appointment_state || 'pending').toLowerCase().replace(/\s+/g, '-')}`}>
-                      {(() => {
-                        const state = appt.appointment_state || 'pending';
-                        if (state === 'in queue') return 'In Queue';
-                        if (state === 'cancelled') return 'Cancelled';
-                        if (state === 'pending') return 'Pending';
-                        return state.charAt(0).toUpperCase() + state.slice(1);
-                      })()}
-                    </span>
-                  </td>
-                  <td className="appointment-actions">
-                    <button onClick={() => handleCancelAppointment(appt.appointment_id)} className="action-btn5 cancel-btn5">
-                      Cancel
-                    </button>
-                    <button onClick={() => handleInQueueAppointment(appt.appointment_id)} className="action-btn5 done-btn5">
-                      In Queue
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 
@@ -1804,15 +2064,11 @@ const Dashboard = ({ user, onLogout }) => {
           <div className="mini-chart-container">
             <Line 
               data={{
-                labels: appointmentChartData?.labels || ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
+                labels: fullComplianceChartData?.labels || appointmentChartData?.labels || ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
                 datasets: [
                   {
                     label: 'Full Compliance',
-                    data: appointmentChartData?.data?.map(count => {
-                      // Calculate realistic compliance progression
-                      const fullComplianceCount = patients.filter(pat => getPatientComplianceStatus(pat).isFullCompliance).length;
-                      return Math.max(0, Math.floor(fullComplianceCount * (count / Math.max(...(appointmentChartData?.data || [1])))));
-                    }) || [0, 1, 2, 3, 4, 5],
+                    data: fullComplianceChartData?.data || [0, 0, 0, 0, 0, 0],
                     fill: true,
                     backgroundColor: (context) => {
                       const chart = context.chart;
@@ -1890,8 +2146,75 @@ const Dashboard = ({ user, onLogout }) => {
               </p>
             </div>
             <div className="report-widget-right">
-              <p className="report-subtitle">Patients with 1-2 missing metrics (Blood Glucose, Blood Pressure, Wound Photos)</p>
+              <p className="report-subtitle">Patients missing at least one metric (Blood Glucose, Blood Pressure, or Wound Photos)</p>
             </div>
+          </div>
+          <div className="mini-chart-container">
+            <Line 
+              data={{
+                labels: missingLogsChartData?.labels || appointmentChartData?.labels || ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
+                datasets: [
+                  {
+                    label: 'Missing Logs',
+                    data: missingLogsChartData?.data || [0, 0, 0, 0, 0, 0],
+                    fill: true,
+                    backgroundColor: (context) => {
+                      const chart = context.chart;
+                      const {ctx, chartArea} = chart;
+                      if (!chartArea) return null;
+                      const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                      gradient.addColorStop(0, 'rgba(255, 193, 7, 0.6)');
+                      gradient.addColorStop(0.5, 'rgba(255, 193, 7, 0.3)');
+                      gradient.addColorStop(1, 'rgba(255, 193, 7, 0.1)');
+                      return gradient;
+                    },
+                    borderColor: '#ffc107',
+                    borderWidth: 2,
+                    pointBackgroundColor: 'transparent',
+                    pointBorderColor: 'transparent',
+                    pointBorderWidth: 0,
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    pointHoverBackgroundColor: '#ffc107',
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 3,
+                    tension: 0.4,
+                    hoverBackgroundColor: 'rgba(255, 193, 7, 0.7)',
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { top: 5, bottom: 5, left: 2, right: 2 } },
+                plugins: {
+                  legend: { display: false },
+                  tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: '#ffc107',
+                    borderWidth: 1,
+                    cornerRadius: 4,
+                    displayColors: false,
+                    callbacks: {
+                      title: function(context) { return `Month: ${context[0].label}`; },
+                      label: function(context) { return `Missing Logs: ${context.raw}`; }
+                    }
+                  }
+                },
+                scales: {
+                  y: { display: false, beginAtZero: true, grid: { display: false } },
+                  x: { display: false, grid: { display: false } }
+                },
+                elements: {
+                  point: { radius: 0, hoverRadius: 0 },
+                  line: { borderWidth: 2 }
+                },
+                interaction: { intersect: false, mode: 'index' }
+              }}
+            />
           </div>
         </div>
 
@@ -1915,73 +2238,247 @@ const Dashboard = ({ user, onLogout }) => {
               <p className="report-subtitle">High risk patients with all 3 missing metrics (Blood Glucose, Blood Pressure, Wound Photos)</p>
             </div>
           </div>
+          <div className="mini-chart-container">
+            <Line 
+              data={{
+                labels: nonCompliantChartData?.labels || appointmentChartData?.labels || ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
+                datasets: [
+                  {
+                    label: 'Non-Compliant',
+                    data: nonCompliantChartData?.data || [0, 0, 0, 0, 0, 0],
+                    fill: true,
+                    backgroundColor: (context) => {
+                      const chart = context.chart;
+                      const {ctx, chartArea} = chart;
+                      if (!chartArea) return null;
+                      const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                      gradient.addColorStop(0, 'rgba(220, 53, 69, 0.6)');
+                      gradient.addColorStop(0.5, 'rgba(220, 53, 69, 0.3)');
+                      gradient.addColorStop(1, 'rgba(220, 53, 69, 0.1)');
+                      return gradient;
+                    },
+                    borderColor: '#dc3545',
+                    borderWidth: 2,
+                    pointBackgroundColor: 'transparent',
+                    pointBorderColor: 'transparent',
+                    pointBorderWidth: 0,
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    pointHoverBackgroundColor: '#dc3545',
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 3,
+                    tension: 0.4,
+                    hoverBackgroundColor: 'rgba(220, 53, 69, 0.7)',
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { top: 5, bottom: 5, left: 2, right: 2 } },
+                plugins: {
+                  legend: { display: false },
+                  tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: '#dc3545',
+                    borderWidth: 1,
+                    cornerRadius: 4,
+                    displayColors: false,
+                    callbacks: {
+                      title: function(context) { return `Month: ${context[0].label}`; },
+                      label: function(context) { return `Non-Compliant: ${context.raw}`; }
+                    }
+                  }
+                },
+                scales: {
+                  y: { display: false, beginAtZero: true, grid: { display: false } },
+                  x: { display: false, grid: { display: false } }
+                },
+                elements: {
+                  point: { radius: 0, hoverRadius: 0 },
+                  line: { borderWidth: 2 }
+                },
+                interaction: { intersect: false, mode: 'index' }
+              }}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Reports Content Row */}
+      {/* Reports Content Row - Bar Charts */}
       <div className="reports-content-row">
-        {/* Table for Patients with Submitted Labs */}
-        <div className="submitted-labs-table-container">
-          <h3>Patients with Full Compliance</h3>
-          <table className="patient-list-table">
-            <thead>
-              <tr>
-                <th>Patient Name</th>
-                <th>Submitted Items</th>
-                <th>Risk Level</th>
-              </tr>
-            </thead>
-            <tbody>
-              {patients
-                .filter(pat => {
-                  const compliance = getPatientComplianceStatus(pat);
-                  return compliance.isFullCompliance;
-                })
-                .slice(0, 10) // Show only first 10
-                .map(pat => {
-                  const compliance = getPatientComplianceStatus(pat);
-                  return (
-                    <tr key={pat.patient_id}>
-                      <td>{pat.first_name} {pat.last_name}</td>
-                      <td>{compliance.submittedCount}/3 metrics</td>
-                      <td className={`risk-classification-${(pat.risk_classification || 'N/A').toLowerCase()}`}>
-                        {pat.risk_classification || 'N/A'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              {patients.filter(pat => getPatientComplianceStatus(pat).isFullCompliance).length === 0 && (
-                <tr><td colSpan="3">No patients with full compliance.</td></tr>
-              )}
-            </tbody>
-          </table>
+        {/* Risk Classification Bar Chart */}
+        <div className="chart-container-reports">
+          <h3>Patients by Risk Classification</h3>
+          <Bar
+            data={{
+              labels: ['Low Risk', 'Moderate Risk', 'High Risk'],
+              datasets: [
+                {
+                  label: 'Number of Patients',
+                  data: [
+                    patients.filter(p => (p.risk_classification || '').toLowerCase() === 'low').length,
+                    patients.filter(p => (p.risk_classification || '').toLowerCase() === 'moderate').length,
+                    patients.filter(p => (p.risk_classification || '').toLowerCase() === 'high').length,
+                  ],
+                  backgroundColor: [
+                    'rgba(40, 167, 69, 0.7)',   // Green for Low
+                    'rgba(255, 193, 7, 0.7)',   // Yellow for Moderate
+                    'rgba(220, 53, 69, 0.7)',   // Red for High
+                  ],
+                  borderColor: [
+                    '#28a745',
+                    '#ffc107',
+                    '#dc3545',
+                  ],
+                  borderWidth: 2,
+                  borderRadius: 8,
+                  barThickness: 60,
+                },
+              ],
+            }}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false,
+                },
+                tooltip: {
+                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                  titleColor: '#fff',
+                  bodyColor: '#fff',
+                  borderColor: '#1FAAED',
+                  borderWidth: 1,
+                  cornerRadius: 8,
+                  padding: 12,
+                  displayColors: false,
+                  callbacks: {
+                    label: function(context) {
+                      return `Patients: ${context.raw}`;
+                    }
+                  }
+                },
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    stepSize: 1,
+                    font: {
+                      size: 12,
+                      family: 'Poppins',
+                    },
+                    color: '#6c757d',
+                  },
+                  grid: {
+                    color: 'rgba(0, 0, 0, 0.05)',
+                    drawBorder: false,
+                  },
+                },
+                x: {
+                  ticks: {
+                    font: {
+                      size: 13,
+                      family: 'Poppins',
+                      weight: '500',
+                    },
+                    color: '#495057',
+                  },
+                  grid: {
+                    display: false,
+                  },
+                },
+              },
+            }}
+          />
         </div>
 
-        {/* Summary Statistics */}
-        <div className="summary-stats-container">
-          <h3>Summary Statistics</h3>
-          <div className="stats-grid">
-            <div className="stat-card">
-              <h4>Pre-Operative Patients</h4>
-              <p className="stat-number">{preOpCount}</p>
-            </div>
-            <div className="stat-card">
-              <h4>Post-Operative Patients</h4>
-              <p className="stat-number">{postOpCount}</p>
-            </div>
-            <div className="stat-card">
-              <h4>Full Compliance</h4>
-              <p className="stat-number">
-                {patients.filter(pat => getPatientComplianceStatus(pat).isFullCompliance).length}
-              </p>
-            </div>
-            <div className="stat-card">
-              <h4>Missing Logs</h4>
-              <p className="stat-number">
-                {patients.filter(pat => getPatientComplianceStatus(pat).isMissingLogs).length}
-              </p>
-            </div>
-          </div>
+        {/* Phase Bar Chart */}
+        <div className="chart-container-reports">
+          <h3>Patients by Phase</h3>
+          <Bar
+            data={{
+              labels: ['Pre-Operative', 'Post-Operative'],
+              datasets: [
+                {
+                  label: 'Number of Patients',
+                  data: [
+                    preOpCount,
+                    postOpCount,
+                  ],
+                  backgroundColor: [
+                    'rgba(141, 73, 247, 0.7)',  // Purple for Pre-Op
+                    'rgba(73, 247, 141, 0.7)',  // Light Green for Post-Op
+                  ],
+                  borderColor: [
+                    '#8D49F7',
+                    '#49F78D',
+                  ],
+                  borderWidth: 2,
+                  borderRadius: 8,
+                  barThickness: 80,
+                },
+              ],
+            }}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false,
+                },
+                tooltip: {
+                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                  titleColor: '#fff',
+                  bodyColor: '#fff',
+                  borderColor: '#1FAAED',
+                  borderWidth: 1,
+                  cornerRadius: 8,
+                  padding: 12,
+                  displayColors: false,
+                  callbacks: {
+                    label: function(context) {
+                      return `Patients: ${context.raw}`;
+                    }
+                  }
+                },
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    stepSize: 1,
+                    font: {
+                      size: 12,
+                      family: 'Poppins',
+                    },
+                    color: '#6c757d',
+                  },
+                  grid: {
+                    color: 'rgba(0, 0, 0, 0.05)',
+                    drawBorder: false,
+                  },
+                },
+                x: {
+                  ticks: {
+                    font: {
+                      size: 13,
+                      family: 'Poppins',
+                      weight: '500',
+                    },
+                    color: '#495057',
+                  },
+                  grid: {
+                    display: false,
+                  },
+                },
+              },
+            }}
+          />
         </div>
       </div>
     </div>
@@ -2291,11 +2788,27 @@ const renderReportsContent = () => {
   );
 };
 
+    // NEW: Function to reset treatment plan forms
+    const resetTreatmentPlanForms = () => {
+        setDiagnosisDetails([{ id: Date.now(), text: '' }]);
+        setWoundCareDetails([{ id: Date.now(), text: '' }]);
+        setDressingDetails([{ id: Date.now(), text: '' }]);
+        setMedicationTreatmentPlan([{ id: Date.now(), text: '' }]);
+        setImportantNotes([{ id: Date.now(), text: '' }]);
+        setFollowUpDetails([{ id: Date.now(), text: '' }]);
+        setSelectedWoundPhoto(null);
+    };
+
     // NEW: Function to handle "Create Treatment Plan" button click
     const handleCreateTreatmentPlan = () => {
+        // Reset forms before starting a new treatment plan
+        resetTreatmentPlanForms();
+        
         // Find the latest wound photo if available
         const latestWoundPhoto = woundPhotos.length > 0 ? woundPhotos[0] : null;
         if (latestWoundPhoto) {
+            // Set the selected wound photo
+            setSelectedWoundPhoto(latestWoundPhoto);
             // Set active page to 'treatment-plan' to render the new content
             setActivePage("treatment-plan");
         } else {
@@ -2306,6 +2819,9 @@ const renderReportsContent = () => {
     // NEW: Function to handle "Create Treatment Plan" for a specific wound photo
     const handleCreateTreatmentPlanForPhoto = (photo) => {
         if (photo) {
+            // Reset forms before starting a new treatment plan
+            resetTreatmentPlanForms();
+            
             // Set the selected wound photo for the treatment plan
             setSelectedWoundPhoto(photo);
             // Navigate to treatment plan page
@@ -2553,12 +3069,6 @@ const renderReportsContent = () => {
                                 value={entry.text}
                                 onChange={(e) => handleImportantNotesChange(entry.id, e.target.value)}
                             ></textarea>
-                            <div className="dynamic-buttons3">
-                              <button onClick={handleAddImportantNotes} className="add-button3">+</button>
-                              {importantNotes.length > 1 && (
-                                <button onClick={() => handleRemoveImportantNotes(entry.id)} className="remove-button3">-</button>
-                              )}
-                            </div>
                           </div>
                         ))}
                     </div>
@@ -2603,43 +3113,51 @@ const renderReportsContent = () => {
 
         const handleSend = async () => {
             try {
-                // All fields should be arrays for the database
-                const diagnosisArray = diagnosisDetails.map(entry => entry.text).filter(Boolean);
+                // Get the metric_id from the wound photo being used for the treatment plan
+                const treatmentMetricId = latestWoundPhoto?.metric_id;
+                
+                if (!treatmentMetricId) {
+                    alert("No wound photo record found to attach treatment plan.");
+                    return;
+                }
+
+                // Diagnosis and Important Notes should be text, others are arrays
+                const diagnosisText = diagnosisDetails.map(entry => entry.text).filter(Boolean).join('\n');
                 const woundCareArray = woundCareDetails.map(entry => entry.text).filter(Boolean);
                 const dressingArray = dressingDetails.map(entry => entry.text).filter(Boolean);
-                const importantNotesArray = importantNotes.map(entry => entry.text).filter(Boolean);
+                const importantNotesText = importantNotes.map(entry => entry.text).filter(Boolean).join('\n');
                 const followUpArray = followUpDetails.map(entry => entry.text).filter(Boolean);
                 const medicationArray = medicationTreatmentPlan.map(entry => entry.text).filter(Boolean);
 
-                console.log('Diagnosis array:', diagnosisArray);
+                console.log('Diagnosis text:', diagnosisText);
                 console.log('Wound care array:', woundCareArray);
                 console.log('Dressing array:', dressingArray);
                 console.log('Medication array:', medicationArray);
-                console.log('Important notes array:', importantNotesArray);
+                console.log('Important notes text:', importantNotesText);
                 console.log('Follow-up array:', followUpArray);
+                console.log('Updating metric_id:', treatmentMetricId);
 
                 // Get current timestamp
                 const now = new Date().toISOString();
 
-                // Prepare the data object - ALL fields are arrays
+                // Prepare the data object - Update existing row where wound photo exists
                 const treatmentPlanData = {
-                    patient_id: selectedPatient.patient_id,
-                    wound_diagnosis: diagnosisArray.length > 0 ? diagnosisArray : [],
+                    wound_diagnosis: diagnosisText || null,
                     wound_care: woundCareArray.length > 0 ? woundCareArray : [],
                     wound_dressing: dressingArray.length > 0 ? dressingArray : [],
                     wound_medication: medicationArray.length > 0 ? medicationArray : [],
-                    'wound_important-notes': importantNotesArray.length > 0 ? importantNotesArray : [],
+                    'wound_important-notes': importantNotesText || null,
                     'wound_follow-up': followUpArray.length > 0 ? followUpArray : [],
-                    submission_date: now,
                     updated_at: now
                 };
 
                 console.log('Sending treatment plan data:', treatmentPlanData);
 
-                // Insert the treatment plan into the health_metrics table
+                // Update the existing row in health_metrics table
                 const { data, error } = await supabase
                     .from('health_metrics')
-                    .insert([treatmentPlanData]);
+                    .update(treatmentPlanData)
+                    .eq('metric_id', treatmentMetricId);
 
                 if (error) {
                     console.error('Error saving treatment plan:', error);
@@ -2650,8 +3168,17 @@ const renderReportsContent = () => {
 
                 alert("Treatment Plan saved successfully!");
                 
-                // Optionally navigate back or reset form
-                setActivePage("patient-details");
+                // Reset all form fields
+                setDiagnosisDetails([{ id: Date.now(), text: '' }]);
+                setWoundCareDetails([{ id: Date.now(), text: '' }]);
+                setDressingDetails([{ id: Date.now(), text: '' }]);
+                setMedicationTreatmentPlan([{ id: Date.now(), text: '' }]);
+                setImportantNotes([{ id: Date.now(), text: '' }]);
+                setFollowUpDetails([{ id: Date.now(), text: '' }]);
+                setSelectedWoundPhoto(null);
+                
+                // Navigate back to patient list
+                setActivePage("patient-list");
                 
             } catch (err) {
                 console.error('Unexpected error:', err);
@@ -3738,7 +4265,7 @@ const renderReportsContent = () => {
       />
 
       <main className="content-area-full-width3">
-        {activePage !== "patient-profile" && activePage !== "treatment-plan" && activePage !== "treatment-plan-next-step" && activePage !== "treatment-plan-summary" && (
+        {activePage === "dashboard" && (
           <h1>Welcome, Dr. {user.first_name} 👋</h1>
         )}
         {activePage === "dashboard" && renderDashboardContent()}
