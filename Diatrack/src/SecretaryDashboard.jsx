@@ -535,6 +535,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     lastDoctorVisit: "",
     lastEyeExam: "",
     preparedBy: "", // This will be set by the secretary's ID
+    patientHeight: "",
+    patientWeight: "",
+    bmi: "",
   });
   const [medications, setMedications] = useState([{ drugName: "", dosage: "", frequency: "", prescribedBy: "" }]);
   const [editingPatientId, setEditingPatientId] = useState(null);
@@ -830,6 +833,51 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
   // NEW STATE FOR ALL PATIENT HEALTH METRICS HISTORY (FOR CHARTS)
   const [allPatientHealthMetrics, setAllPatientHealthMetrics] = useState([]);
+
+  // Individual time period filters for each chart
+  const [glucoseTimeFilter, setGlucoseTimeFilter] = useState('week'); // 'day', 'week', 'month'
+  const [bpTimeFilter, setBpTimeFilter] = useState('week');
+  const [riskTimeFilter, setRiskTimeFilter] = useState('week');
+
+  // Helper function to filter metrics by time period
+  const filterMetricsByTimePeriod = React.useCallback((metrics, timePeriod) => {
+    const now = new Date();
+    const filtered = metrics.filter(metric => {
+      const metricDate = new Date(metric.submission_date);
+      const diffTime = Math.abs(now - metricDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      switch(timePeriod) {
+        case 'day':
+          return diffDays <= 1;
+        case 'week':
+          return diffDays <= 7;
+        case 'month':
+          return diffDays <= 30;
+        default:
+          return true;
+      }
+    });
+    
+    // Sort by date ascending (oldest first)
+    return filtered.sort((a, b) => new Date(a.submission_date) - new Date(b.submission_date));
+  }, []);
+
+  // Filtered metrics for each chart based on their individual time filters
+  const glucoseFilteredMetrics = React.useMemo(() => 
+    filterMetricsByTimePeriod(allPatientHealthMetrics, glucoseTimeFilter),
+    [allPatientHealthMetrics, glucoseTimeFilter, filterMetricsByTimePeriod]
+  );
+
+  const bpFilteredMetrics = React.useMemo(() => 
+    filterMetricsByTimePeriod(allPatientHealthMetrics, bpTimeFilter),
+    [allPatientHealthMetrics, bpTimeFilter, filterMetricsByTimePeriod]
+  );
+
+  const riskFilteredMetrics = React.useMemo(() => 
+    filterMetricsByTimePeriod(allPatientHealthMetrics, riskTimeFilter),
+    [allPatientHealthMetrics, riskTimeFilter, filterMetricsByTimePeriod]
+  );
 
   // NEW STATE FOR PATIENT-SPECIFIC LAB RESULTS (ALL HISTORY)
   const [allPatientLabResultsHistory, setAllPatientLabResultsHistory] = useState([]);
@@ -1795,6 +1843,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         last_doctor_visit: patientForm.lastDoctorVisit,
         last_eye_exam: patientForm.lastEyeExam,
         phase: 'Pre-Operative', // Default to Pre-Operative on creation
+        patient_height: patientForm.patientHeight || null,
+        patient_weight: patientForm.patientWeight || null,
+        BMI: patientForm.bmi || null,
       };
 
       let error;
@@ -1891,7 +1942,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         middleName: "", gender: "", address: "", emergencyContactNumber: "", diabetesType: "", allergies: "",
         footUlcersAmputation: false, eyeIssues: false, kidneyIssues: false, stroke: false,
         heartAttack: false, hypertensive: false, smokingStatus: "", monitoringFrequencyGlucose: "", lastDoctorVisit: "",
-        lastEyeExam: "", preparedBy: ""
+        lastEyeExam: "", preparedBy: "", patientHeight: "", patientWeight: "", bmi: ""
       });
       setMedications([{ drugName: "", dosage: "", frequency: "", prescribedBy: "" }]);
       setSelectedDoctorId("");
@@ -1924,7 +1975,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       smokingStatus: patient.smoking_status || "",
       monitoringFrequencyGlucose: patient.monitoringFrequencyGlucose || "",
       lastDoctorVisit: patient.last_doctor_visit || "",
-      lastEyeExam: patient.last_eye_exam || ""
+      lastEyeExam: patient.last_eye_exam || "",
+      patientHeight: patient.patient_height || "",
+      patientWeight: patient.patient_weight || "",
+      bmi: patient.BMI || ""
     });
     try {
       setMedications(patient.medication ? JSON.parse(patient.medication) : [{ drugName: "", dosage: "", frequency: "", prescribedBy: "" }]);
@@ -2624,7 +2678,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   middleName: "", gender: "", address: "", emergencyContactNumber: "", diabetesType: "", allergies: "",
                   footUlcersAmputation: "", eyeIssues: "", kidneyIssues: "", stroke: "",
                   heartAttack: "", hypertensive: "", smokingStatus: "", monitoringFrequencyGlucose: "", lastDoctorVisit: "",
-                  lastEyeExam: "", preparedBy: ""
+                  lastEyeExam: "", preparedBy: "", patientHeight: "", patientWeight: "", bmi: ""
                 });
                 setMedications([{ drugName: "", dosage: "", frequency: "", prescribedBy: "" }]); // Reset medications state
                 setSelectedDoctorId("");
@@ -2850,6 +2904,41 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           <div className="form-group">
                             <label>Address:</label>
                             <input className="patient-input" placeholder="Address" value={patientForm.address} onChange={(e) => handleInputChange("address", e.target.value)} />
+                          </div>
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Height (cm):</label>
+                            <input 
+                              className="patient-input" 
+                              placeholder="Height in cm" 
+                              type="number" 
+                              step="1"
+                              value={patientForm.patientHeight} 
+                              onChange={(e) => handleInputChange("patientHeight", e.target.value)} 
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Weight (kg):</label>
+                            <input 
+                              className="patient-input" 
+                              placeholder="Weight in kg" 
+                              type="number" 
+                              step="0.1"
+                              value={patientForm.patientWeight} 
+                              onChange={(e) => handleInputChange("patientWeight", e.target.value)} 
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>BMI:</label>
+                            <input 
+                              className="patient-input" 
+                              placeholder="BMI" 
+                              type="number" 
+                              step="0.1"
+                              value={patientForm.bmi} 
+                              onChange={(e) => handleInputChange("bmi", e.target.value)} 
+                            />
                           </div>
                         </div>
                         <div className="form-row">
@@ -3239,6 +3328,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                                 </span>
                                             </div>
                                             <div className="patient-detail-item">
+                                                <span className="detail-label">Height:</span>
+                                                <span className="detail-value">{selectedPatientForDetail.patient_height ? `${selectedPatientForDetail.patient_height} cm` : 'N/A'}</span>
+                                            </div>
+                                            <div className="patient-detail-item">
+                                                <span className="detail-label">Weight:</span>
+                                                <span className="detail-value">{selectedPatientForDetail.patient_weight ? `${selectedPatientForDetail.patient_weight} kg` : 'N/A'}</span>
+                                            </div>
+                                            <div className="patient-detail-item">
+                                                <span className="detail-label">BMI:</span>
+                                                <span className="detail-value">{selectedPatientForDetail.BMI || 'N/A'}</span>
+                                            </div>
+                                            <div className="patient-detail-item">
                                                 <span className="detail-label">Hypertensive:</span>
                                                 <span className="detail-value">{selectedPatientForDetail.complication_history?.includes("Hypertensive") ? "Yes" : "No"}</span>
                                             </div>
@@ -3283,14 +3384,37 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               
                               {/* Blood Glucose Chart - Separate div */}
                               <div className="blood-glucose-chart-container">
-                                <h4>Blood Glucose Level History</h4>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                  <h4 style={{ margin: 0 }}>Blood Glucose Level History</h4>
+                                  <div className="time-filter-buttons">
+                                    <button 
+                                      className={`time-filter-btn ${glucoseTimeFilter === 'day' ? 'active' : ''}`}
+                                      onClick={() => setGlucoseTimeFilter('day')}
+                                    >
+                                      Day
+                                    </button>
+                                    <button 
+                                      className={`time-filter-btn ${glucoseTimeFilter === 'week' ? 'active' : ''}`}
+                                      onClick={() => setGlucoseTimeFilter('week')}
+                                    >
+                                      Week
+                                    </button>
+                                    <button 
+                                      className={`time-filter-btn ${glucoseTimeFilter === 'month' ? 'active' : ''}`}
+                                      onClick={() => setGlucoseTimeFilter('month')}
+                                    >
+                                      Month
+                                    </button>
+                                  </div>
+                                </div>
                                 <div className="chart-wrapper">
+                                  {glucoseFilteredMetrics.length > 0 ? (
                                   <Line
                                     data={{
-                                      labels: allPatientHealthMetrics.slice(-5).map(entry => formatDateForChart(entry.submission_date)),
+                                      labels: glucoseFilteredMetrics.map(entry => formatDateForChart(entry.submission_date)),
                                       datasets: [{
                                         label: 'Blood Glucose',
-                                        data: allPatientHealthMetrics.slice(-5).map(entry => parseFloat(entry.blood_glucose) || 0),
+                                        data: glucoseFilteredMetrics.map(entry => parseFloat(entry.blood_glucose) || 0),
                                         fill: true,
                                         backgroundColor: (context) => {
                                           const chart = context.chart;
@@ -3332,12 +3456,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         y: {
                                           beginAtZero: true,
                                           title: {
-                                            display: false, // Hide y-axis title
+                                            display: true,
+                                            text: 'Blood Glucose (mg/dL)',
+                                            font: {
+                                              size: 12,
+                                              weight: 'bold'
+                                            }
                                           },
                                           min: 0,
                                           max: 300,
                                           ticks: {
-                                            display: false, // Hide y-axis values
+                                            display: true,
                                           },
                                           grid: {
                                             display: true,
@@ -3349,29 +3478,64 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             display: false
                                           },
                                           title: {
-                                            display: false, // Hide x-axis title
+                                            display: true,
+                                            text: 'Date',
+                                            font: {
+                                              size: 12,
+                                              weight: 'bold'
+                                            }
                                           },
                                           ticks: {
-                                            display: false, // Hide x-axis values
+                                            display: true,
+                                            maxRotation: 45,
+                                            minRotation: 45
                                           }
                                         }
                                       }
                                     }}
                                   />
+                                  ) : (
+                                    <div className="no-chart-data">
+                                      <p>No blood glucose data available for selected time period</p>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
 
                               {/* Blood Pressure Chart - Separate div */}
                               <div className="blood-pressure-chart-container">
-                                <h4>Blood Pressure History</h4>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                  <h4 style={{ margin: 0 }}>Blood Pressure History</h4>
+                                  <div className="time-filter-buttons">
+                                    <button 
+                                      className={`time-filter-btn ${bpTimeFilter === 'day' ? 'active' : ''}`}
+                                      onClick={() => setBpTimeFilter('day')}
+                                    >
+                                      Day
+                                    </button>
+                                    <button 
+                                      className={`time-filter-btn ${bpTimeFilter === 'week' ? 'active' : ''}`}
+                                      onClick={() => setBpTimeFilter('week')}
+                                    >
+                                      Week
+                                    </button>
+                                    <button 
+                                      className={`time-filter-btn ${bpTimeFilter === 'month' ? 'active' : ''}`}
+                                      onClick={() => setBpTimeFilter('month')}
+                                    >
+                                      Month
+                                    </button>
+                                  </div>
+                                </div>
                                 <div className="chart-wrapper">
+                                  {bpFilteredMetrics.length > 0 ? (
                                   <Bar
                                     data={{
-                                      labels: allPatientHealthMetrics.slice(-10).map(entry => formatDateForChart(entry.submission_date)),
+                                      labels: bpFilteredMetrics.map(entry => formatDateForChart(entry.submission_date)),
                                       datasets: [
                                         {
                                           label: 'Diastolic',
-                                          data: allPatientHealthMetrics.slice(-10).map(entry => parseFloat(entry.bp_diastolic) || 0),
+                                          data: bpFilteredMetrics.map(entry => parseFloat(entry.bp_diastolic) || 0),
                                           backgroundColor: 'rgba(134, 239, 172, 0.8)', // Light green for diastolic
                                           borderColor: 'rgba(134, 239, 172, 1)',
                                           borderWidth: 1,
@@ -3386,7 +3550,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         },
                                         {
                                           label: 'Systolic',
-                                          data: allPatientHealthMetrics.slice(-10).map(entry => parseFloat(entry.bp_systolic) || 0),
+                                          data: bpFilteredMetrics.map(entry => parseFloat(entry.bp_systolic) || 0),
                                           backgroundColor: 'rgba(34, 197, 94, 0.8)', // Dark green for systolic
                                           borderColor: 'rgba(34, 197, 94, 1)',
                                           borderWidth: 1,
@@ -3432,24 +3596,36 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             display: false
                                           },
                                           title: {
-                                            display: false, // Hide x-axis title
+                                            display: true,
+                                            text: 'Date',
+                                            font: {
+                                              size: 12,
+                                              weight: 'bold'
+                                            }
                                           },
                                           ticks: {
-                                            display: false, // Hide x-axis values
+                                            display: true,
+                                            maxRotation: 45,
+                                            minRotation: 45
                                           },
-                                          categoryPercentage: 0.95, // Increased to compress gaps - was 0.8
-                                          barPercentage: 0.95, // Increased to compress gaps - was 0.9
+                                          categoryPercentage: 0.95,
+                                          barPercentage: 0.95,
                                         },
                                         y: {
                                           stacked: true,
                                           beginAtZero: true,
                                           title: {
-                                            display: false, // Hide y-axis title
+                                            display: true,
+                                            text: 'Blood Pressure (mmHg)',
+                                            font: {
+                                              size: 12,
+                                              weight: 'bold'
+                                            }
                                           },
                                           min: 0,
-                                          max: 350, // Increased to accommodate higher blood pressure values
+                                          max: 350,
                                           ticks: {
-                                            display: false, // Hide y-axis values
+                                            display: true
                                           },
                                           grid: {
                                             display: true,
@@ -3459,12 +3635,39 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                       }
                                     }}
                                   />
+                                  ) : (
+                                    <div className="no-chart-data">
+                                      <p>No data available for selected time period</p>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
 
                               {/* Risk Classification History Chart - New */}
                               <div className="risk-classification-chart-container">
-                                <h4>Risk Classification History</h4>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                  <h4 style={{ margin: 0 }}>Risk Classification History</h4>
+                                  <div className="time-filter-buttons">
+                                    <button 
+                                      className={`time-filter-btn ${riskTimeFilter === 'day' ? 'active' : ''}`}
+                                      onClick={() => setRiskTimeFilter('day')}
+                                    >
+                                      Day
+                                    </button>
+                                    <button 
+                                      className={`time-filter-btn ${riskTimeFilter === 'week' ? 'active' : ''}`}
+                                      onClick={() => setRiskTimeFilter('week')}
+                                    >
+                                      Week
+                                    </button>
+                                    <button 
+                                      className={`time-filter-btn ${riskTimeFilter === 'month' ? 'active' : ''}`}
+                                      onClick={() => setRiskTimeFilter('month')}
+                                    >
+                                      Month
+                                    </button>
+                                  </div>
+                                </div>
                                 
                                 {/* Risk Classification Legend */}
                                 <div className="risk-legend-container">
@@ -3487,13 +3690,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 </div>
 
                                 <div className="chart-wrapper">
+                                  {riskFilteredMetrics.length > 0 ? (
                                   <Bar
                                     data={{
-                                      labels: allPatientHealthMetrics.slice(-10).map(entry => formatDateForChart(entry.submission_date)),
+                                      labels: riskFilteredMetrics.map(entry => formatDateForChart(entry.submission_date)),
                                       datasets: [
                                         {
                                           label: 'Risk Classification',
-                                          data: allPatientHealthMetrics.slice(-10).map(entry => {
+                                          data: riskFilteredMetrics.map(entry => {
                                             const risk = entry.risk_classification?.toLowerCase();
                                             if (risk === 'low') return 2;
                                             if (risk === 'moderate') return 3;
@@ -3501,7 +3705,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             if (risk === 'ppd') return 1;
                                             return 0; // For unknown/null values
                                           }),
-                                          backgroundColor: allPatientHealthMetrics.slice(-10).map(entry => {
+                                          backgroundColor: riskFilteredMetrics.map(entry => {
                                             const risk = entry.risk_classification?.toLowerCase();
                                             if (risk === 'low') return 'rgba(34, 197, 94, 0.8)'; // Green
                                             if (risk === 'moderate') return 'rgba(255, 193, 7, 0.8)'; // Yellow
@@ -3509,7 +3713,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             if (risk === 'ppd') return 'rgba(103, 101, 105, 0.8)'; // Purple
                                             return 'rgba(156, 163, 175, 0.8)'; // Gray for unknown
                                           }),
-                                          borderColor: allPatientHealthMetrics.slice(-10).map(entry => {
+                                          borderColor: riskFilteredMetrics.map(entry => {
                                             const risk = entry.risk_classification?.toLowerCase();
                                             if (risk === 'low') return 'rgba(34, 197, 94, 1)';
                                             if (risk === 'moderate') return 'rgba(255, 193, 7, 1)';
@@ -3543,7 +3747,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         tooltip: {
                                           callbacks: {
                                             label: function(context) {
-                                              const entry = allPatientHealthMetrics.slice(-10)[context.dataIndex];
+                                              const entry = riskFilteredMetrics[context.dataIndex];
                                               return `Risk: ${entry.risk_classification || 'Unknown'}`;
                                             }
                                           }
@@ -3555,10 +3759,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             display: false
                                           },
                                           title: {
-                                            display: false,
+                                            display: true,
+                                            text: 'Date',
+                                            font: {
+                                              size: 12,
+                                              weight: 'bold'
+                                            }
                                           },
                                           ticks: {
-                                            display: false,
+                                            display: true,
+                                            maxRotation: 45,
+                                            minRotation: 45
                                           },
                                           categoryPercentage: 0.95,
                                           barPercentage: 0.95,
@@ -3566,12 +3777,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         y: {
                                           beginAtZero: true,
                                           title: {
-                                            display: false,
+                                            display: true,
+                                            text: 'Risk Level',
+                                            font: {
+                                              size: 12,
+                                              weight: 'bold'
+                                            }
                                           },
                                           min: 0,
-                                          max: 4, // 0=Unknown, 1=Low, 2=Moderate, 3=High
+                                          max: 4,
                                           ticks: {
-                                            display: false,
+                                            display: true,
                                             stepSize: 1,
                                           },
                                           grid: {
@@ -3582,6 +3798,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                       }
                                     }}
                                   />
+                                  ) : (
+                                    <div className="no-chart-data">
+                                      <p>No data available for selected time period</p>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>

@@ -642,9 +642,69 @@ const Dashboard = ({ user, onLogout }) => {
   const [calendarDate, setCalendarDate] = useState(new Date()); // For calendar
   const [currentPatientSpecialists, setCurrentPatientSpecialists] = useState([]); // For specialist assignments
   const [fetchingPatientDetails, setFetchingPatientDetails] = useState(false); // To prevent multiple fetches
+  const [selectedMetricsFilter, setSelectedMetricsFilter] = useState('all'); // For filtering health metrics charts by risk
+  
+  // Individual time period filters for each chart
+  const [glucoseTimeFilter, setGlucoseTimeFilter] = useState('week'); // 'day', 'week', 'month'
+  const [bpTimeFilter, setBpTimeFilter] = useState('week');
+  const [riskTimeFilter, setRiskTimeFilter] = useState('week');
+
+
+  // Filter patient metrics based on selected risk filter
+  const filteredPatientMetrics = React.useMemo(() => {
+    if (selectedMetricsFilter === 'all') {
+      return allPatientHealthMetrics;
+    }
+    return allPatientHealthMetrics.filter(metric => {
+      const riskLevel = metric.risk_classification?.toLowerCase();
+      return riskLevel === selectedMetricsFilter;
+    });
+  }, [allPatientHealthMetrics, selectedMetricsFilter]);
+
+  // Helper function to filter metrics by time period
+  const filterMetricsByTimePeriod = React.useCallback((metrics, timePeriod) => {
+    const now = new Date();
+    const filtered = metrics.filter(metric => {
+      const metricDate = new Date(metric.submission_date);
+      const diffTime = Math.abs(now - metricDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      switch(timePeriod) {
+        case 'day':
+          return diffDays <= 1;
+        case 'week':
+          return diffDays <= 7;
+        case 'month':
+          return diffDays <= 30;
+        default:
+          return true;
+      }
+    });
+    
+    // Sort by date ascending (oldest first)
+    return filtered.sort((a, b) => new Date(a.submission_date) - new Date(b.submission_date));
+  }, []);
+
+  // Filtered metrics for each chart based on their individual time filters
+  const glucoseFilteredMetrics = React.useMemo(() => 
+    filterMetricsByTimePeriod(filteredPatientMetrics, glucoseTimeFilter),
+    [filteredPatientMetrics, glucoseTimeFilter, filterMetricsByTimePeriod]
+  );
+
+  const bpFilteredMetrics = React.useMemo(() => 
+    filterMetricsByTimePeriod(filteredPatientMetrics, bpTimeFilter),
+    [filteredPatientMetrics, bpTimeFilter, filterMetricsByTimePeriod]
+  );
+
+  const riskFilteredMetrics = React.useMemo(() => 
+    filterMetricsByTimePeriod(filteredPatientMetrics, riskTimeFilter),
+    [filteredPatientMetrics, riskTimeFilter, filterMetricsByTimePeriod]
+  );
 
 
   useEffect(() => {
+    console.log("useEffect triggered - activePage:", activePage, "selectedPatient?.patient_id:", selectedPatient?.patient_id);
+    
     if (activePage === "dashboard" || activePage === "patient-list") {
       fetchPatients();
     }
@@ -652,6 +712,7 @@ const Dashboard = ({ user, onLogout }) => {
         fetchAppointments();
     }
     if (activePage === "patient-profile" && selectedPatient?.patient_id) {
+      console.log("Calling fetchPatientDetails for patient:", selectedPatient.patient_id);
       fetchPatientDetails(selectedPatient.patient_id);
     }
   }, [activePage, user.doctor_id, selectedPatient?.patient_id]); // Only depend on patient_id, not the full object
@@ -1080,9 +1141,13 @@ const Dashboard = ({ user, onLogout }) => {
   };
 
   const fetchPatientDetails = async (patientId) => {
-    // Prevent multiple simultaneous fetches
-    if (loading || fetchingPatientDetails) return;
+    // Prevent multiple simultaneous fetches for the same patient
+    if (fetchingPatientDetails) {
+      console.log("Already fetching patient details, skipping...");
+      return;
+    }
     
+    console.log(`Fetching details for patient ID: ${patientId}`);
     setFetchingPatientDetails(true);
     setLoading(true);
     setError("");
@@ -1111,10 +1176,15 @@ const Dashboard = ({ user, onLogout }) => {
           .eq("patient_id", patientId)
           .single();
         
-        if (simplePatientError) throw simplePatientError;
+        if (simplePatientError) {
+          console.error("Error fetching simple patient data:", simplePatientError);
+          throw simplePatientError;
+        }
+        console.log("Successfully fetched simple patient data:", patientOnly);
         setSelectedPatient(patientOnly);
       } else {
         // Update selected patient with doctor information
+        console.log("Successfully fetched patient with doctor:", patientWithDoctor);
         setSelectedPatient(patientWithDoctor);
       }
 
@@ -1124,9 +1194,13 @@ const Dashboard = ({ user, onLogout }) => {
         .eq("patient_id", patientId)
         .order("submission_date", { ascending: false });
 
-      if (metricsError) throw metricsError;
-      setPatientMetrics(metrics);
-      setAllPatientHealthMetrics(metrics); // Store all metrics for charts
+      if (metricsError) {
+        console.error("Error fetching health metrics:", metricsError);
+        throw metricsError;
+      }
+      console.log(`Fetched ${metrics?.length || 0} health metrics`);
+      setPatientMetrics(metrics || []);
+      setAllPatientHealthMetrics(metrics || []); // Store all metrics for charts
 
       // Filter for wound photos and set the state
       const photos = metrics.filter(metric => metric.wound_photo_url).map(metric => ({
@@ -1243,8 +1317,10 @@ const Dashboard = ({ user, onLogout }) => {
       }
 
     } catch (err) {
+      console.error("Error in fetchPatientDetails:", err);
       setError("Error fetching patient details: " + err.message);
     } finally {
+      console.log("fetchPatientDetails completed, setting loading to false");
       setLoading(false);
       setFetchingPatientDetails(false);
     }
@@ -3275,6 +3351,8 @@ const renderReportsContent = () => {
 
 
   const renderPatientProfile = () => {
+    console.log("Rendering patient profile - loading:", loading, "error:", error, "selectedPatient:", selectedPatient?.patient_id);
+    
     if (loading) return <div className="loading-message3">Loading patient details...</div>;
     if (error) return <div className="error-message3">{error}</div>;
     if (!selectedPatient?.patient_id) return <div className="error-message3">No patient selected</div>;
@@ -3340,6 +3418,18 @@ const renderReportsContent = () => {
                           ? new Date().getFullYear() - new Date(selectedPatient.date_of_birth).getFullYear() 
                           : 'N/A'}
                       </span>
+                    </div>
+                    <div className="patient-detail-item">
+                      <span className="detail-label">Height:</span>
+                      <span className="detail-value">{selectedPatient.patient_height ? `${selectedPatient.patient_height} cm` : 'N/A'}</span>
+                    </div>
+                    <div className="patient-detail-item">
+                      <span className="detail-label">Weight:</span>
+                      <span className="detail-value">{selectedPatient.patient_weight ? `${selectedPatient.patient_weight} kg` : 'N/A'}</span>
+                    </div>
+                    <div className="patient-detail-item">
+                      <span className="detail-label">BMI:</span>
+                      <span className="detail-value">{selectedPatient.BMI || 'N/A'}</span>
                     </div>
                     <div className="patient-detail-item">
                       <span className="detail-label">Hypertensive:</span>
@@ -3410,18 +3500,43 @@ const renderReportsContent = () => {
 
             {/* History Charts Section */}
             <div className="history-charts-section">
-              <h3>History Charts</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ margin: 0 }}>History Charts</h3>
+              </div>
               
               {/* Blood Glucose Chart */}
               <div className="blood-glucose-chart-container">
-                <h4>Blood Glucose Level History</h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <h4 style={{ margin: 0 }}>Blood Glucose Level History</h4>
+                  <div className="time-filter-buttons">
+                    <button 
+                      className={`time-filter-btn ${glucoseTimeFilter === 'day' ? 'active' : ''}`}
+                      onClick={() => setGlucoseTimeFilter('day')}
+                    >
+                      Day
+                    </button>
+                    <button 
+                      className={`time-filter-btn ${glucoseTimeFilter === 'week' ? 'active' : ''}`}
+                      onClick={() => setGlucoseTimeFilter('week')}
+                    >
+                      Week
+                    </button>
+                    <button 
+                      className={`time-filter-btn ${glucoseTimeFilter === 'month' ? 'active' : ''}`}
+                      onClick={() => setGlucoseTimeFilter('month')}
+                    >
+                      Month
+                    </button>
+                  </div>
+                </div>
                 <div className="chart-wrapper">
-                  <Line
-                    data={{
-                      labels: allPatientHealthMetrics.slice(0, 5).reverse().map(entry => formatDateForChart(entry.submission_date)),
-                      datasets: [{
-                        label: 'Blood Glucose',
-                        data: allPatientHealthMetrics.slice(0, 5).reverse().map(entry => parseFloat(entry.blood_glucose) || 0),
+                  {glucoseFilteredMetrics.length > 0 ? (
+                    <Line
+                      data={{
+                        labels: glucoseFilteredMetrics.map(entry => formatDateForChart(entry.submission_date)),
+                        datasets: [{
+                          label: 'Blood Glucose',
+                          data: glucoseFilteredMetrics.map(entry => parseFloat(entry.blood_glucose) || 0),
                         fill: true,
                         backgroundColor: (context) => {
                           const chart = context.chart;
@@ -3463,12 +3578,17 @@ const renderReportsContent = () => {
                         y: {
                           beginAtZero: true,
                           title: {
-                            display: false,
+                            display: true,
+                            text: 'Blood Glucose (mg/dL)',
+                            font: {
+                              size: 12,
+                              weight: 'bold'
+                            }
                           },
                           min: 0,
                           max: 300,
                           ticks: {
-                            display: false,
+                            display: true,
                           },
                           grid: {
                             display: true,
@@ -3480,29 +3600,64 @@ const renderReportsContent = () => {
                             display: false
                           },
                           title: {
-                            display: false,
+                            display: true,
+                            text: 'Date',
+                            font: {
+                              size: 12,
+                              weight: 'bold'
+                            }
                           },
                           ticks: {
-                            display: false,
+                            display: true,
+                            maxRotation: 45,
+                            minRotation: 45
                           }
                         }
                       }
                     }}
                   />
+                  ) : (
+                    <div className="no-chart-data">
+                      <p>No blood glucose data available for selected time period</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Blood Pressure Chart */}
               <div className="blood-pressure-chart-container">
-                <h4>Blood Pressure History</h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <h4 style={{ margin: 0 }}>Blood Pressure History</h4>
+                  <div className="time-filter-buttons">
+                    <button 
+                      className={`time-filter-btn ${bpTimeFilter === 'day' ? 'active' : ''}`}
+                      onClick={() => setBpTimeFilter('day')}
+                    >
+                      Day
+                    </button>
+                    <button 
+                      className={`time-filter-btn ${bpTimeFilter === 'week' ? 'active' : ''}`}
+                      onClick={() => setBpTimeFilter('week')}
+                    >
+                      Week
+                    </button>
+                    <button 
+                      className={`time-filter-btn ${bpTimeFilter === 'month' ? 'active' : ''}`}
+                      onClick={() => setBpTimeFilter('month')}
+                    >
+                      Month
+                    </button>
+                  </div>
+                </div>
                 <div className="chart-wrapper">
+                  {bpFilteredMetrics.length > 0 ? (
                   <Bar
                     data={{
-                      labels: allPatientHealthMetrics.slice(0, 10).reverse().map(entry => formatDateForChart(entry.submission_date)),
+                      labels: bpFilteredMetrics.map(entry => formatDateForChart(entry.submission_date)),
                       datasets: [
                         {
                           label: 'Diastolic',
-                          data: allPatientHealthMetrics.slice(0, 10).reverse().map(entry => parseFloat(entry.bp_diastolic) || 0),
+                          data: bpFilteredMetrics.map(entry => parseFloat(entry.bp_diastolic) || 0),
                           backgroundColor: 'rgba(134, 239, 172, 0.8)',
                           borderColor: 'rgba(134, 239, 172, 1)',
                           borderWidth: 1,
@@ -3517,7 +3672,7 @@ const renderReportsContent = () => {
                         },
                         {
                           label: 'Systolic',
-                          data: allPatientHealthMetrics.slice(0, 10).reverse().map(entry => parseFloat(entry.bp_systolic) || 0),
+                          data: bpFilteredMetrics.map(entry => parseFloat(entry.bp_systolic) || 0),
                           backgroundColor: 'rgba(34, 197, 94, 0.8)',
                           borderColor: 'rgba(34, 197, 94, 1)',
                           borderWidth: 1,
@@ -3563,10 +3718,17 @@ const renderReportsContent = () => {
                             display: false
                           },
                           title: {
-                            display: false,
+                            display: true,
+                            text: 'Date',
+                            font: {
+                              size: 12,
+                              weight: 'bold'
+                            }
                           },
                           ticks: {
-                            display: false,
+                            display: true,
+                            maxRotation: 45,
+                            minRotation: 45
                           },
                           categoryPercentage: 0.95,
                           barPercentage: 0.95,
@@ -3575,12 +3737,17 @@ const renderReportsContent = () => {
                           stacked: true,
                           beginAtZero: true,
                           title: {
-                            display: false,
+                            display: true,
+                            text: 'Blood Pressure (mmHg)',
+                            font: {
+                              size: 12,
+                              weight: 'bold'
+                            }
                           },
                           min: 0,
                           max: 350,
                           ticks: {
-                            display: false,
+                            display: true,
                           },
                           grid: {
                             display: true,
@@ -3590,12 +3757,39 @@ const renderReportsContent = () => {
                       }
                     }}
                   />
+                  ) : (
+                    <div className="no-chart-data">
+                      <p>No blood pressure data available for selected time period</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Risk Classification History Chart */}
               <div className="risk-classification-chart-container">
-                <h4>Risk Classification History</h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <h4 style={{ margin: 0 }}>Risk Classification History</h4>
+                  <div className="time-filter-buttons">
+                    <button 
+                      className={`time-filter-btn ${riskTimeFilter === 'day' ? 'active' : ''}`}
+                      onClick={() => setRiskTimeFilter('day')}
+                    >
+                      Day
+                    </button>
+                    <button 
+                      className={`time-filter-btn ${riskTimeFilter === 'week' ? 'active' : ''}`}
+                      onClick={() => setRiskTimeFilter('week')}
+                    >
+                      Week
+                    </button>
+                    <button 
+                      className={`time-filter-btn ${riskTimeFilter === 'month' ? 'active' : ''}`}
+                      onClick={() => setRiskTimeFilter('month')}
+                    >
+                      Month
+                    </button>
+                  </div>
+                </div>
                 
                 <div className="risk-legend-container">
                   <div className="risk-legend-item">
@@ -3617,13 +3811,14 @@ const renderReportsContent = () => {
                 </div>
 
                 <div className="chart-wrapper">
+                  {riskFilteredMetrics.length > 0 ? (
                   <Bar
                     data={{
-                      labels: allPatientHealthMetrics.slice(0, 10).reverse().map(entry => formatDateForChart(entry.submission_date)),
+                      labels: riskFilteredMetrics.map(entry => formatDateForChart(entry.submission_date)),
                       datasets: [
                         {
                           label: 'Risk Classification',
-                          data: allPatientHealthMetrics.slice(0, 10).reverse().map(entry => {
+                          data: riskFilteredMetrics.map(entry => {
                             const risk = entry.risk_classification?.toLowerCase();
                             if (risk === 'low') return 2;
                             if (risk === 'moderate') return 3;
@@ -3631,7 +3826,7 @@ const renderReportsContent = () => {
                             if (risk === 'ppd') return 1;
                             return 0;
                           }),
-                          backgroundColor: allPatientHealthMetrics.slice(0, 10).reverse().map(entry => {
+                          backgroundColor: riskFilteredMetrics.map(entry => {
                             const risk = entry.risk_classification?.toLowerCase();
                             if (risk === 'low') return 'rgba(34, 197, 94, 0.8)';
                             if (risk === 'moderate') return 'rgba(255, 193, 7, 0.8)';
@@ -3639,7 +3834,7 @@ const renderReportsContent = () => {
                             if (risk === 'ppd') return 'rgba(103, 101, 105, 0.8)';
                             return 'rgba(156, 163, 175, 0.8)';
                           }),
-                          borderColor: allPatientHealthMetrics.slice(0, 10).reverse().map(entry => {
+                          borderColor: riskFilteredMetrics.map(entry => {
                             const risk = entry.risk_classification?.toLowerCase();
                             if (risk === 'low') return 'rgba(34, 197, 94, 1)';
                             if (risk === 'moderate') return 'rgba(255, 193, 7, 1)';
@@ -3673,7 +3868,7 @@ const renderReportsContent = () => {
                         tooltip: {
                           callbacks: {
                             label: function(context) {
-                              const entry = allPatientHealthMetrics.slice(0, 10).reverse()[context.dataIndex];
+                              const entry = riskFilteredMetrics[context.dataIndex];
                               return `Risk: ${entry.risk_classification || 'Unknown'}`;
                             }
                           }
@@ -3685,10 +3880,17 @@ const renderReportsContent = () => {
                             display: false
                           },
                           title: {
-                            display: false,
+                            display: true,
+                            text: 'Date',
+                            font: {
+                              size: 12,
+                              weight: 'bold'
+                            }
                           },
                           ticks: {
-                            display: false,
+                            display: true,
+                            maxRotation: 45,
+                            minRotation: 45
                           },
                           categoryPercentage: 0.95,
                           barPercentage: 0.95,
@@ -3696,13 +3898,22 @@ const renderReportsContent = () => {
                         y: {
                           beginAtZero: true,
                           title: {
-                            display: false,
+                            display: true,
+                            text: 'Risk Level',
+                            font: {
+                              size: 12,
+                              weight: 'bold'
+                            }
                           },
                           min: 0,
                           max: 4,
                           ticks: {
-                            display: false,
+                            display: true,
                             stepSize: 1,
+                            callback: function(value) {
+                              const labels = ['', 'PPD', 'Low', 'Moderate', 'High'];
+                              return labels[value] || '';
+                            }
                           },
                           grid: {
                             display: true,
@@ -3712,6 +3923,11 @@ const renderReportsContent = () => {
                       }
                     }}
                   />
+                  ) : (
+                    <div className="no-chart-data">
+                      <p>No risk classification data available for selected time period</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
