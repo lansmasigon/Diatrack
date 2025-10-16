@@ -1022,22 +1022,7 @@ body {
   line-height: 1.4;
 }
 
-/* Specific colors for different report widgets */
-.report-missing-logs .report-number {
-  color: #ffc107;
-}
 
-.report-missing-logs .report-widget-header {
-  border-bottom-color: #ffc107;
-}
-
-.report-non-compliant .report-number {
-  color: #dc3545;
-}
-
-.report-non-compliant .report-widget-header {
-  border-bottom-color: #dc3545;
-}
 
 /* Reports Content Row Layout */
 .reports-content-row {

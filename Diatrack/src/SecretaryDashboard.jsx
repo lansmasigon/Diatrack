@@ -432,7 +432,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
       <div className="widget-side-by-side-container">
         <div className="patient-categories-widget small-widget">
           <h3>
-            <i className="fas fa-users"></i> Patient Categories
+            <img src="../picture/patients.svg" alt="Patient Categories" className="widget-icon" /> Patient Categories
           </h3>
           <div className="progress-bars-container">
             <div className="progress-bar-row">
@@ -462,7 +462,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
 
         <div className="risk-classes-widget small-widget">
           <h3>
-            <i className="fas fa-users"></i> Pre-Op Risk Classes
+            <img src="../picture/preop.svg" alt="Pre-Op Risk Classes" className="widget-icon" /> Pre-Op Risk Classes
           </h3>
           <div className="progress-bars-container">
             <div className="progress-bar-row">
@@ -550,6 +550,13 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   // const [showPatientDetailModal, setShowPatientDetailModal] = useState(false); // REMOVED: No longer a modal
   const [selectedPatientForDetail, setSelectedPatientForDetail] = useState(null); // This is good, renamed for clarity
   const [selectedPatientForLabView, setSelectedPatientForLabView] = useState(null); // New state for lab view
+  
+  // State for report widget detail view
+  const [reportDetailView, setReportDetailView] = useState(null); // 'total-patients', 'full-compliance', 'missing-logs', 'non-compliant'
+  
+  // Pagination for report detail views
+  const [currentPageReportDetail, setCurrentPageReportDetail] = useState(1);
+  const REPORT_DETAIL_PER_PAGE = 10;
 
   // State for chart data (dynamically fetched)
   const [totalPatientsCount, setTotalPatientsCount] = useState(0);
@@ -841,25 +848,50 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
   // Helper function to filter metrics by time period
   const filterMetricsByTimePeriod = React.useCallback((metrics, timePeriod) => {
-    const now = new Date();
-    const filtered = metrics.filter(metric => {
-      const metricDate = new Date(metric.submission_date);
-      const diffTime = Math.abs(now - metricDate);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      switch(timePeriod) {
-        case 'day':
-          return diffDays <= 1;
-        case 'week':
-          return diffDays <= 7;
-        case 'month':
-          return diffDays <= 30;
-        default:
-          return true;
-      }
-    });
+    console.log(`[Filter] Filtering ${metrics.length} metrics for period: ${timePeriod}`);
     
-    // Sort by date ascending (oldest first)
+    // Sort all metrics by date descending (newest first) for processing
+    const sortedMetrics = [...metrics].sort((a, b) => new Date(b.submission_date) - new Date(a.submission_date));
+    
+    let filtered = [];
+    
+    switch(timePeriod) {
+      case 'day':
+        // Show only the 5 most recent submissions
+        filtered = sortedMetrics.slice(0, 5);
+        console.log(`[Filter Day] Taking 5 most recent submissions from ${metrics.length} total`);
+        break;
+      case 'week':
+        // Show entries from the last 7 days
+        const now = new Date();
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        filtered = sortedMetrics.filter(metric => {
+          const metricDate = new Date(metric.submission_date);
+          return metricDate >= oneWeekAgo && metricDate <= now;
+        });
+        console.log(`[Filter Week] ${filtered.length} metrics in last 7 days`);
+        break;
+      case 'month':
+        // Show entries from the last 30 days
+        const nowMonth = new Date();
+        const oneMonthAgo = new Date(nowMonth.getTime() - 30 * 24 * 60 * 60 * 1000);
+        filtered = sortedMetrics.filter(metric => {
+          const metricDate = new Date(metric.submission_date);
+          return metricDate >= oneMonthAgo && metricDate <= nowMonth;
+        });
+        console.log(`[Filter Month] ${filtered.length} metrics in last 30 days`);
+        break;
+      default:
+        filtered = sortedMetrics;
+    }
+    
+    console.log(`[Filter] ${filtered.length} metrics after ${timePeriod} filter`);
+    if (filtered.length > 0) {
+      console.log(`[Filter] Most recent:`, filtered[0]);
+      console.log(`[Filter] Oldest in range:`, filtered[filtered.length - 1]);
+    }
+    
+    // Sort by date ascending (oldest first) for chart display
     return filtered.sort((a, b) => new Date(a.submission_date) - new Date(b.submission_date));
   }, []);
 
@@ -1477,8 +1509,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             setAllPatientHealthMetrics([]);
         } else if (historyHealthData) {
             // Use the actual risk classification from each health metric entry
+            console.log(`[Health Metrics] Fetched ${historyHealthData.length} health metrics for patient ${selectedPatientForDetail.patient_id}`);
+            if (historyHealthData.length > 0) {
+              console.log('[Health Metrics] Sample data:', historyHealthData[0]);
+              console.log('[Health Metrics] Date range:', 
+                new Date(historyHealthData[0].submission_date).toISOString(), 
+                'to', 
+                new Date(historyHealthData[historyHealthData.length - 1].submission_date).toISOString()
+              );
+            }
             setAllPatientHealthMetrics(historyHealthData);
         } else {
+            console.log('[Health Metrics] No health metrics data returned');
             setAllPatientHealthMetrics([]);
         }
 
@@ -2669,7 +2711,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             <div className="header-actions">
               <div className="search-bar">
                 <input type="text" placeholder="Search for patients here" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                <i className="fas fa-search"></i>
+                <img src="../picture/search.svg" alt="Search" className="search-icon" />
               </div>
               <button className="create-new-patient-button" onClick={() => {
                 setActivePage("create-patient");
@@ -3165,7 +3207,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="patient-search-input"
                       />
-                      <i className="fas fa-search search-icon"></i>
+                      <img src="../picture/search.svg" alt="Search" className="search-icon" />
                     </div>
                     
                     {/* Risk Classification Filter */}
@@ -3497,6 +3539,13 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   ) : (
                                     <div className="no-chart-data">
                                       <p>No blood glucose data available for selected time period</p>
+                                      <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
+                                        Total metrics available: {allPatientHealthMetrics.length}<br/>
+                                        Filtered for {glucoseTimeFilter}: {glucoseFilteredMetrics.length}<br/>
+                                        {allPatientHealthMetrics.length > 0 && (
+                                          <>Latest entry: {new Date(allPatientHealthMetrics[allPatientHealthMetrics.length - 1]?.submission_date).toLocaleString()}</>
+                                        )}
+                                      </p>
                                     </div>
                                   )}
                                 </div>
@@ -3637,7 +3686,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   />
                                   ) : (
                                     <div className="no-chart-data">
-                                      <p>No data available for selected time period</p>
+                                      <p>No blood pressure data available for selected time period</p>
+                                      <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
+                                        Total metrics available: {allPatientHealthMetrics.length}<br/>
+                                        Filtered for {bpTimeFilter}: {bpFilteredMetrics.length}
+                                      </p>
                                     </div>
                                   )}
                                 </div>
@@ -3800,7 +3853,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   />
                                   ) : (
                                     <div className="no-chart-data">
-                                      <p>No data available for selected time period</p>
+                                      <p>No risk classification data available for selected time period</p>
+                                      <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
+                                        Total metrics available: {allPatientHealthMetrics.length}<br/>
+                                        Filtered for {riskTimeFilter}: {riskFilteredMetrics.length}
+                                      </p>
                                     </div>
                                   )}
                                 </div>
@@ -4361,7 +4418,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               onChange={(e) => setSearchTerm(e.target.value)}
                               className="patient-search-input"
                             />
-                            <i className="fas fa-search search-icon"></i>
+                            <img src="../picture/search.svg" alt="Search" className="search-icon" />
                           </div>
                           
                           {/* Risk Classification Filter for Lab Entry */}
@@ -4692,7 +4749,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     {/* New Reports Widgets Row */}
     <div className="reports-widgets-grid">
       {/* Total Patients Report Widget */}
-      <div className="report-widget report-total-patients">
+      <div className="report-widget report-total-patients" onClick={() => {
+        setReportDetailView('total-patients');
+        setActivePage('report-detail');
+        setCurrentPageReportDetail(1);
+      }} style={{ cursor: 'pointer' }}>
         <div className="report-widget-header">
           <img src="../picture/total.png" alt="Total Patients" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=👥"; }}/>
           <h4>Total Patients</h4>
@@ -4817,7 +4878,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       </div>
 
       {/* Full Compliance Report Widget */}
-      <div className="report-widget report-full-compliance">
+      <div className="report-widget report-full-compliance" onClick={() => {
+        setReportDetailView('full-compliance');
+        setActivePage('report-detail');
+        setCurrentPageReportDetail(1);
+      }} style={{ cursor: 'pointer' }}>
         <div className="report-widget-header">
           <img src="../picture/full.svg" alt="Full Compliance" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/28a745/ffffff?text=✓"; }}/>
           <h4>Full Compliance</h4>
@@ -4944,7 +5009,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       </div>
 
       {/* Missing Logs Report Widget */}
-      <div className="report-widget report-missing-logs">
+      <div className="report-widget report-missing-logs" onClick={() => {
+        setReportDetailView('missing-logs');
+        setActivePage('report-detail');
+        setCurrentPageReportDetail(1);
+      }} style={{ cursor: 'pointer' }}>
         <div className="report-widget-header">
           <img src="../picture/missinglogs.svg" alt="Missing Logs" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ffc107/ffffff?text=⚠"; }}/>
           <h4>Missing Logs</h4>
@@ -5070,7 +5139,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       </div>
 
       {/* Non-Compliant Cases Report Widget */}
-      <div className="report-widget report-non-compliant">
+      <div className="report-widget report-non-compliant" onClick={() => {
+        setReportDetailView('non-compliant');
+        setActivePage('report-detail');
+        setCurrentPageReportDetail(1);
+      }} style={{ cursor: 'pointer' }}>
         <div className="report-widget-header">
           <img src="../picture/noncompliant.svg" alt="Non-Compliant Cases" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/dc3545/ffffff?text=✗"; }}/>
           <h4>Non-Compliant Cases</h4>
@@ -5355,6 +5428,437 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     </div> {/* End of reports-content-row */}
   </div>
 )}
+
+              {/* Report Detail View - Separate Page */}
+              {activePage === 'report-detail' && reportDetailView === 'total-patients' && (
+                <div className="report-detail-section">
+                  <div className="detail-view-header">
+                    <button className="back-to-list-button" onClick={() => {
+                      setReportDetailView(null);
+                      setActivePage('reports');
+                    }}>
+                      <i className="fas fa-arrow-left"></i> Back to Reports
+                    </button>
+                    <h2>Total Patients</h2>
+                  </div>
+                  <table className="patient-table">
+                    <thead>
+                      <tr>
+                        <th>Patient Name</th>
+                        <th>Age/Sex</th>
+                        <th>Classification</th>
+                        <th>Lab Status</th>
+                        <th>Profile Status</th>
+                        <th>Last Visit</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
+                        const endIndex = startIndex + REPORT_DETAIL_PER_PAGE;
+                        const paginatedData = patients.slice(startIndex, endIndex);
+                        
+                        return paginatedData.length > 0 ? (
+                          paginatedData.map((pat) => (
+                            <tr key={pat.patient_id}>
+                              <td className="patient-name-cell">
+                                <div className="patient-name-container">
+                                  <img 
+                                    src={pat.patient_picture || "../picture/secretary.png"} 
+                                    alt="Patient Avatar" 
+                                    className="patient-avatar-table"
+                                    onError={(e) => e.target.src = "../picture/secretary.png"}
+                                  />
+                                  <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
+                                </div>
+                              </td>
+                              <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                              <td className={`classification-cell ${
+                                pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                                ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
+                                (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
+                                (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
+                                (pat.risk_classification || '').toLowerCase() === 'ppd' ? 'classification-ppd' : '')
+                              }`}>
+                                {getClassificationDisplay(pat)}
+                              </td>
+                              <td className={
+                                pat.lab_status === 'Submitted' ? 'lab-status-complete' :
+                                pat.lab_status === 'Awaiting' ? 'lab-status-awaiting' : ''
+                              }>
+                                {pat.lab_status || 'Awaiting'}
+                              </td>
+                              <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
+                                {pat.profile_status}
+                              </td>
+                              <td>{formatDateToReadable(pat.last_doctor_visit)}</td>
+                              <td className="patient-actions-cell">
+                                <button className="enter-labs-button" onClick={() => {
+                                  setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
+                                  setLabEntryStep(2);
+                                  setActivePage("lab-result-entry");
+                                  setReportDetailView(null);
+                                }}>🧪 Enter Labs</button>
+                                <button className="view-button" onClick={() => {
+                                  handleViewPatientDetails(pat);
+                                  setReportDetailView(null);
+                                }}>👁️ View</button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="7">No patients found.</td>
+                          </tr>
+                        );
+                      })()}
+                    </tbody>
+                  </table>
+                  
+                  {/* Pagination */}
+                  {patients.length > REPORT_DETAIL_PER_PAGE && (
+                    <Pagination
+                      currentPage={currentPageReportDetail}
+                      totalPages={Math.ceil(patients.length / REPORT_DETAIL_PER_PAGE)}
+                      onPageChange={setCurrentPageReportDetail}
+                      itemsPerPage={REPORT_DETAIL_PER_PAGE}
+                      totalItems={patients.length}
+                    />
+                  )}
+                </div>
+              )}
+
+              {activePage === 'report-detail' && reportDetailView === 'full-compliance' && (
+                <div className="report-detail-section">
+                  <div className="detail-view-header">
+                    <button className="back-to-list-button" onClick={() => {
+                      setReportDetailView(null);
+                      setActivePage('reports');
+                    }}>
+                      <i className="fas fa-arrow-left"></i> Back to Reports
+                    </button>
+                    <h2>Full Compliance - Patients with Complete Metrics</h2>
+                  </div>
+                  <table className="patient-table">
+                    <thead>
+                      <tr>
+                        <th>Patient Name</th>
+                        <th>Age/Sex</th>
+                        <th>Classification</th>
+                        <th>Lab Status</th>
+                        <th>Profile Status</th>
+                        <th>Last Visit</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const filteredData = patients.filter(pat => {
+                          const hasLabResults = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
+                          return hasLabResults;
+                        });
+                        const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
+                        const endIndex = startIndex + REPORT_DETAIL_PER_PAGE;
+                        const paginatedData = filteredData.slice(startIndex, endIndex);
+                        
+                        return paginatedData.length > 0 ? (
+                          paginatedData.map((pat) => (
+                            <tr key={pat.patient_id}>
+                              <td className="patient-name-cell">
+                                <div className="patient-name-container">
+                                  <img 
+                                    src={pat.patient_picture || "../picture/secretary.png"} 
+                                    alt="Patient Avatar" 
+                                    className="patient-avatar-table"
+                                    onError={(e) => e.target.src = "../picture/secretary.png"}
+                                  />
+                                  <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
+                                </div>
+                              </td>
+                              <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                              <td className={`classification-cell ${
+                                pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                                ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
+                                (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
+                                (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
+                                (pat.risk_classification || '').toLowerCase() === 'ppd' ? 'classification-ppd' : '')
+                              }`}>
+                                {getClassificationDisplay(pat)}
+                              </td>
+                              <td className={
+                                pat.lab_status === 'Submitted' ? 'lab-status-complete' :
+                                pat.lab_status === 'Awaiting' ? 'lab-status-awaiting' : ''
+                              }>
+                                {pat.lab_status || 'Awaiting'}
+                              </td>
+                              <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
+                                {pat.profile_status}
+                              </td>
+                              <td>{formatDateToReadable(pat.last_doctor_visit)}</td>
+                              <td className="patient-actions-cell">
+                                <button className="enter-labs-button" onClick={() => {
+                                  setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
+                                  setLabEntryStep(2);
+                                  setActivePage("lab-result-entry");
+                                  setReportDetailView(null);
+                                }}>🧪 Enter Labs</button>
+                                <button className="view-button" onClick={() => {
+                                  handleViewPatientDetails(pat);
+                                  setReportDetailView(null);
+                                }}>👁️ View</button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="7">No patients with full compliance found.</td>
+                          </tr>
+                        );
+                      })()}
+                    </tbody>
+                  </table>
+                  
+                  {/* Pagination */}
+                  {(() => {
+                    const filteredData = patients.filter(pat => {
+                      const hasLabResults = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
+                      return hasLabResults;
+                    });
+                    return filteredData.length > REPORT_DETAIL_PER_PAGE && (
+                      <Pagination
+                        currentPage={currentPageReportDetail}
+                        totalPages={Math.ceil(filteredData.length / REPORT_DETAIL_PER_PAGE)}
+                        onPageChange={setCurrentPageReportDetail}
+                        itemsPerPage={REPORT_DETAIL_PER_PAGE}
+                        totalItems={filteredData.length}
+                      />
+                    );
+                  })()}
+                </div>
+              )}
+
+              {activePage === 'report-detail' && reportDetailView === 'missing-logs' && (
+                <div className="report-detail-section">
+                  <div className="detail-view-header">
+                    <button className="back-to-list-button" onClick={() => {
+                      setReportDetailView(null);
+                      setActivePage('reports');
+                    }}>
+                      <i className="fas fa-arrow-left"></i> Back to Reports
+                    </button>
+                    <h2>Missing Logs - Patients with 1-2 Missing Metrics</h2>
+                  </div>
+                  <table className="patient-table">
+                    <thead>
+                      <tr>
+                        <th>Patient Name</th>
+                        <th>Age/Sex</th>
+                        <th>Classification</th>
+                        <th>Lab Status</th>
+                        <th>Profile Status</th>
+                        <th>Last Visit</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const filteredData = patients.filter(pat => {
+                          const hasLabResults = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
+                          return !hasLabResults && pat.profile_status === '🟢Finalized';
+                        });
+                        const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
+                        const endIndex = startIndex + REPORT_DETAIL_PER_PAGE;
+                        const paginatedData = filteredData.slice(startIndex, endIndex);
+                        
+                        return paginatedData.length > 0 ? (
+                          paginatedData.map((pat) => (
+                            <tr key={pat.patient_id}>
+                              <td className="patient-name-cell">
+                                <div className="patient-name-container">
+                                  <img 
+                                    src={pat.patient_picture || "../picture/secretary.png"} 
+                                    alt="Patient Avatar" 
+                                    className="patient-avatar-table"
+                                    onError={(e) => e.target.src = "../picture/secretary.png"}
+                                  />
+                                  <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
+                                </div>
+                              </td>
+                              <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                              <td className={`classification-cell ${
+                                pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                                ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
+                                (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
+                                (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
+                                (pat.risk_classification || '').toLowerCase() === 'ppd' ? 'classification-ppd' : '')
+                              }`}>
+                                {getClassificationDisplay(pat)}
+                              </td>
+                              <td className={
+                                pat.lab_status === 'Submitted' ? 'lab-status-complete' :
+                                pat.lab_status === 'Awaiting' ? 'lab-status-awaiting' : ''
+                              }>
+                                {pat.lab_status || 'Awaiting'}
+                              </td>
+                              <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
+                                {pat.profile_status}
+                              </td>
+                              <td>{formatDateToReadable(pat.last_doctor_visit)}</td>
+                              <td className="patient-actions-cell">
+                                <button className="enter-labs-button" onClick={() => {
+                                  setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
+                                  setLabEntryStep(2);
+                                  setActivePage("lab-result-entry");
+                                  setReportDetailView(null);
+                                }}>🧪 Enter Labs</button>
+                                <button className="view-button" onClick={() => {
+                                  handleViewPatientDetails(pat);
+                                  setReportDetailView(null);
+                                }}>👁️ View</button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="7">No patients with missing logs found.</td>
+                          </tr>
+                        );
+                      })()}
+                    </tbody>
+                  </table>
+                  
+                  {/* Pagination */}
+                  {(() => {
+                    const filteredData = patients.filter(pat => {
+                      const hasLabResults = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
+                      return !hasLabResults && pat.profile_status === '🟢Finalized';
+                    });
+                    return filteredData.length > REPORT_DETAIL_PER_PAGE && (
+                      <Pagination
+                        currentPage={currentPageReportDetail}
+                        totalPages={Math.ceil(filteredData.length / REPORT_DETAIL_PER_PAGE)}
+                        onPageChange={setCurrentPageReportDetail}
+                        itemsPerPage={REPORT_DETAIL_PER_PAGE}
+                        totalItems={filteredData.length}
+                      />
+                    );
+                  })()}
+                </div>
+              )}
+
+              {activePage === 'report-detail' && reportDetailView === 'non-compliant' && (
+                <div className="report-detail-section">
+                  <div className="detail-view-header">
+                    <button className="back-to-list-button" onClick={() => {
+                      setReportDetailView(null);
+                      setActivePage('reports');
+                    }}>
+                      <i className="fas fa-arrow-left"></i> Back to Reports
+                    </button>
+                    <h2>Non-Compliant Cases - High-Risk Patients with 3 Missing Metrics</h2>
+                  </div>
+                  <table className="patient-table">
+                    <thead>
+                      <tr>
+                        <th>Patient Name</th>
+                        <th>Age/Sex</th>
+                        <th>Classification</th>
+                        <th>Lab Status</th>
+                        <th>Profile Status</th>
+                        <th>Last Visit</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const filteredData = patients.filter(pat => {
+                          const isHighRisk = (pat.risk_classification || '').toLowerCase() === 'high';
+                          const hasNoLabResults = pat.lab_status === 'Awaiting' || pat.lab_status === 'N/A';
+                          const hasIncompleteProfile = pat.profile_status === '🟡Pending';
+                          return isHighRisk && hasNoLabResults && hasIncompleteProfile;
+                        });
+                        const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
+                        const endIndex = startIndex + REPORT_DETAIL_PER_PAGE;
+                        const paginatedData = filteredData.slice(startIndex, endIndex);
+                        
+                        return paginatedData.length > 0 ? (
+                          paginatedData.map((pat) => (
+                            <tr key={pat.patient_id}>
+                              <td className="patient-name-cell">
+                                <div className="patient-name-container">
+                                  <img 
+                                    src={pat.patient_picture || "../picture/secretary.png"} 
+                                    alt="Patient Avatar" 
+                                    className="patient-avatar-table"
+                                    onError={(e) => e.target.src = "../picture/secretary.png"}
+                                  />
+                                  <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
+                                </div>
+                              </td>
+                              <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                              <td className={`classification-cell ${
+                                pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                                ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
+                                (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
+                                (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
+                                (pat.risk_classification || '').toLowerCase() === 'ppd' ? 'classification-ppd' : '')
+                              }`}>
+                                {getClassificationDisplay(pat)}
+                              </td>
+                              <td className={
+                                pat.lab_status === 'Submitted' ? 'lab-status-complete' :
+                                pat.lab_status === 'Awaiting' ? 'lab-status-awaiting' : ''
+                              }>
+                                {pat.lab_status || 'Awaiting'}
+                              </td>
+                              <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
+                                {pat.profile_status}
+                              </td>
+                              <td>{formatDateToReadable(pat.last_doctor_visit)}</td>
+                              <td className="patient-actions-cell">
+                                <button className="enter-labs-button" onClick={() => {
+                                  setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
+                                  setLabEntryStep(2);
+                                  setActivePage("lab-result-entry");
+                                  setReportDetailView(null);
+                                }}>🧪 Enter Labs</button>
+                                <button className="view-button" onClick={() => {
+                                  handleViewPatientDetails(pat);
+                                  setReportDetailView(null);
+                                }}>👁️ View</button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="7">No non-compliant cases found.</td>
+                          </tr>
+                        );
+                      })()}
+                    </tbody>
+                  </table>
+                  
+                  {/* Pagination */}
+                  {(() => {
+                    const filteredData = patients.filter(pat => {
+                      const isHighRisk = (pat.risk_classification || '').toLowerCase() === 'high';
+                      const hasNoLabResults = pat.lab_status === 'Awaiting' || pat.lab_status === 'N/A';
+                      const hasIncompleteProfile = pat.profile_status === '🟡Pending';
+                      return isHighRisk && hasNoLabResults && hasIncompleteProfile;
+                    });
+                    return filteredData.length > REPORT_DETAIL_PER_PAGE && (
+                      <Pagination
+                        currentPage={currentPageReportDetail}
+                        totalPages={Math.ceil(filteredData.length / REPORT_DETAIL_PER_PAGE)}
+                        onPageChange={setCurrentPageReportDetail}
+                        itemsPerPage={REPORT_DETAIL_PER_PAGE}
+                        totalItems={filteredData.length}
+                      />
+                    );
+                  })()}
+                </div>
+              )}
               </div>
             </div>
             
