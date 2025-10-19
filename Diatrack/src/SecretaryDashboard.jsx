@@ -602,6 +602,14 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [selectedRiskFilter, setSelectedRiskFilter] = useState('all'); // For patient list
   const [selectedLabRiskFilter, setSelectedLabRiskFilter] = useState('all'); // For lab entry search
   
+  // Lab Status filter states
+  const [selectedLabStatusFilter, setSelectedLabStatusFilter] = useState('all'); // For patient list
+  const [selectedLabEntryLabStatusFilter, setSelectedLabEntryLabStatusFilter] = useState('all'); // For lab entry search
+  
+  // Profile Status filter states
+  const [selectedProfileStatusFilter, setSelectedProfileStatusFilter] = useState('all'); // For patient list
+  const [selectedLabEntryProfileStatusFilter, setSelectedLabEntryProfileStatusFilter] = useState('all'); // For lab entry search
+  
   // State for patient count over the past 6 months
   const [patientCountHistory, setPatientCountHistory] = useState([]);
   
@@ -2296,12 +2304,33 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     const nameMatch = `${pat.first_name} ${pat.last_name}`.toLowerCase().includes(searchTerm.toLowerCase());
     
     // Risk classification filter
-    if (selectedRiskFilter === 'all') {
-      return nameMatch;
-    } else {
+    let riskMatch = true;
+    if (selectedRiskFilter !== 'all') {
       const patientRisk = (pat.risk_classification || '').toLowerCase();
-      return nameMatch && patientRisk === selectedRiskFilter;
+      riskMatch = patientRisk === selectedRiskFilter;
     }
+    
+    // Lab status filter
+    let labStatusMatch = true;
+    if (selectedLabStatusFilter !== 'all') {
+      if (selectedLabStatusFilter === 'awaiting') {
+        labStatusMatch = pat.lab_status === 'Awaiting';
+      } else if (selectedLabStatusFilter === 'submitted') {
+        labStatusMatch = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
+      }
+    }
+    
+    // Profile status filter
+    let profileStatusMatch = true;
+    if (selectedProfileStatusFilter !== 'all') {
+      if (selectedProfileStatusFilter === 'pending') {
+        profileStatusMatch = pat.profile_status === '🟡Pending';
+      } else if (selectedProfileStatusFilter === 'finalized') {
+        profileStatusMatch = pat.profile_status === '🟢Finalized';
+      }
+    }
+    
+    return nameMatch && riskMatch && labStatusMatch && profileStatusMatch;
   });
 
   // Filtered patients for lab entry search with separate risk filter
@@ -2309,12 +2338,33 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     const nameMatch = `${pat.first_name} ${pat.last_name}`.toLowerCase().includes(searchTerm.toLowerCase());
     
     // Risk classification filter for lab search
-    if (selectedLabRiskFilter === 'all') {
-      return nameMatch;
-    } else {
+    let riskMatch = true;
+    if (selectedLabRiskFilter !== 'all') {
       const patientRisk = (pat.risk_classification || '').toLowerCase();
-      return nameMatch && patientRisk === selectedLabRiskFilter;
+      riskMatch = patientRisk === selectedLabRiskFilter;
     }
+    
+    // Lab status filter for lab entry
+    let labStatusMatch = true;
+    if (selectedLabEntryLabStatusFilter !== 'all') {
+      if (selectedLabEntryLabStatusFilter === 'awaiting') {
+        labStatusMatch = pat.lab_status === 'Awaiting';
+      } else if (selectedLabEntryLabStatusFilter === 'submitted') {
+        labStatusMatch = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
+      }
+    }
+    
+    // Profile status filter for lab entry
+    let profileStatusMatch = true;
+    if (selectedLabEntryProfileStatusFilter !== 'all') {
+      if (selectedLabEntryProfileStatusFilter === 'pending') {
+        profileStatusMatch = pat.profile_status === '🟡Pending';
+      } else if (selectedLabEntryProfileStatusFilter === 'finalized') {
+        profileStatusMatch = pat.profile_status === '🟢Finalized';
+      }
+    }
+    
+    return nameMatch && riskMatch && labStatusMatch && profileStatusMatch;
   });
 
   const indexOfLastPatient = currentPagePatients * PATIENTS_PER_PAGE;
@@ -2347,6 +2397,28 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setCurrentPageLabSearchPatients(1); // Reset to first page when filter changes
   };
 
+  // Lab Status filter handlers
+  const handleLabStatusFilterChange = (status) => {
+    setSelectedLabStatusFilter(status);
+    setCurrentPagePatients(1); // Reset to first page when filter changes
+  };
+
+  const handleLabEntryLabStatusFilterChange = (status) => {
+    setSelectedLabEntryLabStatusFilter(status);
+    setCurrentPageLabSearchPatients(1); // Reset to first page when filter changes
+  };
+
+  // Profile Status filter handlers
+  const handleProfileStatusFilterChange = (status) => {
+    setSelectedProfileStatusFilter(status);
+    setCurrentPagePatients(1); // Reset to first page when filter changes
+  };
+
+  const handleLabEntryProfileStatusFilterChange = (status) => {
+    setSelectedLabEntryProfileStatusFilter(status);
+    setCurrentPageLabSearchPatients(1); // Reset to first page when filter changes
+  };
+
   // Calculate risk counts for filter buttons
   const calculateRiskCounts = (patientList) => {
     const searchFilteredPatients = patientList.filter((pat) =>
@@ -2362,8 +2434,38 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     };
   };
 
+  // Calculate lab status counts for filter buttons
+  const calculateLabStatusCounts = (patientList) => {
+    const searchFilteredPatients = patientList.filter((pat) =>
+      `${pat.first_name} ${pat.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    return {
+      all: searchFilteredPatients.length,
+      awaiting: searchFilteredPatients.filter(pat => pat.lab_status === 'Awaiting').length,
+      submitted: searchFilteredPatients.filter(pat => pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted').length
+    };
+  };
+
+  // Calculate profile status counts for filter buttons
+  const calculateProfileStatusCounts = (patientList) => {
+    const searchFilteredPatients = patientList.filter((pat) =>
+      `${pat.first_name} ${pat.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    return {
+      all: searchFilteredPatients.length,
+      pending: searchFilteredPatients.filter(pat => pat.profile_status === '🟡Pending').length,
+      finalized: searchFilteredPatients.filter(pat => pat.profile_status === '🟢Finalized').length
+    };
+  };
+
   const patientRiskCounts = calculateRiskCounts(patients);
   const labSearchRiskCounts = calculateRiskCounts(patients);
+  const patientLabStatusCounts = calculateLabStatusCounts(patients);
+  const labSearchLabStatusCounts = calculateLabStatusCounts(patients);
+  const patientProfileStatusCounts = calculateProfileStatusCounts(patients);
+  const labSearchProfileStatusCounts = calculateProfileStatusCounts(patients);
     
   const handleLabInputChange = (field, value) => {
     setLabResults(prev => ({ ...prev, [field]: value }));
@@ -3214,8 +3316,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     <RiskFilter
                       selectedRisk={selectedRiskFilter}
                       onRiskChange={handleRiskFilterChange}
+                      selectedLabStatus={selectedLabStatusFilter}
+                      onLabStatusChange={handleLabStatusFilterChange}
+                      selectedProfileStatus={selectedProfileStatusFilter}
+                      onProfileStatusChange={handleProfileStatusFilterChange}
                       showCounts={true}
                       counts={patientRiskCounts}
+                      labStatusCounts={patientLabStatusCounts}
+                      profileStatusCounts={patientProfileStatusCounts}
                     />
                   </div>
                   <table className="patient-table">
@@ -3260,7 +3368,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             pat.lab_status === 'Awaiting' ? 'lab-status-awaiting' : // Add this if you want pending to have a specific style
                             ''
                           }>
-                            {pat.lab_status || 'Awaiting'}
+                            {pat.lab_status === 'Awaiting' ? '❌Awaiting' : pat.lab_status || '❌Awaiting'}
                           </td>
                           <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                             {pat.profile_status}
@@ -4425,8 +4533,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           <RiskFilter
                             selectedRisk={selectedLabRiskFilter}
                             onRiskChange={handleLabRiskFilterChange}
+                            selectedLabStatus={selectedLabEntryLabStatusFilter}
+                            onLabStatusChange={handleLabEntryLabStatusFilterChange}
+                            selectedProfileStatus={selectedLabEntryProfileStatusFilter}
+                            onProfileStatusChange={handleLabEntryProfileStatusFilterChange}
                             showCounts={true}
                             counts={labSearchRiskCounts}
+                            labStatusCounts={labSearchLabStatusCounts}
+                            profileStatusCounts={labSearchProfileStatusCounts}
                           />
                         </div>
                       </div>
@@ -4472,7 +4586,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                     pat.lab_status === 'Submitted' ? 'lab-status-submitted' :
                                     pat.lab_status === 'Pending' ? 'lab-status-pending' :
                                     pat.lab_status === 'N/A' ? 'lab-status-na' :
-                                    '' }> {pat.lab_status || 'N/A'}
+                                    '' }> {pat.lab_status === 'Awaiting' ? '❌Awaiting' : pat.lab_status || 'N/A'}
                                   </td>
                                   <td className={pat.profile_status === 'Finalized' ? 'status-finalized' : 'status-pending'}>
                                     {pat.profile_status}

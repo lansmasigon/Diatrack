@@ -145,9 +145,9 @@ const getProfileStatus = (patient) => {
     patient.diabetes_type && patient.diabetes_type.trim() !== '' &&
     patient.smoking_status && patient.smoking_status.trim() !== ''
   ) {
-    return 'Complete';
+    return '🟢Finalized';
   } else {
-    return 'Incomplete';
+    return '🟡Pending';
   }
 };
 
@@ -464,7 +464,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
       <div className="widget-side-by-side-container">
         <div className="patient-categories-widget small-widget">
           <h3>
-            <i className="fas fa-users"></i> Patient Categories
+            <img src="../picture/patients.svg" alt="Patients" className="widget-icon" /> Patient Categories
           </h3>
           <div className="progress-bars-container">
             <div className="progress-bar-row">
@@ -494,7 +494,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
 
         <div className="risk-classes-widget small-widget">
           <h3>
-            <i className="fas fa-users"></i> Pre-Op Risk Classes
+            <img src="../picture/preop.svg" alt="Pre-Op Risk" className="widget-icon" /> Pre-Op Risk Classes
           </h3>
           <div className="progress-bars-container">
             <div className="progress-bar-row">
@@ -587,6 +587,8 @@ const Dashboard = ({ user, onLogout }) => {
 
   // Patient list filtering and pagination states
   const [selectedRiskFilter, setSelectedRiskFilter] = useState('all');
+  const [selectedLabStatusFilter, setSelectedLabStatusFilter] = useState('all');
+  const [selectedProfileStatusFilter, setSelectedProfileStatusFilter] = useState('all');
   const [currentPagePatients, setCurrentPagePatients] = useState(1);
   const PATIENTS_PER_PAGE = 10;
 
@@ -1790,6 +1792,16 @@ const Dashboard = ({ user, onLogout }) => {
     setCurrentPagePatients(1); // Reset to first page when filter changes
   };
 
+  const handleLabStatusFilterChange = (status) => {
+    setSelectedLabStatusFilter(status);
+    setCurrentPagePatients(1); // Reset to first page when filter changes
+  };
+
+  const handleProfileStatusFilterChange = (status) => {
+    setSelectedProfileStatusFilter(status);
+    setCurrentPagePatients(1); // Reset to first page when filter changes
+  };
+
   // Filter patients based on search term and risk filter
   const getFilteredPatients = () => {
     let filtered = patients.filter((patient) =>
@@ -1801,6 +1813,32 @@ const Dashboard = ({ user, onLogout }) => {
       filtered = filtered.filter(patient => {
         const risk = (patient.risk_classification || '').toLowerCase();
         return risk === selectedRiskFilter;
+      });
+    }
+
+    // Apply lab status filter
+    if (selectedLabStatusFilter !== 'all') {
+      filtered = filtered.filter(patient => {
+        const labStatus = getLabStatus(patient.latest_lab_result);
+        if (selectedLabStatusFilter === 'awaiting') {
+          return labStatus === 'Awaiting';
+        } else if (selectedLabStatusFilter === 'submitted') {
+          return labStatus === 'Submitted' || labStatus === '✅Submitted';
+        }
+        return true;
+      });
+    }
+
+    // Apply profile status filter
+    if (selectedProfileStatusFilter !== 'all') {
+      filtered = filtered.filter(patient => {
+        const profileStatus = getProfileStatus(patient);
+        if (selectedProfileStatusFilter === 'pending') {
+          return profileStatus === '🟡Pending';
+        } else if (selectedProfileStatusFilter === 'finalized') {
+          return profileStatus === '🟢Finalized';
+        }
+        return true;
       });
     }
 
@@ -1839,6 +1877,54 @@ const Dashboard = ({ user, onLogout }) => {
     return counts;
   };
 
+  // Calculate lab status counts for filter display
+  const getPatientLabStatusCounts = () => {
+    const filtered = patients.filter((patient) =>
+      `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const counts = {
+      all: filtered.length,
+      awaiting: 0,
+      submitted: 0
+    };
+
+    filtered.forEach(patient => {
+      const labStatus = getLabStatus(patient.latest_lab_result);
+      if (labStatus === 'Awaiting') {
+        counts.awaiting++;
+      } else if (labStatus === 'Submitted' || labStatus === '✅Submitted') {
+        counts.submitted++;
+      }
+    });
+
+    return counts;
+  };
+
+  // Calculate profile status counts for filter display
+  const getPatientProfileStatusCounts = () => {
+    const filtered = patients.filter((patient) =>
+      `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const counts = {
+      all: filtered.length,
+      pending: 0,
+      finalized: 0
+    };
+
+    filtered.forEach(patient => {
+      const profileStatus = getProfileStatus(patient);
+      if (profileStatus === '🟡Pending') {
+        counts.pending++;
+      } else if (profileStatus === '🟢Finalized') {
+        counts.finalized++;
+      }
+    });
+
+    return counts;
+  };
+
   // Calculate total pages
   const getTotalPatientPages = () => {
     const filtered = getFilteredPatients();
@@ -1859,6 +1945,8 @@ const Dashboard = ({ user, onLogout }) => {
   const renderPatientList = () => {
     const paginatedPatients = getPaginatedPatients();
     const patientRiskCounts = getPatientRiskCounts();
+    const patientLabStatusCounts = getPatientLabStatusCounts();
+    const patientProfileStatusCounts = getPatientProfileStatusCounts();
     const totalPatientPages = getTotalPatientPages();
 
     return (
@@ -1873,15 +1961,21 @@ const Dashboard = ({ user, onLogout }) => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="patient-search-input"
             />
-            <i className="fas fa-search search-icon"></i>
+            <img src="../picture/search.svg" alt="Search" className="search-icon" />
           </div>
           
           {/* Risk Classification Filter */}
           <RiskFilter
             selectedRisk={selectedRiskFilter}
             onRiskChange={handleRiskFilterChange}
+            selectedLabStatus={selectedLabStatusFilter}
+            onLabStatusChange={handleLabStatusFilterChange}
+            selectedProfileStatus={selectedProfileStatusFilter}
+            onProfileStatusChange={handleProfileStatusFilterChange}
             showCounts={true}
             counts={patientRiskCounts}
+            labStatusCounts={patientLabStatusCounts}
+            profileStatusCounts={patientProfileStatusCounts}
           />
         </div>
         
@@ -1928,9 +2022,9 @@ const Dashboard = ({ user, onLogout }) => {
                     getLabStatus(patient.latest_lab_result) === 'Awaiting' ? 'lab-status-awaiting' : 
                     'lab-status-awaiting'
                   }>
-                    {getLabStatus(patient.latest_lab_result)}
+                    {getLabStatus(patient.latest_lab_result) === 'Awaiting' ? '❌Awaiting' : getLabStatus(patient.latest_lab_result) === 'Submitted' ? '✅Submitted' : getLabStatus(patient.latest_lab_result)}
                   </td>
-                  <td className={getProfileStatus(patient) === 'Complete' ? 'status-complete' : 'status-incomplete'}>
+                  <td className={getProfileStatus(patient) === '🟢Finalized' ? 'status-complete' : 'status-incomplete'}>
                     {getProfileStatus(patient)}
                   </td>
                   <td>{formatDateToReadable(patient.last_doctor_visit)}</td>
