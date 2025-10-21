@@ -69,7 +69,7 @@ const getLabStatus = (latestLabResult) => {
   }
 
   const requiredLabFields = [
-    'Hba1c', 'creatinine', 'got_ast', 'gpt_alt',
+    'hba1c', 'creatinine', 'got_ast', 'gpt_alt',
     'cholesterol', 'triglycerides', 'hdl_cholesterol', 'ldl_cholesterol'
   ];
 
@@ -3523,7 +3523,7 @@ const renderReportsContent = () => {
                     </div>
                     <div className="patient-detail-item">
                       <span className="detail-label">BMI:</span>
-                      <span className="detail-value">{selectedPatient.BMI || 'N/A'}</span>
+                      <span className="detail-value">{selectedPatient.bmi || 'N/A'}</span>
                     </div>
                     <div className="patient-detail-item">
                       <span className="detail-label">Hypertensive:</span>
@@ -3548,7 +3548,7 @@ const renderReportsContent = () => {
               {latestLab ? (
                 <>
                   <p><strong>Date Submitted:</strong> {new Date(latestLab.date_submitted).toLocaleDateString()}</p>
-                  <p><strong>HbA1c:</strong> {latestLab.Hba1c || 'N/A'}</p>
+                  <p><strong>HbA1c:</strong> {latestLab.hba1c || 'N/A'}</p>
                   <p><strong>Creatinine:</strong> {latestLab.creatinine || 'N/A'}</p>
                   <p><strong>GOT (AST):</strong> {latestLab.got_ast || 'N/A'}</p>
                   <p><strong>GPT (ALT):</strong> {latestLab.gpt_alt || 'N/A'}</p>

@@ -68,7 +68,7 @@ const getLabStatus = (latestLabResult) => {
   }
 
   const requiredLabFields = [
-    'Hba1c', 'creatinine', 'got_ast', 'gpt_alt',
+    'hba1c', 'creatinine', 'got_ast', 'gpt_alt',
     'cholesterol', 'triglycerides', 'hdl_cholesterol', 'ldl_cholesterol'
   ];
 
@@ -1425,7 +1425,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         // --- Fetch Latest Lab Results for text display ---
         const { data: labData, error: labError } = await supabase
           .from('patient_labs')
-          .select('date_submitted, Hba1c, creatinine, got_ast, gpt_alt, cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol')
+          .select('date_submitted, hba1c, creatinine, got_ast, gpt_alt, cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol')
           .eq('patient_id', selectedPatientForDetail.patient_id)
           .order('date_submitted', { ascending: false })
           .limit(1);
@@ -1445,7 +1445,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
           const day = String(dateObj.getUTCDate()).padStart(2, '0');
           setLastLabDate(`${year}-${month}-${day}`);
           setPatientLabResults({
-            hba1c: latestLab.Hba1c || 'N/A',
+            hba1c: latestLab.hba1c || 'N/A',
             creatinine: latestLab.creatinine || 'N/A',
             gotAst: latestLab.got_ast || 'N/A',
             gptAlt: latestLab.gpt_alt || 'N/A',
@@ -1638,7 +1638,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
           // Fetch the latest lab results for each patient, including only date_submitted
           const { data: latestLabData, error: labError } = await supabase
             .from('patient_labs')
-            .select('Hba1c, creatinine, got_ast, gpt_alt, cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol, date_submitted')
+            .select('hba1c, creatinine, got_ast, gpt_alt, cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol, date_submitted')
             .eq('patient_id', patient.patient_id)
             .order('date_submitted', { ascending: false })
             .limit(1);
@@ -1895,7 +1895,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         phase: 'Pre-Operative', // Default to Pre-Operative on creation
         patient_height: patientForm.patientHeight || null,
         patient_weight: patientForm.patientWeight || null,
-        BMI: patientForm.bmi || null,
+        bmi: patientForm.bmi || null,
       };
 
       let error;
@@ -2028,7 +2028,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       lastEyeExam: patient.last_eye_exam || "",
       patientHeight: patient.patient_height || "",
       patientWeight: patient.patient_weight || "",
-      bmi: patient.BMI || ""
+      bmi: patient.bmi || ""
     });
     try {
       setMedications(patient.medication ? JSON.parse(patient.medication) : [{ drugName: "", dosage: "", frequency: "", prescribedBy: "" }]);
@@ -2744,7 +2744,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       patient_id: labResults.selectedPatientForLab.patient_id,
       date_submitted: labResults.dateSubmitted,
       // !!! IMPORTANT CHANGE HERE: Use 'HbA1c' to match your database column name exactly !!!
-      Hba1c: parseFloat(labResults.hba1c) || null,
+      hba1c: parseFloat(labResults.hba1c) || null,
       creatinine: parseFloat(labResults.creatinine) || null,
       got_ast: parseFloat(labResults.gotAst) || null,
       gpt_alt: parseFloat(labResults.gptAlt) || null,
@@ -3510,7 +3510,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             <div className="laboratory-results-section">
                                 <h3>Laboratory Results (Latest)</h3>
                                 <p><strong>Date Submitted:</strong> {formatDateToReadable(lastLabDate)}</p>
-                                <p><strong>HbA1c:</strong> {patientLabResults.hba1c}</p>
+                                <p><strong>Hba1c:</strong> {patientLabResults.hba1c}</p>
                                 <p><strong>Creatinine:</strong> {patientLabResults.creatinine}</p>
                                 <p><strong>GOT (AST):</strong> {patientLabResults.gotAst}</p>
                                 <p><strong>GPT (ALT):</strong> {patientLabResults.gptAlt}</p>
