@@ -36,6 +36,8 @@ const AdminDashboard = ({ onLogout, user }) => {
 
   const [showUsersPopup, setShowUsersPopup] = useState(false);
   const [showMessagePopup, setShowMessagePopup] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
    // Updated doctorForm state to include new fields for the multi-step form
   const [doctorForm, setDoctorForm] = useState({
@@ -213,6 +215,85 @@ const handlePrevSecretaryStep = () => {
       .select("link_id, secretary_id, doctor_id, secretaries(first_name, last_name), doctors(first_name, last_name)");
     if (error) setMessage(`Error fetching links: ${error.message}`);
     else setLinks(data);
+  };
+
+  const fetchNotifications = async () => {
+    if (!user || !user.admin_id) {
+      console.log("No admin user found:", user);
+      return;
+    }
+    
+    console.log("Fetching notifications for admin:", user.admin_id);
+    
+    const { data, error } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", user.admin_id)
+      .eq("user_role", "admin")
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Error fetching notifications:", error.message);
+      setNotifications([]);
+      setUnreadCount(0);
+    } else {
+      console.log("Fetched notifications:", data);
+      setNotifications(data || []);
+      // Count unread notifications
+      const unread = (data || []).filter(notif => !notif.is_read).length;
+      setUnreadCount(unread);
+    }
+  };
+
+  const handleOpenNotifications = async () => {
+    await fetchNotifications();
+    setShowUsersPopup(true);
+  };
+
+  const markNotificationAsRead = async (notificationId) => {
+    const { error } = await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("notification_id", notificationId);
+
+    if (error) {
+      console.error("Error marking notification as read:", error.message);
+    } else {
+      // Update local state
+      setNotifications(notifications.map(notif => 
+        notif.notification_id === notificationId 
+          ? { ...notif, is_read: true } 
+          : notif
+      ));
+      // Update unread count
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+  };
+
+  // Handle notification click
+  const handleNotificationClick = async (notif) => {
+    // Mark as read if unread
+    if (!notif.is_read) {
+      await markNotificationAsRead(notif.notification_id);
+    }
+
+    // Handle navigation based on notification type
+    if (notif.type === 'appointment' || notif.type === 'Appointment') {
+      setActiveTab('dashboard');
+      setShowUsersPopup(false);
+    } else if (notif.type === 'user_management' || notif.type === 'User Management') {
+      setActiveTab('manage');
+      setShowUsersPopup(false);
+    } else if (notif.type === 'compliance' || notif.type === 'Compliance') {
+      setActiveTab('compliance');
+      setShowUsersPopup(false);
+    } else if (notif.type === 'audit' || notif.type === 'Audit') {
+      setActiveTab('audit');
+      setShowUsersPopup(false);
+    } else {
+      // For other types, just go to dashboard
+      setActiveTab('dashboard');
+      setShowUsersPopup(false);
+    }
   };
 
   // Renamed and modified from fetchDoctorsBySecretary
@@ -975,8 +1056,11 @@ const handlePrevSecretaryStep = () => {
             <button className="header-icon">
               <i className="fas fa-cog"></i>
             </button>
-            <button className="header-icon" onClick={() => setShowUsersPopup(true)}>
+            <button className="header-icon notification-icon-admin" onClick={handleOpenNotifications}>
               <i className="fas fa-bell"></i>
+              {unreadCount > 0 && (
+                <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+              )}
             </button>
             <div className="user-profile-header">
               <img
@@ -1719,8 +1803,6 @@ const handlePrevSecretaryStep = () => {
               </div>
             )}
 
-
-              {/* ...rest of your tab content unchanged... */}
               {message && <p className="message">{message}</p>}
             </div>
           </div>
@@ -1729,11 +1811,39 @@ const handlePrevSecretaryStep = () => {
 
       {/* Pop-ups */}
       {showUsersPopup && (
-        <div className="popup-overlay">
-          <div className="popup-content">
-            <h3>Notifications</h3>
-            <p>You have new notifications!</p>
-            <button onClick={() => setShowUsersPopup(false)}>Close</button>
+        <div className="popup-overlay" onClick={() => setShowUsersPopup(false)}>
+          <div className="popup-content notifications-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="popup-header">
+              <h3>Notifications</h3>
+              <button className="close-btn" onClick={() => setShowUsersPopup(false)}>
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="notifications-list">
+              {notifications.length > 0 ? (
+                notifications.map((notif) => (
+                  <div
+                    key={notif.notification_id}
+                    className={`notification-item ${!notif.is_read ? 'unread' : ''}`}
+                    onClick={() => handleNotificationClick(notif)}
+                  >
+                    <div className="notification-title">
+                      <strong>{notif.title}</strong>
+                      {!notif.is_read && <span className="unread-badge">New</span>}
+                    </div>
+                    <div className="notification-message">{notif.message}</div>
+                    <div className="notification-time">
+                      {new Date(notif.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="no-notifications">
+                  <i className="fas fa-bell-slash"></i>
+                  <p>No notifications at this time</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
