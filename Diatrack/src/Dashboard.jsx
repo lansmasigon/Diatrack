@@ -665,8 +665,20 @@ const Dashboard = ({ user, onLogout }) => {
 
   // Helper function to filter metrics by time period
   const filterMetricsByTimePeriod = React.useCallback((metrics, timePeriod) => {
+    console.log(`[filterMetricsByTimePeriod] Filtering ${metrics?.length || 0} metrics for period: ${timePeriod}`);
+    
+    if (!metrics || metrics.length === 0) {
+      console.log('[filterMetricsByTimePeriod] No metrics to filter');
+      return [];
+    }
+    
     const now = new Date();
     const filtered = metrics.filter(metric => {
+      if (!metric.submission_date) {
+        console.log('[filterMetricsByTimePeriod] Metric missing submission_date:', metric);
+        return false;
+      }
+      
       const metricDate = new Date(metric.submission_date);
       const diffTime = Math.abs(now - metricDate);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -683,25 +695,34 @@ const Dashboard = ({ user, onLogout }) => {
       }
     });
     
+    console.log(`[filterMetricsByTimePeriod] Filtered to ${filtered.length} metrics`);
+    
     // Sort by date ascending (oldest first)
     return filtered.sort((a, b) => new Date(a.submission_date) - new Date(b.submission_date));
   }, []);
 
   // Filtered metrics for each chart based on their individual time filters
-  const glucoseFilteredMetrics = React.useMemo(() => 
-    filterMetricsByTimePeriod(filteredPatientMetrics, glucoseTimeFilter),
-    [filteredPatientMetrics, glucoseTimeFilter, filterMetricsByTimePeriod]
-  );
+  const glucoseFilteredMetrics = React.useMemo(() => {
+    console.log(`[glucoseFilteredMetrics] allPatientHealthMetrics length: ${allPatientHealthMetrics?.length || 0}`);
+    console.log(`[glucoseFilteredMetrics] filteredPatientMetrics length: ${filteredPatientMetrics?.length || 0}`);
+    const result = filterMetricsByTimePeriod(filteredPatientMetrics, glucoseTimeFilter);
+    console.log(`[glucoseFilteredMetrics] Result length: ${result?.length || 0}`);
+    return result;
+  }, [filteredPatientMetrics, glucoseTimeFilter, filterMetricsByTimePeriod]);
 
-  const bpFilteredMetrics = React.useMemo(() => 
-    filterMetricsByTimePeriod(filteredPatientMetrics, bpTimeFilter),
-    [filteredPatientMetrics, bpTimeFilter, filterMetricsByTimePeriod]
-  );
+  const bpFilteredMetrics = React.useMemo(() => {
+    console.log(`[bpFilteredMetrics] Filtering ${filteredPatientMetrics?.length || 0} metrics`);
+    const result = filterMetricsByTimePeriod(filteredPatientMetrics, bpTimeFilter);
+    console.log(`[bpFilteredMetrics] Result length: ${result?.length || 0}`);
+    return result;
+  }, [filteredPatientMetrics, bpTimeFilter, filterMetricsByTimePeriod]);
 
-  const riskFilteredMetrics = React.useMemo(() => 
-    filterMetricsByTimePeriod(filteredPatientMetrics, riskTimeFilter),
-    [filteredPatientMetrics, riskTimeFilter, filterMetricsByTimePeriod]
-  );
+  const riskFilteredMetrics = React.useMemo(() => {
+    console.log(`[riskFilteredMetrics] Filtering ${filteredPatientMetrics?.length || 0} metrics`);
+    const result = filterMetricsByTimePeriod(filteredPatientMetrics, riskTimeFilter);
+    console.log(`[riskFilteredMetrics] Result length: ${result?.length || 0}`);
+    return result;
+  }, [filteredPatientMetrics, riskTimeFilter, filterMetricsByTimePeriod]);
 
 
   useEffect(() => {
@@ -3458,7 +3479,7 @@ const renderReportsContent = () => {
       <div key={selectedPatient.patient_id} className="patient-detail-view-section">
         <div className="detail-view-header">
           <button className="back-to-list-button" onClick={() => setActivePage("dashboard")}>
-            <i className="fas fa-arrow-left"></i> Back to Dashboard
+            <img src="/picture/back.png" alt="Back" /> Back to Dashboard
           </button>
           <div className="patient-details-header-row">
             <h2>Patient Details</h2>
@@ -3594,7 +3615,7 @@ const renderReportsContent = () => {
 
             {/* History Charts Section */}
             <div className="history-charts-section">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0px' }}>
                 <h3 style={{ margin: 0 }}>History Charts</h3>
               </div>
               
@@ -3624,6 +3645,15 @@ const renderReportsContent = () => {
                   </div>
                 </div>
                 <div className="chart-wrapper">
+                  {(() => {
+                    console.log('[Blood Glucose Chart] glucoseFilteredMetrics:', glucoseFilteredMetrics);
+                    console.log('[Blood Glucose Chart] Length:', glucoseFilteredMetrics?.length || 0);
+                    if (glucoseFilteredMetrics?.length > 0) {
+                      console.log('[Blood Glucose Chart] Sample data:', glucoseFilteredMetrics[0]);
+                      console.log('[Blood Glucose Chart] Blood glucose values:', glucoseFilteredMetrics.map(e => e.blood_glucose));
+                    }
+                    return null;
+                  })()}
                   {glucoseFilteredMetrics.length > 0 ? (
                     <Line
                       data={{
@@ -4223,7 +4253,7 @@ const renderReportsContent = () => {
                                   onClick={() => handleRemoveMedication(med.id)}
                                   title="Remove medication"
                                 >
-                                  <i className="fas fa-minus-circle"></i>
+                                  <img src="/picture/minus.svg" alt="Remove" />
                                 </button>
                               </td>
                             </>
@@ -4238,7 +4268,7 @@ const renderReportsContent = () => {
                         <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
                         <td className="med-actions">
                           <button type="button" className="add-med-button" title="Add medication">
-                            <i className="fas fa-plus-circle"></i>
+                            <img src="/picture/add.svg" alt="Add" />
                           </button>
                         </td>
                       </tr>
@@ -4476,7 +4506,7 @@ const renderReportsContent = () => {
                       className="photo-expand-btn"
                       onClick={() => handleExpandPhoto(photo)}
                     >
-                      <i className="fas fa-expand"></i>
+                      <img src="/picture/expand.svg" alt="Expand" />
                     </button>
                   </div>
                   

@@ -3133,12 +3133,12 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   <td className="med-actions">
                                     {medications.length > 1 && (
                                       <button type="button" className="remove-med-button" onClick={() => handleRemoveMedication(index)}>
-                                        <i className="fas fa-minus-circle"></i>
+                                        <img src="/picture/minus.svg" alt="Remove" style={{ width: '20px', height: '20px' }} />
                                       </button>
                                     )}
                                     {index === medications.length - 1 && (
                                       <button type="button" className="add-med-button" onClick={handleAddMedication}>
-                                        <i className="fas fa-plus-circle"></i>
+                                        <img src="/picture/add.svg" alt="Add" style={{ width: '20px', height: '20px' }} />
                                       </button>
                                     )}
                                   </td>
@@ -3416,7 +3416,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                 <div className="patient-detail-view-section">
                     <div className="detail-view-header">
                         <button className="back-to-list-button" onClick={handleClosePatientDetailModal}>
-                            <i className="fas fa-arrow-left"></i> Back to List
+                            <img src="/picture/back.png" alt="Back" /> Back to List
                         </button>
                         <div className="patient-details-header-row">
                             <h2>Patient Details</h2>
@@ -3424,7 +3424,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 // Export PDF functionality - will print and allow saving
                                 window.print();
                             }}>
-                                <i className="fas fa-file-pdf"></i> Export PDF
+                                <img src="/picture/upload.png" alt="Export" /> Export PDF
                             </button>
                         </div>
                     </div>
@@ -4067,10 +4067,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             <td><input type="text" className="med-input" value={(med.doctors && med.doctors.first_name) ? `${med.doctors.first_name} ${med.doctors.last_name}` : ''} readOnly /></td>
                                             <td className="med-actions">
                                               <button type="button" className="add-med-button" title="Add medication">
-                                                <i className="fas fa-plus-circle"></i>
+                                                <img src="/picture/add.svg" alt="Add" style={{ width: '20px', height: '20px' }} />
                                               </button>
                                               <button type="button" className="remove-med-button" title="Remove medication">
-                                                <i className="fas fa-minus-circle"></i>
+                                                <img src="/picture/minus.svg" alt="Remove" style={{ width: '20px', height: '20px' }} />
                                               </button>
                                             </td>
                                           </tr>
@@ -4083,7 +4083,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                           <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
                                           <td className="med-actions">
                                             <button type="button" className="add-med-button" title="Add medication">
-                                              <i className="fas fa-plus-circle"></i>
+                                              <img src="/picture/add.svg" alt="Add" style={{ width: '20px', height: '20px' }} />
                                             </button>
                                           </td>
                                         </tr>
@@ -4259,7 +4259,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                                 className="photo-expand-btn"
                                                 onClick={() => handleExpandPhoto(photo)}
                                             >
-                                                <i className="fas fa-expand"></i>
+                                                <img src="/picture/expand.svg" alt="Expand" />
                                             </button>
                                         </div>
                                         
@@ -4784,7 +4784,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   <div className="detail-view-header">
                     <h2>Lab Results History for {selectedPatientForLabView.first_name} {selectedPatientForLabView.last_name}</h2>
                     <button className="back-to-list-button" onClick={handleCloseLabDetailsView}>
-                      <i className="fas fa-arrow-left"></i> Back to Lab Entry
+                      <img src="/picture/back.png" alt="Back" /> Back to Lab Entry
                     </button>
                   </div>
                   <div className="lab-history-table-container">
@@ -5551,7 +5551,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       setReportDetailView(null);
                       setActivePage('reports');
                     }}>
-                      <i className="fas fa-arrow-left"></i> Back to Reports
+                      <img src="/picture/back.png" alt="Back" /> Back to Reports
                     </button>
                     <h2>Total Patients</h2>
                   </div>
@@ -5650,7 +5650,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       setReportDetailView(null);
                       setActivePage('reports');
                     }}>
-                      <i className="fas fa-arrow-left"></i> Back to Reports
+                      <img src="/picture/back.png" alt="Back" /> Back to Reports
                     </button>
                     <h2>Full Compliance - Patients with Complete Metrics</h2>
                   </div>
@@ -5759,7 +5759,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       setReportDetailView(null);
                       setActivePage('reports');
                     }}>
-                      <i className="fas fa-arrow-left"></i> Back to Reports
+                      <img src="/picture/back.png" alt="Back" /> Back to Reports
                     </button>
                     <h2>Missing Logs - Patients with 1-2 Missing Metrics</h2>
                   </div>
@@ -5868,7 +5868,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       setReportDetailView(null);
                       setActivePage('reports');
                     }}>
-                      <i className="fas fa-arrow-left"></i> Back to Reports
+                      <img src="/picture/back.png" alt="Back" /> Back to Reports
                     </button>
                     <h2>Non-Compliant Cases - High-Risk Patients with 3 Missing Metrics</h2>
                   </div>
