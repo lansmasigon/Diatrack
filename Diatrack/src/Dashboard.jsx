@@ -69,8 +69,9 @@ const getLabStatus = (latestLabResult) => {
   }
 
   const requiredLabFields = [
-    'hba1c', 'creatinine', 'got_ast', 'gpt_alt',
-    'cholesterol', 'triglycerides', 'hdl_cholesterol', 'ldl_cholesterol'
+    'Hba1c', 'ucr', 'got_ast', 'gpt_alt',
+    'cholesterol', 'triglycerides', 'hdl_cholesterol', 'ldl_cholesterol',
+    'urea', 'bun', 'uric', 'egfr'
   ];
 
   let allFieldsFilled = true;
@@ -3103,6 +3104,7 @@ const renderReportsContent = () => {
                       </div>
                       <div className="patient-details-col-2"> {/* Second sub-column for patient details */}
                         <p><strong>Diabetes Type:</strong> {selectedPatient.diabetes_type}</p>
+                        <p><strong>Duration of Diabetes:</strong> {selectedPatient.diabetes_duration ? `${selectedPatient.diabetes_duration} years` : 'N/A'}</p>
                         <p><strong>Smoking Status:</strong> {selectedPatient.smoking_status}</p>
                         <p><strong>Last Doctor Visit:</strong> {selectedPatient.last_doctor_visit}</p>
                         <p><strong>Risk Classification:</strong> 
@@ -3498,6 +3500,10 @@ const renderReportsContent = () => {
                       <span className="detail-value">{selectedPatient.diabetes_type || 'N/A'}</span>
                     </div>
                     <div className="patient-detail-item">
+                      <span className="detail-label">Duration of Diabetes:</span>
+                      <span className="detail-value">{selectedPatient.diabetes_duration ? `${selectedPatient.diabetes_duration} years` : 'N/A'}</span>
+                    </div>
+                    <div className="patient-detail-item">
                       <span className="detail-label">Phone:</span>
                       <span className="detail-value">{selectedPatient.contact_info || 'N/A'}</span>
                     </div>
@@ -3548,14 +3554,18 @@ const renderReportsContent = () => {
               {latestLab ? (
                 <>
                   <p><strong>Date Submitted:</strong> {new Date(latestLab.date_submitted).toLocaleDateString()}</p>
-                  <p><strong>HbA1c:</strong> {latestLab.hba1c || 'N/A'}</p>
-                  <p><strong>Creatinine:</strong> {latestLab.creatinine || 'N/A'}</p>
+                  <p><strong>Hba1c:</strong> {latestLab.Hba1c || 'N/A'}</p>
+                  <p><strong>UCR:</strong> {latestLab.ucr || 'N/A'}</p>
                   <p><strong>GOT (AST):</strong> {latestLab.got_ast || 'N/A'}</p>
                   <p><strong>GPT (ALT):</strong> {latestLab.gpt_alt || 'N/A'}</p>
                   <p><strong>Cholesterol:</strong> {latestLab.cholesterol || 'N/A'}</p>
                   <p><strong>Triglycerides:</strong> {latestLab.triglycerides || 'N/A'}</p>
                   <p><strong>HDL Cholesterol:</strong> {latestLab.hdl_cholesterol || 'N/A'}</p>
                   <p><strong>LDL Cholesterol:</strong> {latestLab.ldl_cholesterol || 'N/A'}</p>
+                  <p><strong>UREA:</strong> {latestLab.urea || 'N/A'}</p>
+                  <p><strong>BUN:</strong> {latestLab.bun || 'N/A'}</p>
+                  <p><strong>URIC:</strong> {latestLab.uric || 'N/A'}</p>
+                  <p><strong>EGFR:</strong> {latestLab.egfr || 'N/A'}</p>
                 </>
               ) : (
                 <p>No lab results available for this patient.</p>

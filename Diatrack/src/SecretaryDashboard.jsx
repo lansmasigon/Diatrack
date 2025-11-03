@@ -63,13 +63,14 @@ const formatDateForChart = (dateString) => {
 // Helper function to determine lab status
 const getLabStatus = (latestLabResult) => {
   if (!latestLabResult) {
-    console.log("getLabStatus: No lab result provided, returning Awaiting");
-    return 'Awaiting';
+    console.log("getLabStatus: No lab result provided, returning ❌Awaiting");
+    return '❌Awaiting';
   }
 
   const requiredLabFields = [
-    'hba1c', 'creatinine', 'got_ast', 'gpt_alt',
-    'cholesterol', 'triglycerides', 'hdl_cholesterol', 'ldl_cholesterol'
+    'Hba1c', 'ucr', 'got_ast', 'gpt_alt',
+    'cholesterol', 'triglycerides', 'hdl_cholesterol', 'ldl_cholesterol',
+    'urea', 'bun', 'uric', 'egfr'
   ];
 
   let missingFields = false;
@@ -84,12 +85,10 @@ const getLabStatus = (latestLabResult) => {
   }
 
   let status;
-  if (!hasAnyField && !missingFields) {
-      status = 'Awaiting';
-  } else if (missingFields) {
-      status = 'Submitted'; // Patient has some lab data, even if incomplete
+  if (!hasAnyField || missingFields) {
+      status = '❌Awaiting'; // Missing any field or no data = Awaiting
   } else {
-      status = '✅Submitted'; // Patient has complete lab data
+      status = '✅Submitted'; // All fields complete = Submitted
   }
 
   console.log("getLabStatus: Result for lab data", latestLabResult, "is:", status);
@@ -120,14 +119,14 @@ const getProfileStatus = (patient) => {
 // Helper function to get classification display with colored circle and phase
 const getClassificationDisplay = (patient) => {
   const phase = patient.phase || 'Pre-Operative';
-  const labStatus = patient.lab_status || 'Awaiting';
+  const labStatus = patient.lab_status || '❌Awaiting';
   const riskClassification = (patient.risk_classification || '').toLowerCase();
   
   // Shorten phase names
   const phaseDisplay = phase === 'Pre-Operative' ? 'Pre-Op' : phase === 'Post-Operative' ? 'Post-Op' : phase;
   
   // If lab status is Awaiting, show ⛔ with phase
-  if (labStatus === 'Awaiting') {
+  if (labStatus === '❌Awaiting') {
     return `⛔${phaseDisplay}`;
   }
   
@@ -524,6 +523,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     emergencyContactNumber: "",
     diabetesType: "",
     allergies: "",
+    diabetes_duration: "",
     footUlcersAmputation: "",
     eyeIssues: "",
     kidneyIssues: "",
@@ -826,14 +826,18 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [labResults, setLabResults] = useState({
     selectedPatientForLab: null, // To store the patient object selected for lab entry
     dateSubmitted: "",
-    hba1c: "", // Keep this lowercase for the state variable
-    creatinine: "",
+    Hba1c: "", // Keep this lowercase for the state variable
+    UCR: "",
     gotAst: "",
     gptAlt: "",
     cholesterol: "",
     triglycerides: "",
     hdlCholesterol: "",
     ldlCholesterol: "",
+    UREA: "",
+    BUN: "",
+    URIC: "",
+    EGFR: "",
   });
 
   // NEW STATE FOR LAST LAB DATE AND HEALTH METRICS
@@ -925,8 +929,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
   // NEW STATE FOR PATIENT-SPECIFIC LAB RESULTS AND APPOINTMENTS
   const [patientLabResults, setPatientLabResults] = useState({
-    hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
+    Hba1c: 'N/A', UCR: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
     cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
+    UREA: 'N/A', BUN: 'N/A', URIC: 'N/A', EGFR: 'N/A',
   });
   const [patientAppointments, setPatientAppointments] = useState([]);
 
@@ -1425,7 +1430,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         // --- Fetch Latest Lab Results for text display ---
         const { data: labData, error: labError } = await supabase
           .from('patient_labs')
-          .select('date_submitted, hba1c, creatinine, got_ast, gpt_alt, cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol')
+          .select('date_submitted, Hba1c, ucr, got_ast, gpt_alt, cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol, urea, bun, uric, egfr')
           .eq('patient_id', selectedPatientForDetail.patient_id)
           .order('date_submitted', { ascending: false })
           .limit(1);
@@ -1434,8 +1439,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
           console.error("Error fetching latest lab results:", labError);
           setLastLabDate('Error');
           setPatientLabResults({
-            hba1c: 'Error', creatinine: 'Error', gotAst: 'Error', gptAlt: 'Error',
+            Hba1c: 'Error', UCR: 'Error', gotAst: 'Error', gptAlt: 'Error',
             cholesterol: 'Error', triglycerides: 'Error', hdlCholesterol: 'Error', ldlCholesterol: 'Error',
+            UREA: 'Error', BUN: 'Error', URIC: 'Error', EGFR: 'Error',
           });
         } else if (labData && labData.length > 0) {
           const latestLab = labData[0];
@@ -1445,20 +1451,25 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
           const day = String(dateObj.getUTCDate()).padStart(2, '0');
           setLastLabDate(`${year}-${month}-${day}`);
           setPatientLabResults({
-            hba1c: latestLab.hba1c || 'N/A',
-            creatinine: latestLab.creatinine || 'N/A',
+            Hba1c: latestLab.Hba1c || 'N/A',
+            UCR: latestLab.ucr || 'N/A',
             gotAst: latestLab.got_ast || 'N/A',
             gptAlt: latestLab.gpt_alt || 'N/A',
             cholesterol: latestLab.cholesterol || 'N/A',
             triglycerides: latestLab.triglycerides || 'N/A',
             hdlCholesterol: latestLab.hdl_cholesterol || 'N/A',
             ldlCholesterol: latestLab.ldl_cholesterol || 'N/A',
+            UREA: latestLab.urea || 'N/A',
+            BUN: latestLab.bun || 'N/A',
+            URIC: latestLab.uric || 'N/A',
+            EGFR: latestLab.egfr || 'N/A',
           });
         } else {
           setLastLabDate('N/A');
           setPatientLabResults({
-            hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
+            Hba1c: 'N/A', UCR: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
             cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
+            UREA: 'N/A', BUN: 'N/A', URIC: 'N/A', EGFR: 'N/A',
           });
         }
 
@@ -1570,8 +1581,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         // Reset all states if no patient selected
         setLastLabDate('N/A');
         setPatientLabResults({
-          hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
+          Hba1c: 'N/A', UCR: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
           cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
+          UREA: 'N/A', BUN: 'N/A', URIC: 'N/A', EGFR: 'N/A',
         });
         setAllPatientLabResultsHistory([]); // Reset all lab results history
         setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' });
@@ -1638,12 +1650,12 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
           // Fetch the latest lab results for each patient, including only date_submitted
           const { data: latestLabData, error: labError } = await supabase
             .from('patient_labs')
-            .select('hba1c, creatinine, got_ast, gpt_alt, cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol, date_submitted')
+            .select('Hba1c, ucr, got_ast, gpt_alt, cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol, urea, bun, uric, egfr, date_submitted')
             .eq('patient_id', patient.patient_id)
             .order('date_submitted', { ascending: false })
             .limit(1);
 
-          let labStatus = 'Awaiting';
+          let labStatus = '❌Awaiting';
           let latestLabDate = null;
 
           if (labError) {
@@ -1714,7 +1726,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       }
   
       // Pending Lab Results (including N/A)
-      if (patient.lab_status === 'Awaiting' || patient.lab_status === 'N/A') {
+      if (patient.lab_status === '❌Awaiting' || patient.lab_status === 'N/A') {
         pendingLabs++;
       }
     });
@@ -1879,6 +1891,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         emergency_contact: patientForm.emergencyContactNumber,
         diabetes_type: patientForm.diabetesType,
         allergies: patientForm.allergies,
+        diabetes_duration: patientForm.diabetes_duration,
         medication: JSON.stringify(medications), // Store medications as a JSON string
         complication_history: [
           patientForm.footUlcersAmputation && "Foot Ulcers/Amputation",
@@ -1989,7 +2002,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       // Reset form and navigate after confirmed action, so it's ready for a new entry
       setPatientForm({
         firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", contactInfo: "",
-        middleName: "", gender: "", address: "", emergencyContactNumber: "", diabetesType: "", allergies: "",
+        middleName: "", gender: "", address: "", emergencyContactNumber: "", diabetesType: "", allergies: "", diabetes_duration: "",
         footUlcersAmputation: false, eyeIssues: false, kidneyIssues: false, stroke: false,
         heartAttack: false, hypertensive: false, smokingStatus: "", monitoringFrequencyGlucose: "", lastDoctorVisit: "",
         lastEyeExam: "", preparedBy: "", patientHeight: "", patientWeight: "", bmi: ""
@@ -2016,6 +2029,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       emergencyContactNumber: patient.emergency_contact || "",
       diabetesType: patient.diabetes_type || "",
       allergies: patient.allergies || "",
+      diabetes_duration: patient.diabetes_duration || "",
       footUlcersAmputation: patient.complication_history?.includes("Foot Ulcers/Amputation") || false,
       eyeIssues: patient.complication_history?.includes("Eye Issues") || false,
       kidneyIssues: patient.complication_history?.includes("Kidney Issues") || false,
@@ -2314,9 +2328,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     let labStatusMatch = true;
     if (selectedLabStatusFilter !== 'all') {
       if (selectedLabStatusFilter === 'awaiting') {
-        labStatusMatch = pat.lab_status === 'Awaiting';
+        labStatusMatch = pat.lab_status === '❌Awaiting';
       } else if (selectedLabStatusFilter === 'submitted') {
-        labStatusMatch = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
+        labStatusMatch = pat.lab_status === '✅Submitted';
       }
     }
     
@@ -2348,9 +2362,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     let labStatusMatch = true;
     if (selectedLabEntryLabStatusFilter !== 'all') {
       if (selectedLabEntryLabStatusFilter === 'awaiting') {
-        labStatusMatch = pat.lab_status === 'Awaiting';
+        labStatusMatch = pat.lab_status === '❌Awaiting';
       } else if (selectedLabEntryLabStatusFilter === 'submitted') {
-        labStatusMatch = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
+        labStatusMatch = pat.lab_status === '✅Submitted';
       }
     }
     
@@ -2442,8 +2456,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     
     return {
       all: searchFilteredPatients.length,
-      awaiting: searchFilteredPatients.filter(pat => pat.lab_status === 'Awaiting').length,
-      submitted: searchFilteredPatients.filter(pat => pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted').length
+      awaiting: searchFilteredPatients.filter(pat => pat.lab_status === '❌Awaiting').length,
+      submitted: searchFilteredPatients.filter(pat => pat.lab_status === '✅Submitted').length
     };
   };
 
@@ -2513,8 +2527,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setCurrentPageHealthMetrics(1); // Reset health metrics pagination
     setLastLabDate('N/A'); // Reset last lab date
     setPatientLabResults({ // Reset lab results when closing
-      hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
+      Hba1c: 'N/A', UCR: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
       cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
+      UREA: 'N/A', BUN: 'N/A', URIC: 'N/A', EGFR: 'N/A',
     });
     setAllPatientLabResultsHistory([]); // Reset all lab results history
     setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' }); // Reset health metrics
@@ -2727,14 +2742,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
     // Validate if required fields have values before parsing
     if (!labResults.dateSubmitted ||
-        labResults.hba1c === "" ||
-        labResults.creatinine === "" ||
+        labResults.Hba1c === "" ||
+        labResults.UCR === "" ||
         labResults.gotAst === "" ||
         labResults.gptAlt === "" ||
         labResults.cholesterol === "" ||
         labResults.triglycerides === "" ||
         labResults.hdlCholesterol === "" ||
-        labResults.ldlCholesterol === "") {
+        labResults.ldlCholesterol === "" ||
+        labResults.UREA === "" ||
+        labResults.BUN === "" ||
+        labResults.URIC === "" ||
+        labResults.EGFR === "") {
         setMessage("Please fill in all lab result fields.");
         return;
     }
@@ -2744,14 +2763,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       patient_id: labResults.selectedPatientForLab.patient_id,
       date_submitted: labResults.dateSubmitted,
       // !!! IMPORTANT CHANGE HERE: Use 'HbA1c' to match your database column name exactly !!!
-      hba1c: parseFloat(labResults.hba1c) || null,
-      creatinine: parseFloat(labResults.creatinine) || null,
+      Hba1c: parseFloat(labResults.Hba1c) || null,
+      ucr: parseFloat(labResults.UCR) || null,
       got_ast: parseFloat(labResults.gotAst) || null,
       gpt_alt: parseFloat(labResults.gptAlt) || null,
       cholesterol: parseFloat(labResults.cholesterol) || null,
       triglycerides: parseFloat(labResults.triglycerides) || null,
       hdl_cholesterol: parseFloat(labResults.hdlCholesterol) || null,
       ldl_cholesterol: parseFloat(labResults.ldlCholesterol) || null,
+      urea: parseFloat(labResults.UREA) || null,
+      bun: parseFloat(labResults.BUN) || null,
+      uric: parseFloat(labResults.URIC) || null,
+      egfr: parseFloat(labResults.EGFR) || null,
     };
 
     console.log("Attempting to insert lab data:", dataToInsert);
@@ -2775,14 +2798,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       setLabResults({
         selectedPatientForLab: null,
         dateSubmitted: "",
-        hba1c: "",
-        creatinine: "",
+        Hba1c: "",
+        UCR: "",
         gotAst: "",
         gptAlt: "",
         cholesterol: "",
         triglycerides: "",
         hdlCholesterol: "",
         ldlCholesterol: "",
+        UREA: "",
+        BUN: "",
+        URIC: "",
+        EGFR: "",
       });
       // No fetchPatients() here as we are not updating patient_status yet.
       // If you want to see the patient list update for *other reasons*, you might keep it.
@@ -2819,7 +2846,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                 setActivePage("create-patient");
                 setPatientForm({ // Reset all fields
                   firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", contactInfo: "",
-                  middleName: "", gender: "", address: "", emergencyContactNumber: "", diabetesType: "", allergies: "",
+                  middleName: "", gender: "", address: "", emergencyContactNumber: "", diabetesType: "", allergies: "", diabetes_duration: "",
                   footUlcersAmputation: "", eyeIssues: "", kidneyIssues: "", stroke: "",
                   heartAttack: "", hypertensive: "", smokingStatus: "", monitoringFrequencyGlucose: "", lastDoctorVisit: "",
                   lastEyeExam: "", preparedBy: "", patientHeight: "", patientWeight: "", bmi: ""
@@ -3111,6 +3138,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             <label>Allergies:</label>
                             <input className="patient-input" placeholder="Allergies" value={patientForm.allergies} onChange={(e) => handleInputChange("allergies", e.target.value)} />
                           </div>
+                          <div className="form-group">
+                            <label>Duration of Diabetes:</label>
+                            <input className="patient-input" placeholder="e.g., 5 years" value={patientForm.diabetes_duration} onChange={(e) => handleInputChange("diabetes_duration", e.target.value)} />
+                          </div>
                         </div>
                          <div className="medications-table-container">
                           <label>Current Medications:</label>
@@ -3355,7 +3386,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             </td>
                             <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
                             <td className={`classification-cell ${
-                              pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                              pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                               ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
                               (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
                               (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
@@ -3364,11 +3395,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               {getClassificationDisplay(pat)}
                             </td>
                             <td className={
-                            pat.lab_status === 'Submitted' ? 'lab-status-complete' :
-                            pat.lab_status === 'Awaiting' ? 'lab-status-awaiting' : // Add this if you want pending to have a specific style
+                            pat.lab_status === '✅Submitted' ? 'lab-status-complete' :
+                            pat.lab_status === '❌Awaiting' ? 'lab-status-awaiting' : // Add this if you want pending to have a specific style
                             ''
                           }>
-                            {pat.lab_status === 'Awaiting' ? '❌Awaiting' : pat.lab_status || '❌Awaiting'}
+                            {pat.lab_status || '❌Awaiting'}
                           </td>
                           <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                             {pat.profile_status}
@@ -3502,6 +3533,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                                 <span className="detail-label">Smoking History:</span>
                                                 <span className="detail-value">{selectedPatientForDetail.smoking_status || 'N/A'}</span>
                                             </div>
+                                         <div className="patient-detail-item">
+                                                <span className="detail-label">Duration of Diabetes:</span>
+                                                <span className="detail-value">{selectedPatientForDetail.diabetes_duration || 'N/A'}</span>
+                                            </div>
                                     </div>
                                 </div>
                             </div>
@@ -3510,14 +3545,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             <div className="laboratory-results-section">
                                 <h3>Laboratory Results (Latest)</h3>
                                 <p><strong>Date Submitted:</strong> {formatDateToReadable(lastLabDate)}</p>
-                                <p><strong>Hba1c:</strong> {patientLabResults.hba1c}</p>
-                                <p><strong>Creatinine:</strong> {patientLabResults.creatinine}</p>
+                                <p><strong>Hba1c:</strong> {patientLabResults.Hba1c}</p>
+                                <p><strong>UCR:</strong> {patientLabResults.UCR}</p>
                                 <p><strong>GOT (AST):</strong> {patientLabResults.gotAst}</p>
                                 <p><strong>GPT (ALT):</strong> {patientLabResults.gptAlt}</p>
                                 <p><strong>Cholesterol:</strong> {patientLabResults.cholesterol}</p>
                                 <p><strong>Triglycerides:</strong> {patientLabResults.triglycerides}</p>
                                 <p><strong>HDL Cholesterol:</strong> {patientLabResults.hdlCholesterol}</p>
                                 <p><strong>LDL Cholesterol:</strong> {patientLabResults.ldlCholesterol}</p>
+                                <p><strong>UREA:</strong> {patientLabResults.UREA}</p>
+                                <p><strong>BUN:</strong> {patientLabResults.BUN}</p>
+                                <p><strong>URIC:</strong> {patientLabResults.URIC}</p>
+                                <p><strong>EGFR:</strong> {patientLabResults.EGFR}</p>
                             </div>
                             
                             {/* Latest Health Metrics Section */}
@@ -4574,7 +4613,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   </td>
                                   <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
                                   <td className={`classification-cell ${
-                                    pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                                    pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                                     ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
                                     (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
                                     (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
@@ -4583,10 +4622,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                     {getClassificationDisplay(pat)}
                                   </td>
                                   <td className={
-                                    pat.lab_status === 'Submitted' ? 'lab-status-submitted' :
+                                    pat.lab_status === '✅Submitted' ? 'lab-status-submitted' :
                                     pat.lab_status === 'Pending' ? 'lab-status-pending' :
                                     pat.lab_status === 'N/A' ? 'lab-status-na' :
-                                    '' }> {pat.lab_status === 'Awaiting' ? '❌Awaiting' : pat.lab_status || 'N/A'}
+                                    '' }> {pat.lab_status === '❌Awaiting' ? '❌Awaiting' : pat.lab_status || 'N/A'}
                                   </td>
                                   <td className={pat.profile_status === 'Finalized' ? 'status-finalized' : 'status-pending'}>
                                     {pat.profile_status}
@@ -4595,7 +4634,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   <td>
                                     <div className="lab-actions-buttons">
                                       <button className="enter-labs-button" onClick={() => handleSelectPatientForLab(pat)}>
-                                        {pat.lab_status === 'Submitted' ? '🔄 Update': '🧪 Enter Labs'}
+                                        {pat.lab_status === '✅Submitted' ? '🔄 Update': '🧪 Enter Labs'}
                                       </button>
                                       <button className="view-labs-button" onClick={() => handleViewPatientLabDetails(pat)}>
                                         👁️View
@@ -4644,18 +4683,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               type="number"
                               step="0.1"
                               placeholder="e.g., 7.0"
-                              value={labResults.hba1c}
-                              onChange={(e) => handleLabInputChange("hba1c", e.target.value)}
+                              value={labResults.Hba1c}
+                              onChange={(e) => handleLabInputChange("Hba1c", e.target.value)}
                             />
                           </div>
                           <div className="form-group">
-                            <label>Creatinine (mg/dL):</label>
+                            <label>UCR (mg/dL):</label>
                             <input
                               type="number"
                               step="0.1"
                               placeholder="e.g., 0.8"
-                              value={labResults.creatinine}
-                              onChange={(e) => handleLabInputChange("creatinine", e.target.value)}
+                              value={labResults.UCR}
+                              onChange={(e) => handleLabInputChange("UCR", e.target.value)}
                             />
                           </div>
                         </div>
@@ -4717,6 +4756,50 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             />
                           </div>
                         </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>UREA (mg/dL):</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              placeholder="e.g., 20"
+                              value={labResults.UREA}
+                              onChange={(e) => handleLabInputChange("UREA", e.target.value)}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>BUN (mg/dL):</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              placeholder="e.g., 15"
+                              value={labResults.BUN}
+                              onChange={(e) => handleLabInputChange("BUN", e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>URIC (mg/dL):</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              placeholder="e.g., 5"
+                              value={labResults.URIC}
+                              onChange={(e) => handleLabInputChange("URIC", e.target.value)}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>EGFR (mL/min/1.73m²):</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              placeholder="e.g., 90"
+                              value={labResults.EGFR}
+                              onChange={(e) => handleLabInputChange("EGFR", e.target.value)}
+                            />
+                          </div>
+                        </div>
                         <div className="lab-navigation-buttons">
                           <button className="previous-step-button" onClick={() => setLabEntryStep(1)}>Back</button>
                           <button className="next-step-button" onClick={() => setLabEntryStep(3)}>Review & Finalize</button>
@@ -4730,14 +4813,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         <h3>Review Lab Results for {labResults.selectedPatientForLab?.first_name} {labResults.selectedPatientForLab?.last_name}</h3>
                         <div className="review-details">
                           <p><strong>Date Submitted:</strong> {labResults.dateSubmitted}</p>
-                          <p><strong>HbA1c:</strong> {labResults.hba1c} %</p>
-                          <p><strong>Creatinine:</strong> {labResults.creatinine} mg/dL</p>
+                          <p><strong>HbA1c:</strong> {labResults.Hba1c} %</p>
+                          <p><strong>UCR:</strong> {labResults.UCR} mg/dL</p>
                           <p><strong>GOT (AST):</strong> {labResults.gotAst} U/L</p>
                           <p><strong>GPT (ALT):</strong> {labResults.gptAlt} U/L</p>
                           <p><strong>Cholesterol:</strong> {labResults.cholesterol} mg/dL</p>
                           <p><strong>Triglycerides:</strong> {labResults.triglycerides} mg/dL</p>
                           <p><strong>HDL Cholesterol:</strong> {labResults.hdlCholesterol} mg/dL</p>
                           <p><strong>LDL Cholesterol:</strong> {labResults.ldlCholesterol} mg/dL</p>
+                          <p><strong>UREA:</strong> {labResults.UREA} mg/dL</p>
+                          <p><strong>BUN:</strong> {labResults.BUN} mg/dL</p>
+                          <p><strong>URIC:</strong> {labResults.URIC} mg/dL</p>
+                          <p><strong>EGFR:</strong> {labResults.EGFR} mL/min/1.73m²</p>
                         </div>
                         <p className="final-warning">
                           <i className="fas fa-exclamation-triangle"></i> Once finalized, these lab results cannot be edited. Please ensure all data is accurate.
@@ -4793,13 +4880,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         <tr>
                           <th>Date Submitted</th>
                           <th>HbA1c (%)</th>
-                          <th>Creatinine (mg/dL)</th>
+                          <th>UCR (mg/dL)</th>
                           <th>GOT (AST) (U/L)</th>
                           <th>GPT (ALT) (U/L)</th>
                           <th>Cholesterol (mg/dL)</th>
                           <th>Triglycerides (mg/dL)</th>
                           <th>HDL (mg/dL)</th>
                           <th>LDL (mg/dL)</th>
+                          <th>UREA (mg/dL)</th>
+                          <th>BUN (mg/dL)</th>
+                          <th>URIC (mg/dL)</th>
+                          <th>EGFR (mL/min/1.73m²)</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -4808,13 +4899,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             <tr key={index}>
                               <td>{formatDateToReadable(labEntry.date_submitted)}</td>
                               <td>{labEntry.Hba1c || 'N/A'}</td>
-                              <td>{labEntry.creatinine || 'N/A'}</td>
+                              <td>{labEntry.ucr || 'N/A'}</td>
                               <td>{labEntry.got_ast || 'N/A'}</td>
                               <td>{labEntry.gpt_alt || 'N/A'}</td>
                               <td>{labEntry.cholesterol || 'N/A'}</td>
                               <td>{labEntry.triglycerides || 'N/A'}</td>
                               <td>{labEntry.hdl_cholesterol || 'N/A'}</td>
                               <td>{labEntry.ldl_cholesterol || 'N/A'}</td>
+                              <td>{labEntry.urea || 'N/A'}</td>
+                              <td>{labEntry.bun || 'N/A'}</td>
+                              <td>{labEntry.uric || 'N/A'}</td>
+                              <td>{labEntry.egfr || 'N/A'}</td>
                             </tr>
                           ))
                         ) : (
@@ -5006,7 +5101,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             <p className="report-number">
               {patients.filter(pat => {
                 // Count patients who have submitted all three metrics
-                const hasLabResults = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
+                const hasLabResults = pat.lab_status === '✅Submitted' || pat.lab_status === '✅Submitted';
                 // For blood glucose and blood pressure, we'll assume they're submitted if they have health metrics
                 // For wound photos, we'll check if they have wound photo data
                 // For now, we'll count full compliance as having submitted lab results
@@ -5137,7 +5232,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             <p className="report-number">
               {patients.filter(pat => {
                 // Count patients who have 1 or 2 missing metrics
-                const hasLabResults = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
+                const hasLabResults = pat.lab_status === '✅Submitted' || pat.lab_status === '✅Submitted';
                 // For simplicity, we'll count missing logs as patients without full lab results
                 // but who have some activity (not completely non-compliant)
                 return !hasLabResults && pat.profile_status === '🟢Finalized';
@@ -5268,7 +5363,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
               {patients.filter(pat => {
                 // Count patients who are high risk with 3 missing metrics
                 const isHighRisk = (pat.risk_classification || '').toLowerCase() === 'high';
-                const hasNoLabResults = pat.lab_status === 'Awaiting' || pat.lab_status === 'N/A';
+                const hasNoLabResults = pat.lab_status === '❌Awaiting' || pat.lab_status === 'N/A';
                 const hasIncompleteProfile = pat.profile_status === '🟡Pending';
                 return isHighRisk && hasNoLabResults && hasIncompleteProfile;
               }).length}
@@ -5400,7 +5495,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             {patients
               .filter(
                 (pat) =>
-                  pat.lab_status === "Submitted" &&
+                  pat.lab_status === "✅Submitted" &&
                   pat.latest_lab_date
               )
               .map((patient) => (
@@ -5413,7 +5508,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             {patients.filter(
               (pat) =>
                 
-                pat.lab_status === "Submitted" &&
+                pat.lab_status === "✅Submitted" &&
                 pat.latest_lab_date
             ).length === 0 && (
               <tr>
@@ -5589,7 +5684,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               </td>
                               <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
                               <td className={`classification-cell ${
-                                pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                                pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                                 ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
                                 (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
                                 (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
@@ -5598,10 +5693,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 {getClassificationDisplay(pat)}
                               </td>
                               <td className={
-                                pat.lab_status === 'Submitted' ? 'lab-status-complete' :
-                                pat.lab_status === 'Awaiting' ? 'lab-status-awaiting' : ''
+                                pat.lab_status === '✅Submitted' ? 'lab-status-complete' :
+                                pat.lab_status === '❌Awaiting' ? 'lab-status-awaiting' : ''
                               }>
-                                {pat.lab_status || 'Awaiting'}
+                                {pat.lab_status || '❌Awaiting'}
                               </td>
                               <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                                 {pat.profile_status}
@@ -5669,7 +5764,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     <tbody>
                       {(() => {
                         const filteredData = patients.filter(pat => {
-                          const hasLabResults = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
+                          const hasLabResults = pat.lab_status === '✅Submitted' || pat.lab_status === '✅Submitted';
                           return hasLabResults;
                         });
                         const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
@@ -5692,7 +5787,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               </td>
                               <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
                               <td className={`classification-cell ${
-                                pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                                pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                                 ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
                                 (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
                                 (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
@@ -5701,10 +5796,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 {getClassificationDisplay(pat)}
                               </td>
                               <td className={
-                                pat.lab_status === 'Submitted' ? 'lab-status-complete' :
-                                pat.lab_status === 'Awaiting' ? 'lab-status-awaiting' : ''
+                                pat.lab_status === '✅Submitted' ? 'lab-status-complete' :
+                                pat.lab_status === '❌Awaiting' ? 'lab-status-awaiting' : ''
                               }>
-                                {pat.lab_status || 'Awaiting'}
+                                {pat.lab_status || '❌Awaiting'}
                               </td>
                               <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                                 {pat.profile_status}
@@ -5736,7 +5831,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   {/* Pagination */}
                   {(() => {
                     const filteredData = patients.filter(pat => {
-                      const hasLabResults = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
+                      const hasLabResults = pat.lab_status === '✅Submitted' || pat.lab_status === '✅Submitted';
                       return hasLabResults;
                     });
                     return filteredData.length > REPORT_DETAIL_PER_PAGE && (
@@ -5778,7 +5873,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     <tbody>
                       {(() => {
                         const filteredData = patients.filter(pat => {
-                          const hasLabResults = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
+                          const hasLabResults = pat.lab_status === '✅Submitted' || pat.lab_status === '✅Submitted';
                           return !hasLabResults && pat.profile_status === '🟢Finalized';
                         });
                         const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
@@ -5801,7 +5896,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               </td>
                               <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
                               <td className={`classification-cell ${
-                                pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                                pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                                 ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
                                 (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
                                 (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
@@ -5810,10 +5905,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 {getClassificationDisplay(pat)}
                               </td>
                               <td className={
-                                pat.lab_status === 'Submitted' ? 'lab-status-complete' :
-                                pat.lab_status === 'Awaiting' ? 'lab-status-awaiting' : ''
+                                pat.lab_status === '✅Submitted' ? 'lab-status-complete' :
+                                pat.lab_status === '❌Awaiting' ? 'lab-status-awaiting' : ''
                               }>
-                                {pat.lab_status || 'Awaiting'}
+                                {pat.lab_status || '❌Awaiting'}
                               </td>
                               <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                                 {pat.profile_status}
@@ -5845,7 +5940,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   {/* Pagination */}
                   {(() => {
                     const filteredData = patients.filter(pat => {
-                      const hasLabResults = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
+                      const hasLabResults = pat.lab_status === '✅Submitted' || pat.lab_status === '✅Submitted';
                       return !hasLabResults && pat.profile_status === '🟢Finalized';
                     });
                     return filteredData.length > REPORT_DETAIL_PER_PAGE && (
@@ -5888,7 +5983,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       {(() => {
                         const filteredData = patients.filter(pat => {
                           const isHighRisk = (pat.risk_classification || '').toLowerCase() === 'high';
-                          const hasNoLabResults = pat.lab_status === 'Awaiting' || pat.lab_status === 'N/A';
+                          const hasNoLabResults = pat.lab_status === '❌Awaiting' || pat.lab_status === 'N/A';
                           const hasIncompleteProfile = pat.profile_status === '🟡Pending';
                           return isHighRisk && hasNoLabResults && hasIncompleteProfile;
                         });
@@ -5912,7 +6007,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               </td>
                               <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
                               <td className={`classification-cell ${
-                                pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                                pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                                 ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
                                 (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
                                 (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
@@ -5921,10 +6016,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 {getClassificationDisplay(pat)}
                               </td>
                               <td className={
-                                pat.lab_status === 'Submitted' ? 'lab-status-complete' :
-                                pat.lab_status === 'Awaiting' ? 'lab-status-awaiting' : ''
+                                pat.lab_status === '✅Submitted' ? 'lab-status-complete' :
+                                pat.lab_status === '❌Awaiting' ? 'lab-status-awaiting' : ''
                               }>
-                                {pat.lab_status || 'Awaiting'}
+                                {pat.lab_status || '❌Awaiting'}
                               </td>
                               <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                                 {pat.profile_status}
@@ -5957,7 +6052,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   {(() => {
                     const filteredData = patients.filter(pat => {
                       const isHighRisk = (pat.risk_classification || '').toLowerCase() === 'high';
-                      const hasNoLabResults = pat.lab_status === 'Awaiting' || pat.lab_status === 'N/A';
+                      const hasNoLabResults = pat.lab_status === '❌Awaiting' || pat.lab_status === 'N/A';
                       const hasIncompleteProfile = pat.profile_status === '🟡Pending';
                       return isHighRisk && hasNoLabResults && hasIncompleteProfile;
                     });
