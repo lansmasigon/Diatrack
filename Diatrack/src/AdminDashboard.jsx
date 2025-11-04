@@ -1117,11 +1117,13 @@ const handlePrevSecretaryStep = () => {
                   >
                     <i className="fas fa-list nav-icon"></i>
                     <span>Masterlist</span>
-                    <i
-                      className={`fas fa-chevron-down dropdown-arrow ${
+                    <img
+                      src="../picture/down.png"
+                      alt="Dropdown"
+                      className={`dropdown-arrow-img ${
                         isDropdownOpen ? "open" : ""
                       }`}
-                    ></i>
+                    />
                   </div>
                   <ul className={`dropdown-submenu ${isDropdownOpen ? "show" : ""}`}>
                     <li

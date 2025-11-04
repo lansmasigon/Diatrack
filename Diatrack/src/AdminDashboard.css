@@ -306,6 +306,19 @@ body {
   transform: rotate(180deg);
 }
 
+/* Dropdown Arrow Image */
+.dropdown-arrow-img {
+  margin-left: auto;
+  width: 12px;
+  height: 12px;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+.dropdown-arrow-img.open {
+  transform: rotate(180deg);
+}
+
 .dropdown-submenu {
   list-style: none;
   padding: 0;

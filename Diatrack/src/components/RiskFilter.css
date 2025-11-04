@@ -54,6 +54,14 @@
   color: inherit;
 }
 
+/* Filter Icon Image */
+.filter-icon-img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 /* Active Filter Badge */
 .active-filter-badge {
   background-color: #dc3545;
@@ -82,6 +90,19 @@
 .dropdown-arrow {
   font-size: 10px;
   transition: transform 0.2s ease;
+}
+
+/* Dropdown Arrow Image */
+.dropdown-arrow-img {
+  width: 12px;
+  height: 12px;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.dropdown-arrow-img.open {
+  transform: rotate(180deg);
 }
 
 /* Dropdown Menu */
