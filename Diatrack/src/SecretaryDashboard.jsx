@@ -4871,7 +4871,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   <div className="detail-view-header">
                     <h2>Lab Results History for {selectedPatientForLabView.first_name} {selectedPatientForLabView.last_name}</h2>
                     <button className="back-to-list-button" onClick={handleCloseLabDetailsView}>
-                      <i className="fas fa-arrow-left"></i> Back to Lab Entry
+                      <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Lab Entry
                     </button>
                   </div>
                   <div className="lab-history-table-container">
@@ -5646,7 +5646,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       setReportDetailView(null);
                       setActivePage('reports');
                     }}>
-                      <i className="fas fa-arrow-left"></i> Back to Reports
+                      <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Reports
                     </button>
                     <h2>Total Patients</h2>
                   </div>
@@ -5745,7 +5745,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       setReportDetailView(null);
                       setActivePage('reports');
                     }}>
-                      <i className="fas fa-arrow-left"></i> Back to Reports
+                      <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Reports
                     </button>
                     <h2>Full Compliance - Patients with Complete Metrics</h2>
                   </div>
@@ -5854,7 +5854,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       setReportDetailView(null);
                       setActivePage('reports');
                     }}>
-                      <i className="fas fa-arrow-left"></i> Back to Reports
+                      <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Reports
                     </button>
                     <h2>Missing Logs - Patients with 1-2 Missing Metrics</h2>
                   </div>
@@ -5963,7 +5963,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       setReportDetailView(null);
                       setActivePage('reports');
                     }}>
-                      <i className="fas fa-arrow-left"></i> Back to Reports
+                      <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Reports
                     </button>
                     <h2>Non-Compliant Cases - High-Risk Patients with 3 Missing Metrics</h2>
                   </div>

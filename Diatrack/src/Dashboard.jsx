@@ -3460,7 +3460,7 @@ const renderReportsContent = () => {
       <div key={selectedPatient.patient_id} className="patient-detail-view-section">
         <div className="detail-view-header">
           <button className="back-to-list-button" onClick={() => setActivePage("dashboard")}>
-            <i className="fas fa-arrow-left"></i> Back to Dashboard
+            <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Dashboard
           </button>
           <div className="patient-details-header-row">
             <h2>Patient Details</h2>
@@ -4225,7 +4225,7 @@ const renderReportsContent = () => {
                                   onClick={() => handleEditClick(med)}
                                   title="Edit medication"
                                 >
-                                  <i className="fas fa-edit"></i>
+                                  <img src="../picture/edit.png" alt="Edit" className="button-icon" />
                                 </button>
                                 <button
                                   type="button"
@@ -4233,7 +4233,7 @@ const renderReportsContent = () => {
                                   onClick={() => handleRemoveMedication(med.id)}
                                   title="Remove medication"
                                 >
-                                  <i className="fas fa-minus-circle"></i>
+                                  <img src="../picture/minus.svg" alt="Remove" className="button-icon" />
                                 </button>
                               </td>
                             </>
@@ -4486,7 +4486,7 @@ const renderReportsContent = () => {
                       className="photo-expand-btn"
                       onClick={() => handleExpandPhoto(photo)}
                     >
-                      <i className="fas fa-expand"></i>
+                      <img src="../picture/expand.svg" alt="Expand" className="button-icon" />
                     </button>
                   </div>
                   
