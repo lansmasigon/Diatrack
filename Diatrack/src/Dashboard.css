@@ -716,884 +716,987 @@ body {
   border-radius: 8px;
 }
 
-
-.notes-card3 {
-    grid-column: span 1;
+/* Health Metrics Table Specific Styles */
+.health-metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  font-size: 13px;
 }
 
-.notes-text3 {
-    font-size: 1em;
-    color: var(--text-dark);
-    line-height: 1.6;
+.health-metrics-table th {
+  background-color: #f8f9fa;
+  padding: 12px 10px;
+  text-align: left;
+  border-bottom: 2px solid #dee2e6;
+  font-weight: 600;
+  color: #495057;
+  font-size: 12px;
 }
 
-.assignments-card3 {
-    grid-column: 1 / -1; /* This makes it span from the first column line to the last */
+.health-metrics-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #e9ecef;
+  font-size: 12px;
+  vertical-align: middle;
 }
-/* New styles for the button in the Photos section */
-.wound-photo-button3 {
+
+/* Specific column widths and spacing for health metrics table */
+.health-metrics-table th:first-child,
+.health-metrics-table td:first-child {
+  min-width: 160px;
+  white-space: nowrap;
+  padding-right: 20px;
+  font-weight: 500;
+}
+
+.health-metrics-table th:nth-child(2),
+.health-metrics-table td:nth-child(2) {
+  min-width: 120px;
+  text-align: center;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+.health-metrics-table th:nth-child(3),
+.health-metrics-table td:nth-child(3) {
+  min-width: 140px;
+  text-align: center;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+.health-metrics-table th:nth-child(4),
+.health-metrics-table td:nth-child(4) {
+  min-width: 120px;
+  text-align: center;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+.health-metrics-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.health-metrics-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Health metrics table container */
+.health-metrics-table-container {
+  overflow-x: auto;
+  margin-top: 10px;
+}
+
+/* History Charts Section Styles */
+.history-charts-section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--border-light);
-  padding-bottom: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 0px;
 }
 
-.wound-photo-button3 h3 {
-  margin: 0; /* Reset margin to align properly */
-  border-bottom: none; /* Remove border from h3 as parent div has it */
-  padding-bottom: 0;
+.history-charts-section-header h3 {
+  margin: 0;
 }
 
-.treatment-plan-button3 {
-  background-color: var(--primary-blue);
-  color: white;
-  padding: 8px 15px;
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.chart-header h4 {
+  margin: 0;
+}
+
+/* Button Icon Styles */
+.button-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.button-icon.back-icon {
+  margin-right: 8px;
+}
+
+/* New styles for the risk classification chart */
+.risk-chart-card3 {
+  grid-column: span 1; /* Make it span across two columns for better visibility */
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* This centers the content horizontally within the card */
+  margin-top: 0px; /* Add margin to push it below other widgets if needed by grid flow */
+}
+
+.bar-chart-container3 {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end; /* Bars grow upwards from the bottom */
+  width: 100%;
+  height: 200px; /* Fixed height for the chart area */
+  padding: 10px;
+  background-color: var(--background-white);
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  /* margin-top: 20px; Removed as it's now on the card itself */
+}
+
+.bar-chart-item3 {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* This centers the label, bar, and value horizontally within each bar item */
+  width: 30%; /* Adjust width for spacing between bars */
+  height: 100%; /* Take full height of the container */
+  justify-content: flex-end; /* Align content to the bottom */
+}
+
+.bar-chart-label3 {
+  font-size: 0.9em;
+  color: var(--text-color-light);
+  margin-bottom: 5px;
+  text-align: center; /* Ensure label text is centered */
+}
+
+.bar-chart-bar-wrapper3 {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center; /* Center the bar within its wrapper */
+  width: 100%;
+  height: 100%; /* Bar wrapper takes full height */
+  position: relative;
+}
+
+.bar-chart-bar3 {
+  width: 60%; /* Width of the actual bar */
+  /* margin: 0 auto; Removed as justify-content on wrapper handles centering */
+  border-radius: 5px 5px 0 0;
+  transition: height 0.3s ease-in-out;
+  position: absolute;
+  bottom: 0;
+}
+
+/* Colors for risk bars */
+.low-risk-bar3 {
+  background-color: green; /* Example green for Low */
+}
+
+.medium-risk-bar3 {
+  background-color: orange; /* Example orange for Medium */
+}
+
+.high-risk-bar3 {
+  background-color: red; /* Example red for High */
+}
+
+.bar-chart-value3 {
+  margin-top: 5px;
+  font-weight: bold;
+  color: var(--text-color);
+  text-align: center; /* Ensure value text is centered */
+}
+
+/* Pop-up Overlay Styles */
+.popup-overlay3 {
+  position: fixed; /* Fixes the overlay to the viewport */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent dark background */
+  display: flex; /* Use flexbox to center the content */
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
+  z-index: 1000; /* Ensure it's above other content */
+}
+
+/* Pop-up Content Styles */
+.popup-content3 {
+  background-color: #ffffff; /* White background for the pop-up box */
+  padding: 30px;
+  border-radius: 12px; /* Rounded corners */
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2); /* Stronger shadow for depth */
+  text-align: center;
+  max-width: 400px; /* Max width for readability */
+  width: 90%; /* Responsive width */
+  position: relative;
+}
+
+.popup-content3 h3 {
+  font-size: 1.8em;
+  color: #333333;
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+.popup-content3 p {
+  font-size: 1.1em;
+  color: #555555;
+  margin-bottom: 25px;
+  line-height: 1.5;
+}
+
+.popup-content3 button {
+  background-color: #007bff; /* Primary blue button */
+  color: #ffffff;
+  padding: 12px 25px;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 0.9em;
-  transition: background-color 0.2s ease, transform 0.2s ease;
-  white-space: nowrap; /* Prevent text wrapping */
+  font-size: 1em;
+  font-weight: 600;
+  transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
-.treatment-plan-button3:hover {
-  background-color: #0056b3;
-  transform: translateY(-2px);
+.popup-content3 button:hover {
+  background-color: #0056b3; /* Darker blue on hover */
+  transform: translateY(-1px); /* Slight lift effect */
 }
 
-/* Modified Photo Gallery Styles */
-.photo-gallery3 {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Adjusted for wider images */
-  gap: 20px; /* Adjusted gap */
-  margin-top: 15px;
-}
 
-.photo-card3 {
-  background-color: var(--background-light);
-  border: 1px solid var(--border-light);
-  border-radius: 10px;
-  padding: 10px; /* Reduced padding */
-  text-align: center;
-  box-shadow: 0 2px 8px var(--shadow-light);
-}
-
-.photo-card3 h4 {
-  margin-top: 0;
-  margin-bottom: 10px; /* Reduced margin */
-  color: var(--text-medium);
-  font-size: 0.9em; /* Slightly smaller font */
-}
-
-.photo-card3 img {
-  max-width: 100%;
-  height: 250px; /* Set a fixed height or adjust as needed for consistent sizing */
-  object-fit: contain; /* Use 'contain' to ensure the whole image is visible, 'cover' to fill the space */
-  border-radius: 6px;
-  width: 100%; /* Make image fill its container horizontally */
-}
-
-.wound-healing-card3 {
-    grid-column: span ;
-}
-
-.card-header3 {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.card-header3 h3 {
-  margin: 0;
-  font-size: 1.2em;
-  color: var(--text-dark);
-}
-
-.timeframe-select3 {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border-medium);
-  font-size: 0.9em;
-  background-color: var(--background-light);
-  color: var(--text-dark);
-}
-
-.progress-meter3 {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+/* Appointment Schedule Section */
+.appointment-schedule-section {
+  border-radius: 12px;
+  padding: 20px;
   margin-bottom: 20px;
-  padding-top: 10px;
+
 }
 
-.meter-item3 {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px dashed var(--border-light);
-}
-
-.meter-item3:last-child {
-    border-bottom: none;
-}
-
-.meter-label3 {
-  font-weight: 500;
-  color: var(--text-medium);
-  font-size: 0.9em;
-}
-
-.meter-value-container3 {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-}
-
-.meter-value3 {
-  font-size: 1.4em;
-  font-weight: bold;
-  color: var(--primary-blue);
-}
-
-.meter-value-large3 {
-  font-size: 2.2em;
-  font-weight: bold;
-  color: var(--secondary-orange);
-}
-
-.healthy-indicator3 {
-  font-size: 0.9em;
-  color: var(--success-color);
+.appointment-schedule-section h3 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
   font-weight: 600;
-  padding: 4px 8px;
-  background-color: rgba(40, 167, 69, 0.1);
-  border-radius: 5px;
+  color: #2C3E50;
 }
 
-.small-metrics3 {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 15px;
-    margin-top: 20px;
-}
-
-.small-metric-item3 {
-    background-color: var(--background-light);
-    border: 1px solid var(--border-light);
-    border-radius: 8px;
-    padding: 15px;
-    text-align: center;
-    color: var(--text-light);
-    height: 100px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.9em;
-}
-
-/* NEW: Reports Grid and Widget Styling */
-/* Reports Grid Layout */
-.reports-grid3 {
-  display: grid;
-  grid-template-columns: 1fr 1fr; /* Two equal columns */
-  gap: 10px; /* Space between grid items */
-  align-items: start; /* Align items to the start of their grid area */
-  padding: 10px;
-}
-/* NEW: Specific colors for Phase Classification Bars */
-.preoperative-phase-bar3 {
-  background-color: #8D49F7; /* A shade of purple for Pre-Operative */
-}
-
-.postoperative-phase-bar3 {
-  background-color: #49F78D; /* A shade of light green for Post-Operative */
-}
-
-.report-widget-card3 {
+.appointment-schedule-container {
   display: flex;
-  align-items: center; 
-  gap: 10px; /* Matched gap from summary-widget1 */
-  padding: 10px; /* Matched padding from summary-widget1 */
-  border: 1px solid var(--border-light);
-  position: relative; 
-  text-align: left; 
-  flex: 1; /* Added flex and min-width based on summary-widget1 */
-  min-width: 250px; 
-}
-
-.report-widget-card3 h3 {
-  margin: 0;
-  font-size: 18px; /* Matched font size from summary-widget1 h3 */
-  color: #666; /* Matched color from summary-widget1 h3 */
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.report-value3 {
-  font-size: 40px; /* Matched font size from summary-number1 */
-  font-weight: bold;
-  margin: 5px 0 0; /* Matched margin from summary-number1 */
-  color: #333; /* Matched color from summary-number1 */
-  text-align: center; 
-}
-
-/* Styling for the new summary widget icons */
-.summary-widget-icon3 {
-  background-color: var(--primary-blue);
-  color: var(--background-white);
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px; /* Matched font size from summary-widget-icon1 */
-  box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
-  flex-shrink: 0; 
-}
-
-/* Report Widget Styles for Missing Logs and Non-Compliant */
-.report-widget {
-  background-color: var(--background-white);
-  border: 1px solid var(--border-light);
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px var(--shadow-light);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.report-widget:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px var(--shadow-medium);
-}
-
-.report-widget-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid var(--border-light);
-}
-
-.report-widget-header h4 {
-  margin: 0;
-  font-size: 1.1em;
-  font-weight: 600;
-  color: var(--text-dark);
-}
-
-.report-widget-image {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-}
-
-.report-widget-content {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.report-widget-left {
-  flex-shrink: 0;
-}
-
-.report-number {
-  font-size: 2.5em;
-  font-weight: bold;
-  color: var(--primary-blue);
-  margin: 0;
-  line-height: 1;
-}
-
-.report-widget-right {
-  flex: 1;
-}
-
-.report-subtitle {
-  font-size: 0.9em;
-  color: var(--text-medium);
-  margin: 0;
-  line-height: 1.4;
-}
-
-
-
-/* Reports Content Row Layout */
-.reports-content-row {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
   gap: 20px;
-  margin-top: 20px;
+  flex-wrap: wrap;
 }
 
-/* Submitted Labs Table Container */
-.submitted-labs-table-container {
-  background-color: var(--background-white);
-  border: 1px solid var(--border-light);
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px var(--shadow-light);
+/* Dashboard Calendar Styles - Original */
+.dashboard-appointment-schedule-container {
+  display: flex;
+  gap: 30px;
+  flex-wrap: nowrap;
+  align-items: flex-start;
 }
 
-.submitted-labs-table-container h3 {
+.dashboard-appointment-calendar-container {
+  flex: 0 0 auto;
+  width: 280px;
+  min-width: 280px;
+}
+
+.dashboard-appointment-details-list {
+  flex: 1;
+  min-width: 250px;
+  max-width: 400px;
+}
+
+.dashboard-appointment-details-list h4 {
   margin: 0 0 15px 0;
-  font-size: 1.2em;
-  font-weight: 600;
-  color: var(--text-dark);
-  border-bottom: 2px solid var(--border-light);
-  padding-bottom: 10px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #495057;
 }
 
-/* Summary Stats Container */
-.summary-stats-container {
-  background-color: var(--background-white);
-  border: 1px solid var(--border-light);
+/* Calendar tile styling for appointments */
+.react-calendar__tile.dashboard-appointment-date {
+  background-color: #e3f2fd !important;
+  color: #1976d2 !important;
+  font-weight: 600;
+}
+
+.react-calendar__tile.dashboard-appointment-date:hover {
+  background-color: #bbdefb !important;
+}
+
+/* Dashboard Calendar Specific Styles */
+.dashboard-appointment-calendar-container .react-calendar {
+  width: 100%;
+  background-color: white;
+  border: 1px solid #e9ecef;
   border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px var(--shadow-light);
+  padding: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-family: inherit;
 }
 
-.summary-stats-container h3 {
-  margin: 0 0 15px 0;
-  font-size: 1.2em;
-  font-weight: 600;
-  color: var(--text-dark);
-  border-bottom: 2px solid var(--border-light);
-  padding-bottom: 10px;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 15px;
-}
-
-.stat-card {
-  background-color: var(--background-light);
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  padding: 15px;
+.dashboard-appointment-calendar-container .react-calendar__tile {
+  max-width: 100%;
+  height: 34px;
+  padding: 0;
+  background: none;
   text-align: center;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px var(--shadow-light);
-}
-
-.stat-card h4 {
-  margin: 0 0 8px 0;
-  font-size: 0.95em;
+  line-height: 34px;
+  font-size: 14px;
+  position: relative;
+  border: none;
+  color: #374151;
   font-weight: 500;
-  color: var(--text-medium);
-}
-
-.stat-number {
-  font-size: 2em;
-  font-weight: bold;
-  color: var(--primary-blue);
-  margin: 0;
-}
-
-/* Risk classification styling in tables */
-.risk-classification-low {
-  background-color: #d4edda;
-  color: #155724;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-}
-
-.risk-classification-medium {
-  background-color: #fff3cd;
-  color: #856404;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-}
-
-.risk-classification-high {
-  background-color: #f8d7da;
-  color: #721c24;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-}
-
-.risk-classification-n\/a {
-  background-color: #e2e3e5;
-  color: #383d41;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-}
-
-/* Responsive design for reports */
-@media (max-width: 992px) {
-  .reports-content-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Chart Container for Reports Section */
-.chart-container-reports {
-  background-color: var(--background-white);
-  border: 1px solid var(--border-light);
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px var(--shadow-light);
-  height: 350px;
-  display: flex;
-  flex-direction: column;
-}
-
-.chart-container-reports h3 {
-  margin: 0 0 15px 0;
-  font-size: 1.2em;
-  font-weight: 600;
-  color: var(--text-dark);
-  border-bottom: 2px solid var(--border-light);
-  padding-bottom: 10px;
-  flex-shrink: 0;
-}
-
-.chart-container-reports canvas {
-  flex: 1;
-}
-
-.mini-chart-container {
-  height: 80px;
-  margin-top: 15px;
-}
-
-.no-chart-data {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  min-height: 200px;
-  background-color: var(--background-light);
+  transition: all 0.2s ease;
+  margin: 1px;
   border-radius: 6px;
-  border: 2px dashed var(--border-medium);
 }
 
-/* --- NEW: Treatment Plan Specific Styles --- */
-
-/* Overall wrapper for treatment plan pages */
-.treatment-plan-wrapper3 {
-  padding: 20px;
-  background-color: var(--background-white);
-  border-radius: 12px;
-  box-shadow: 0 4px 15px var(--shadow-light);
-  margin: 20px 0;
+.dashboard-appointment-calendar-container .react-calendar__tile:enabled:hover,
+.dashboard-appointment-calendar-container .react-calendar__tile:enabled:focus {
+  background-color: #e5f3ff;
+  color: #1976d2;
 }
 
-.treatment-plan-wrapper3 h2 {
-  text-align: left;
-  margin-bottom: 30px;
-  color: var(--primary-blue);
-  font-size: 2em;
-  font-weight: 700;
-  border-bottom: 2px solid var(--border-light);
-  padding-bottom: 15px;
-}
-
-/* Container for the forms, enabling a grid layout */
-.forms-container3 {
-  display: grid;
-  /* Original: grid-template-columns: 1fr 1fr; */
-  /* To make diagnosis full width, change to: */
-  grid-template-columns: 1fr; /* This will make each direct child take a full row */
-  gap: 20px; /* Adjust gap as needed */
-}
-
-.wound-dressing-section3 {
-  display: grid;
-  grid-template-columns: 1fr 1fr; /* This will make Wound Care and Dressing side-by-side */
-  gap: 20px;
-}
-
-/* NEW: Three-column layout for additional treatment plan details (Step 2) */
-.three-column-forms3 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr; /* Three equal columns */
-  gap: 20px;
-}
-
-.forms-container3 .card3 {
-  padding: 20px;
-  border: 1px solid var(--border-light);
-  transition: all 0.3s ease;
-}
-
-
-.forms-container3 h3 {
-  color: var(--primary-blue);
+.dashboard-appointment-calendar-container .react-calendar__tile--now {
+  background: #1976d2;
+  color: white;
+  border-radius: 6px;
   font-weight: 600;
-  margin-top: 0;
-  margin-bottom: 15px;
-  border-bottom: 1px solid var(--border-light);
-  padding-bottom: 10px;
 }
 
-.forms-container3 textarea {
-  width: calc(100% - 20px); /* Account for padding */
-  padding: 10px;
-  border: 1px solid var(--border-medium);
-  border-radius: 8px;
-  font-family: "Inter", sans-serif;
-  font-size: 0.95em;
-  min-height: 120px;
-  color: var(--text-dark);
-  background-color: var(--background-light);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+.dashboard-appointment-calendar-container .react-calendar__navigation {
+  display: flex;
+  height: 40px;
+  margin-bottom: 0;
+  background-color: transparent;
+  padding: 0;
+  align-items: center;
+  border-bottom: 1px solid #e9ecef;
 }
 
-.forms-container3 textarea:focus {
-  border-color: var(--primary-blue);
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+.dashboard-appointment-calendar-container .react-calendar__navigation button {
+  min-width: 30px;
+  background: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  border-radius: 6px;
+  padding: 4px;
+  transition: all 0.2s ease;
+}
+
+.dashboard-appointment-calendar-container .react-calendar__month-view__weekdays {
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: 500;
+  font-size: 12px;
+  background-color: #f8f9fa;
+  margin: 0;
+  padding: 8px 0;
+}
+
+.dashboard-appointment-calendar-container .react-calendar__month-view__weekdays__weekday {
+  padding: 8px 0;
+  color: #6c757d;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Additional calendar fixes for Dashboard */
+.dashboard-appointment-calendar-container .react-calendar button {
+  margin: 0;
+  border: 0;
   outline: none;
 }
 
-/* Treatment Plan Actions (buttons) */
-.treatment-plan-actions3 {
+.dashboard-appointment-calendar-container .react-calendar__month-view__days__day--weekend {
+  color: #dc3545;
+}
+
+.dashboard-appointment-calendar-container .react-calendar__month-view__days__day--neighboringMonth {
+  color: #9ca3af;
+}
+
+/* Dashboard Appointment List Styles */
+.dashboard-appointment-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
   display: flex;
-  justify-content: flex-end; /* Align buttons to the right */
-  gap: 15px;
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border-light);
+  flex-direction: column;
+  gap: 8px;
 }
 
-
-
-
-.treatment-plan-actions3 button {
-  padding: 12px 25px;
+.dashboard-appointment-item {
+  background: white;
   border-radius: 8px;
-  cursor: pointer;
-  font-size: 1em;
+  padding: 12px;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+}
+
+.dashboard-appointment-item:hover {
+  border-color: #1976d2;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
+  transform: translateY(-1px);
+}
+
+.dashboard-appointment-date-time {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.dashboard-appointment-date-time strong {
+  color: #2C3E50;
+  font-size: 14px;
   font-weight: 600;
-  transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
 }
 
-.treatment-plan-actions3 .cancel-button3 {
-  background-color: var(--text-light);
-  color: var(--background-white);
-  border: none;
+.dashboard-appointment-time {
+  color: #6c757d;
+  font-size: 13px;
 }
 
-.treatment-plan-actions3 .cancel-button3:hover {
-  background-color: #5a6268;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(108, 117, 125, 0.3);
+.dashboard-appointment-notes {
+  color: #495057;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
-.treatment-plan-actions3 .next-step-button3,
-.treatment-plan-actions3 .save-treatment-plan-button3 {
-  background-color: var(--primary-blue);
-  color: var(--background-white);
-  border: none;
-}
-
-.treatment-plan-actions3 .next-step-button3:hover,
-.treatment-plan-actions3 .save-treatment-plan-button3:hover {
-  background-color: #0069d9;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
-}
-
-.latestwound3, .patientinfo3{
-  margin-bottom: 15px;
-  font-size: 1.4em;
-  border-bottom: 2px solid var(--light-gray);
-
-}
-/* Latest Wound Photo Card in Treatment Plan */
-.latest-wound-photo-card3 {
+/* No specialist message */
+.no-specialists-message {
   text-align: center;
-  margin-bottom: 20px;
-  border: 1px solid var(--border-light);
-  background-color: var(--background-light);
   padding: 20px;
-  border-radius: 10px;
+  color: #6c757d;
+  font-style: italic;
 }
 
-.latest-wound-photo-card3 h3 {
-  color: var(--text-dark);
-  border-bottom: none;
-  padding-bottom: 0;
+/* Placeholder card for no specialist */
+.placeholder-card {
+  opacity: 0.6;
 }
 
-.latest-wound-image3 {
-  max-width: 20%;
-  height: auto;
-  border-radius: 8px;
-  margin-top: 5px;
-  margin-bottom: 50px;
-  box-shadow: 0 2px 10px var(--shadow-light);
+.placeholder-card .doctor-name {
+  color: #6c757d;
+  font-style: italic;
 }
 
-.latest-wound-photo-card3 p {
-  font-size: 0.9em;
-  color: var(--text-medium);
-  margin-bottom: 5px;
+/* Responsive design for appointment schedule */
+@media (max-width: 768px) {
+  .appointment-schedule-container {
+    flex-direction: column;
+  }
+  
+  .appointment-calendar-container,
+  .appointment-details-list {
+    min-width: 100%;
+  }
 }
 
-.latest-wound-photo-card3 strong {
-  color: var(--text-dark);
+/* Responsive design for dashboard appointment schedule */
+@media (max-width: 768px) {
+  .dashboard-appointment-schedule-container {
+    flex-direction: column;
+    flex-wrap: wrap;
+  }
+  
+  .dashboard-appointment-calendar-container,
+  .dashboard-appointment-details-list {
+    min-width: 100%;
+    width: 100%;
+  }
 }
 
-/* Treatment Plan Summary Specific Styles */
-.treatment-plan-summary-content3 {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
-}
-
-.summary-section3 {
-  background-color: var(--background-light);
-  border: 1px solid var(--border-light);
-  border-radius: 10px;
-  padding: 20px;
+/* Wound Gallery Styles */
+.wound-gallery-section {
+  background-color: var(--background-white);
+  border-radius: 12px;
+  padding: 25px;
   box-shadow: 0 2px 8px var(--shadow-light);
+  margin-top: 25px;
 }
 
-.summary-section3 h4 {
-  color: var(--primary-blue);
+.wound-gallery-section h3 {
+  color: var(--text-dark);
+  font-size: 1.4em;
   font-weight: 600;
   margin-top: 0;
-  margin-bottom: 10px;
-  border-bottom: 1px dashed var(--border-medium);
-  padding-bottom: 8px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--border-light);
+  padding-bottom: 10px;
 }
 
-.summary-section3 p {
-  font-size: 0.95em;
-  line-height: 1.6;
-  color: var(--text-dark);
-  white-space: pre-wrap; /* Preserves whitespace and line breaks */
-}
-
-/* Print and Send Buttons in Summary */
-.summary-action-buttons3 {
-  display: flex;
-  justify-content: center;
+.wound-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
-  margin-top: 40px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border-light);
+  max-height: 600px;
+  overflow-y: auto;
+  padding: 10px;
 }
 
-.summary-action-buttons3 .print-button3,
-.summary-action-buttons3 .send-button3 {
-  padding: 12px 30px;
-  border-radius: 25px;
-  font-size: 1.05em;
+.wound-gallery-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.wound-gallery-grid::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.wound-gallery-grid::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+.wound-gallery-grid::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.wound-gallery-card {
+  background-color: var(--background-white);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px var(--shadow-light);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.wound-gallery-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.wound-photo-container {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  background-color: #f5f5f5;
+}
+
+.wound-photo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-expand-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.photo-expand-btn:hover {
+  background-color: var(--primary-blue);
+  color: white;
+  transform: scale(1.1);
+}
+
+.photo-info {
+  padding: 15px;
+}
+
+.photo-timestamp {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #666;
+}
+
+.photo-date {
   font-weight: 600;
+  color: var(--text-dark);
+}
+
+.photo-time {
+  color: #999;
+}
+
+.photo-submitter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.submitter-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.submitter-info {
+  font-size: 13px;
+  color: #666;
+}
+
+.submitter-text {
+  color: #999;
+  font-size: 12px;
+}
+
+.photo-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.entry-btn,
+.treatment-plan-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
-.summary-action-buttons3 .print-button3 {
-  background-color: var(--secondary-orange);
-  color: var(--text-dark);
-  border: none;
+.entry-btn {
+  background-color: #f8f9fa;
+  color: #666;
+  cursor: default;
 }
 
-.summary-action-buttons3 .print-button3:hover {
-  background-color: #e0a800;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(255, 193, 7, 0.4);
+.entry-btn:hover {
+  background-color: #e9ecef;
 }
 
-.summary-action-buttons3 .send-button3 {
-  background-color: var(--success-color);
-  color: var(--background-white);
-  border: none;
+.treatment-plan-btn {
+  background-color: #28a745;
+  color: white;
+  border-color: #28a745;
 }
 
-.summary-action-buttons3 .send-button3:hover {
+.treatment-plan-btn:hover {
   background-color: #218838;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(40, 167, 69, 0.4);
+  border-color: #1e7e34;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
 }
 
-/* Styles for Treatment Plan Dynamic Forms */
-
-.diagnosis-form3,
-.wound-care-form3,
-.dressing-form3,
-.medication-treatment-form3,
-.important-notes-form3,
-.follow-up-form3 {
-  background-color: var(--white);
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-  padding: 15px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px; /* Space between dynamic textarea groups */
+.photo-notes {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e0e0e0;
+  font-size: 12px;
+  color: #666;
 }
 
-.diagnosis-form3 h3,
-.wound-care-form3 h3,
-.dressing-form3 h3,
-.medication-treatment-form3 h3,
-.important-notes-form3 h3,
-.follow-up-form3 h3 {
-  color: var(--primary-blue);
-  margin-bottom: 5px;
-  font-size: 1.4em;
-  border-bottom: 2px solid var(--light-gray);
+.loading-message,
+.no-photos-message {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+  font-style: italic;
 }
 
-.dynamic-textarea-group3 {
-  display: flex;
-  align-items: flex-end; /* Align buttons to the bottom of the textarea */
-  gap: 10px; /* Space between textarea and buttons */
-  width: 100%; /* Ensure it takes full width of its parent */
-}
-
-.dynamic-textarea-group3 textarea {
-  flex-grow: 1; /* Allow textarea to take up available space */
-  padding: 12px 15px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  font-size: 1em;
-  min-height: 80px; /* Minimum height for the textarea */
-  /* REMOVED: resize: vertical; */
-  resize: none; /* <--- ADDED THIS LINE TO DISABLE RESIZING */
-}
-
-.dynamic-buttons3 {
-  display: flex;
-  flex-direction: column; /* Stack buttons vertically */
-  gap: 5px; /* Space between plus and minus buttons */
-}
-
-.dynamic-buttons3 .add-button3,
-.dynamic-buttons3 .remove-button3 {
-  width: 35px; /* Fixed width for small square buttons */
-  height: 35px; /* Fixed height for small square buttons */
-  border-radius: 8px; /* Slightly rounded corners for buttons */
-  font-size: 1.5em; /* Larger font for + and - signs */
-  font-weight: bold;
+/* Photo Expansion Modal */
+.photo-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.85);
   display: flex;
   justify-content: center;
   align-items: center;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  border: none;
-  color: var(--white); /* White text for buttons */
+  z-index: 2000;
+  padding: 20px;
 }
 
-.dynamic-buttons3 .add-button3 {
-  background-color: var(--primary-blue); /* Blue for add button */
-}
-
-.dynamic-buttons3 .add-button3:hover {
-  background-color: #3b82f6; /* Slightly lighter blue on hover */
-  transform: translateY(-2px);
-}
-
-.dynamic-buttons3 .remove-button3 {
-  background-color: var(--danger-red); /* Red for remove button */
-}
-
-.dynamic-buttons3 .remove-button3:hover {
-  background-color: #dc2626; /* Slightly lighter red on hover */
-  transform: translateY(-2px);
-}
-
-/* Specific styles for the "Create Treatment Plan" button on patient profile */
-.wound-photo-button3 {
+.photo-modal-content {
+  background-color: var(--background-white);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
+  padding: 30px;
+}
+
+.photo-modal-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: var(--text-medium);
+  cursor: pointer;
+  transition: color 0.3s ease;
+  z-index: 10;
+}
+
+.photo-modal-close:hover {
+  color: var(--danger-color);
+}
+
+.expanded-photo-image {
+  max-width: 100%;
+  max-height: 60vh;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px var(--shadow-medium);
+  margin-bottom: 20px;
+}
+
+.expanded-photo-info {
   width: 100%;
-}
-
-.treatment-plan-button3 {
-  background-color: var(--secondary-orange);
-  color: var(--white);
-  border: none;
-  padding: 10px 20px;
+  text-align: left;
+  padding: 20px;
+  background-color: var(--background-light);
   border-radius: 8px;
-  cursor: pointer;
+}
+
+.expanded-photo-info h4 {
+  color: var(--primary-blue);
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.3em;
+  border-bottom: 2px solid var(--border-light);
+  padding-bottom: 10px;
+}
+
+.expanded-photo-info p {
+  margin: 10px 0;
   font-size: 1em;
-  font-weight: bold;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  white-space: nowrap; /* Prevent text from wrapping */
+  color: var(--text-dark);
+  line-height: 1.6;
 }
 
-.treatment-plan-button3:hover {
-  background-color: #e57e2a; /* Slightly darker orange on hover */
-  transform: translateY(-2px);
+.expanded-photo-info p strong {
+  color: var(--text-medium);
+  margin-right: 8px;
 }
 
+/* History Charts Section Styles */
+.history-charts-section {
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px var(--shadow-light);
+  margin-bottom: 0px;
+}
 
-/* Styles for Navigation and Action Buttons in Treatment Plan Steps */
-.treatment-plan-actions3 {
+.history-charts-section h3 {
+  color: var(--text-dark);
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-weight: 600;
+  font-size: 1.3em;
+  padding-bottom: 10px;
+}
+
+/* Individual chart containers */
+.blood-glucose-chart-container,
+.blood-pressure-chart-container,
+.risk-classification-chart-container {
+  margin-bottom: 20px;
+  background-color: var(--background-light);
+  border-radius: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-light);
+}
+
+.blood-glucose-chart-container h4,
+.blood-pressure-chart-container h4,
+.risk-classification-chart-container h4 {
+  color: var(--text-medium);
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+/* Risk Classification Legend Styles */
+.risk-legend-container {
   display: flex;
-  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 15px;
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border-color);
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: var(--background-white);
+  border-radius: 6px;
+  justify-content: center;
 }
 
-.treatment-plan-actions3 .cancel-button3,
-.treatment-plan-actions3 .next-step-button3,
-.treatment-plan-actions3 .send-button3,
-.treatment-plan-actions3 .print-button3 {
-  padding: 12px 25px;
-  border-radius: 8px;
-  font-size: 1em;
+.risk-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9em;
+  color: var(--text-dark);
+}
+
+.risk-legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.risk-legend-color.low-risk {
+  background-color: rgba(34, 197, 94, 0.8);
+}
+
+.risk-legend-color.moderate-risk {
+  background-color: rgba(255, 193, 7, 0.8);
+}
+
+.risk-legend-color.high-risk {
+  background-color: rgba(244, 67, 54, 0.8);
+}
+
+.risk-legend-color.ppd-risk {
+  background-color: rgba(103, 101, 105, 0.8);
+}
+
+/* Chart wrapper to ensure proper sizing */
+.chart-wrapper {
+  position: relative;
+  height: 300px;
+  width: 100%;
+  background-color: var(--background-white);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+/* Time Filter Buttons for Charts */
+.time-filter-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.time-filter-btn {
+  padding: 6px 16px;
+  border: 1px solid var(--border-medium);
+  background-color: var(--background-white);
+  color: var(--text-medium);
+  border-radius: 6px;
+  font-size: 0.85em;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  font-weight: bold;
-  border: none;
+  transition: all 0.3s ease;
+  white-space: nowrap;
 }
 
-.treatment-plan-actions3 .cancel-button3 {
-  background-color: var(--light-gray);
-  color: var(--text-color-dark);
+.time-filter-btn:hover {
+  background-color: var(--background-light);
+  border-color: var(--primary-blue);
+  color: var(--primary-blue);
 }
 
-.treatment-plan-actions3 .cancel-button3:hover {
-  background-color: #d1d5db;
-  transform: translateY(-2px);
-}
-
-.treatment-plan-actions3 .next-step-button3,
-.treatment-plan-actions3 .send-button3 {
+.time-filter-btn.active {
   background-color: var(--primary-blue);
-  color: var(--white);
+  color: var(--background-white);
+  border-color: var(--primary-blue);
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(31, 170, 237, 0.3);
 }
 
-.treatment-plan-actions3 .next-step-button3:hover,
-.treatment-plan-actions3 .send-button3:hover {
-  background-color: #3b82f6;
-  transform: translateY(-2px);
+.time-filter-btn.active:hover {
+  background-color: #1a8fcc;
+  border-color: #1a8fcc;
 }
 
-.treatment-plan-actions3 .print-button3 {
-  background-color: var(--secondary-orange);
-  color: var(--white);
+/* Responsive chart adjustments */
+@media (max-width: 768px) {
+  .chart-wrapper {
+    height: 250px;
+  }
+  
+  .risk-legend-container {
+    gap: 10px;
+  }
+  
+  .blood-glucose-chart-container,
+  .blood-pressure-chart-container,
+  .risk-classification-chart-container {
+    padding: 10px;
+  }
+  
+  /* Health metrics table responsive styling */
+  .health-metrics-table {
+    font-size: 11px;
+  }
+  
+  .health-metrics-table th,
+  .health-metrics-table td {
+    padding: 8px 6px;
+  }
+  
+  .health-metrics-table th:first-child,
+  .health-metrics-table td:first-child {
+    min-width: 140px;
+    padding-right: 12px;
+  }
+  
+  .health-metrics-table th:nth-child(n+2),
+  .health-metrics-table td:nth-child(n+2) {
+    min-width: 90px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
 }
 
-.treatment-plan-actions3 .print-button3:hover {
-  background-color: #e57e2a;
-  transform: translateY(-2px);
+@media (max-width: 480px) {
+  /* Health metrics table for very small screens */
+  .health-metrics-table {
+    font-size: 10px;
+  }
+  
+  .health-metrics-table th,
+  .health-metrics-table td {
+    padding: 6px 4px;
+  }
+  
+  .health-metrics-table th:first-child,
+  .health-metrics-table td:first-child {
+    min-width: 120px;
+    padding-right: 8px;
+  }
+  
+  .health-metrics-table th:nth-child(n+2),
+  .health-metrics-table td:nth-child(n+2) {
+    min-width: 70px;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  
+  .health-metrics-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Button Icon Styles */
+.button-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.button-icon.back-icon {
+  margin-right: 8px;
 }
 
 /* New styles for the risk classification chart */
@@ -2271,21 +2374,20 @@ body {
 .history-charts-section h3 {
   color: var(--text-dark);
   margin-top: 0;
-  margin-bottom: 15px;
+  margin-bottom: 0px;
   font-weight: 600;
   font-size: 1.3em;
   padding-bottom: 10px;
-  border-bottom: 2px solid var(--border-light);
 }
 
 /* Individual chart containers */
 .blood-glucose-chart-container,
 .blood-pressure-chart-container,
 .risk-classification-chart-container {
-  margin-bottom: 30px;
+  margin-bottom: 20px;
   background-color: var(--background-light);
   border-radius: 8px;
-  padding: 15px;
+  padding: 10px;
   border: 1px solid var(--border-light);
 }
 
@@ -2406,6 +2508,59 @@ body {
   .risk-classification-chart-container {
     padding: 10px;
   }
+  
+  /* Health metrics table responsive styling */
+  .health-metrics-table {
+    font-size: 11px;
+  }
+  
+  .health-metrics-table th,
+  .health-metrics-table td {
+    padding: 8px 6px;
+  }
+  
+  .health-metrics-table th:first-child,
+  .health-metrics-table td:first-child {
+    min-width: 140px;
+    padding-right: 12px;
+  }
+  
+  .health-metrics-table th:nth-child(n+2),
+  .health-metrics-table td:nth-child(n+2) {
+    min-width: 90px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Health metrics table for very small screens */
+  .health-metrics-table {
+    font-size: 10px;
+  }
+  
+  .health-metrics-table th,
+  .health-metrics-table td {
+    padding: 6px 4px;
+  }
+  
+  .health-metrics-table th:first-child,
+  .health-metrics-table td:first-child {
+    min-width: 120px;
+    padding-right: 8px;
+  }
+  
+  .health-metrics-table th:nth-child(n+2),
+  .health-metrics-table td:nth-child(n+2) {
+    min-width: 70px;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  
+  .health-metrics-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* Button Icon Styles */
@@ -2418,5 +2573,869 @@ body {
 
 .button-icon.back-icon {
   margin-right: 8px;
+}
+
+/* New styles for the risk classification chart */
+.risk-chart-card3 {
+  grid-column: span 1; /* Make it span across two columns for better visibility */
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* This centers the content horizontally within the card */
+  margin-top: 0px; /* Add margin to push it below other widgets if needed by grid flow */
+}
+
+.bar-chart-container3 {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end; /* Bars grow upwards from the bottom */
+  width: 100%;
+  height: 200px; /* Fixed height for the chart area */
+  padding: 10px;
+  background-color: var(--background-white);
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  /* margin-top: 20px; Removed as it's now on the card itself */
+}
+
+.bar-chart-item3 {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* This centers the label, bar, and value horizontally within each bar item */
+  width: 30%; /* Adjust width for spacing between bars */
+  height: 100%; /* Take full height of the container */
+  justify-content: flex-end; /* Align content to the bottom */
+}
+
+.bar-chart-label3 {
+  font-size: 0.9em;
+  color: var(--text-color-light);
+  margin-bottom: 5px;
+  text-align: center; /* Ensure label text is centered */
+}
+
+.bar-chart-bar-wrapper3 {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center; /* Center the bar within its wrapper */
+  width: 100%;
+  height: 100%; /* Bar wrapper takes full height */
+  position: relative;
+}
+
+.bar-chart-bar3 {
+  width: 60%; /* Width of the actual bar */
+  /* margin: 0 auto; Removed as justify-content on wrapper handles centering */
+  border-radius: 5px 5px 0 0;
+  transition: height 0.3s ease-in-out;
+  position: absolute;
+  bottom: 0;
+}
+
+/* Colors for risk bars */
+.low-risk-bar3 {
+  background-color: green; /* Example green for Low */
+}
+
+.medium-risk-bar3 {
+  background-color: orange; /* Example orange for Medium */
+}
+
+.high-risk-bar3 {
+  background-color: red; /* Example red for High */
+}
+
+.bar-chart-value3 {
+  margin-top: 5px;
+  font-weight: bold;
+  color: var(--text-color);
+  text-align: center; /* Ensure value text is centered */
+}
+
+/* Pop-up Overlay Styles */
+.popup-overlay3 {
+  position: fixed; /* Fixes the overlay to the viewport */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent dark background */
+  display: flex; /* Use flexbox to center the content */
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
+  z-index: 1000; /* Ensure it's above other content */
+}
+
+/* Pop-up Content Styles */
+.popup-content3 {
+  background-color: #ffffff; /* White background for the pop-up box */
+  padding: 30px;
+  border-radius: 12px; /* Rounded corners */
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2); /* Stronger shadow for depth */
+  text-align: center;
+  max-width: 400px; /* Max width for readability */
+  width: 90%; /* Responsive width */
+  position: relative;
+}
+
+.popup-content3 h3 {
+  font-size: 1.8em;
+  color: #333333;
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+.popup-content3 p {
+  font-size: 1.1em;
+  color: #555555;
+  margin-bottom: 25px;
+  line-height: 1.5;
+}
+
+.popup-content3 button {
+  background-color: #007bff; /* Primary blue button */
+  color: #ffffff;
+  padding: 12px 25px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: 600;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.popup-content3 button:hover {
+  background-color: #0056b3; /* Darker blue on hover */
+  transform: translateY(-1px); /* Slight lift effect */
+}
+
+
+/* Appointment Schedule Section */
+.appointment-schedule-section {
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+
+}
+
+.appointment-schedule-section h3 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2C3E50;
+}
+
+.appointment-schedule-container {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+/* Dashboard Calendar Styles - Original */
+.dashboard-appointment-schedule-container {
+  display: flex;
+  gap: 30px;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+
+.dashboard-appointment-calendar-container {
+  flex: 0 0 auto;
+  width: 280px;
+  min-width: 280px;
+}
+
+.dashboard-appointment-details-list {
+  flex: 1;
+  min-width: 250px;
+  max-width: 400px;
+}
+
+.dashboard-appointment-details-list h4 {
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #495057;
+}
+
+/* Calendar tile styling for appointments */
+.react-calendar__tile.dashboard-appointment-date {
+  background-color: #e3f2fd !important;
+  color: #1976d2 !important;
+  font-weight: 600;
+}
+
+.react-calendar__tile.dashboard-appointment-date:hover {
+  background-color: #bbdefb !important;
+}
+
+/* Dashboard Calendar Specific Styles */
+.dashboard-appointment-calendar-container .react-calendar {
+  width: 100%;
+  background-color: white;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-family: inherit;
+}
+
+.dashboard-appointment-calendar-container .react-calendar__tile {
+  max-width: 100%;
+  height: 34px;
+  padding: 0;
+  background: none;
+  text-align: center;
+  line-height: 34px;
+  font-size: 14px;
+  position: relative;
+  border: none;
+  color: #374151;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  margin: 1px;
+  border-radius: 6px;
+}
+
+.dashboard-appointment-calendar-container .react-calendar__tile:enabled:hover,
+.dashboard-appointment-calendar-container .react-calendar__tile:enabled:focus {
+  background-color: #e5f3ff;
+  color: #1976d2;
+}
+
+.dashboard-appointment-calendar-container .react-calendar__tile--now {
+  background: #1976d2;
+  color: white;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.dashboard-appointment-calendar-container .react-calendar__navigation {
+  display: flex;
+  height: 40px;
+  margin-bottom: 0;
+  background-color: transparent;
+  padding: 0;
+  align-items: center;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.dashboard-appointment-calendar-container .react-calendar__navigation button {
+  min-width: 30px;
+  background: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  border-radius: 6px;
+  padding: 4px;
+  transition: all 0.2s ease;
+}
+
+.dashboard-appointment-calendar-container .react-calendar__month-view__weekdays {
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: 500;
+  font-size: 12px;
+  background-color: #f8f9fa;
+  margin: 0;
+  padding: 8px 0;
+}
+
+.dashboard-appointment-calendar-container .react-calendar__month-view__weekdays__weekday {
+  padding: 8px 0;
+  color: #6c757d;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Additional calendar fixes for Dashboard */
+.dashboard-appointment-calendar-container .react-calendar button {
+  margin: 0;
+  border: 0;
+  outline: none;
+}
+
+.dashboard-appointment-calendar-container .react-calendar__month-view__days__day--weekend {
+  color: #dc3545;
+}
+
+.dashboard-appointment-calendar-container .react-calendar__month-view__days__day--neighboringMonth {
+  color: #9ca3af;
+}
+
+/* Dashboard Appointment List Styles */
+.dashboard-appointment-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dashboard-appointment-item {
+  background: white;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+}
+
+.dashboard-appointment-item:hover {
+  border-color: #1976d2;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
+  transform: translateY(-1px);
+}
+
+.dashboard-appointment-date-time {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.dashboard-appointment-date-time strong {
+  color: #2C3E50;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dashboard-appointment-time {
+  color: #6c757d;
+  font-size: 13px;
+}
+
+.dashboard-appointment-notes {
+  color: #495057;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* No specialist message */
+.no-specialists-message {
+  text-align: center;
+  padding: 20px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Placeholder card for no specialist */
+.placeholder-card {
+  opacity: 0.6;
+}
+
+.placeholder-card .doctor-name {
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Responsive design for appointment schedule */
+@media (max-width: 768px) {
+  .appointment-schedule-container {
+    flex-direction: column;
+  }
+  
+  .appointment-calendar-container,
+  .appointment-details-list {
+    min-width: 100%;
+  }
+}
+
+/* Responsive design for dashboard appointment schedule */
+@media (max-width: 768px) {
+  .dashboard-appointment-schedule-container {
+    flex-direction: column;
+    flex-wrap: wrap;
+  }
+  
+  .dashboard-appointment-calendar-container,
+  .dashboard-appointment-details-list {
+    min-width: 100%;
+    width: 100%;
+  }
+}
+
+/* Wound Gallery Styles */
+.wound-gallery-section {
+  background-color: var(--background-white);
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 2px 8px var(--shadow-light);
+  margin-top: 25px;
+}
+
+.wound-gallery-section h3 {
+  color: var(--text-dark);
+  font-size: 1.4em;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--border-light);
+  padding-bottom: 10px;
+}
+
+.wound-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  max-height: 600px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.wound-gallery-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.wound-gallery-grid::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.wound-gallery-grid::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+.wound-gallery-grid::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.wound-gallery-card {
+  background-color: var(--background-white);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px var(--shadow-light);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.wound-gallery-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.wound-photo-container {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  background-color: #f5f5f5;
+}
+
+.wound-photo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-expand-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.photo-expand-btn:hover {
+  background-color: var(--primary-blue);
+  color: white;
+  transform: scale(1.1);
+}
+
+.photo-info {
+  padding: 15px;
+}
+
+.photo-timestamp {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #666;
+}
+
+.photo-date {
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.photo-time {
+  color: #999;
+}
+
+.photo-submitter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.submitter-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.submitter-info {
+  font-size: 13px;
+  color: #666;
+}
+
+.submitter-text {
+  color: #999;
+  font-size: 12px;
+}
+
+.photo-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.entry-btn,
+.treatment-plan-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.entry-btn {
+  background-color: #f8f9fa;
+  color: #666;
+  cursor: default;
+}
+
+.entry-btn:hover {
+  background-color: #e9ecef;
+}
+
+.treatment-plan-btn {
+  background-color: #28a745;
+  color: white;
+  border-color: #28a745;
+}
+
+.treatment-plan-btn:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+}
+
+.photo-notes {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e0e0e0;
+  font-size: 12px;
+  color: #666;
+}
+
+.loading-message,
+.no-photos-message {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+  font-style: italic;
+}
+
+/* Photo Expansion Modal */
+.photo-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.photo-modal-content {
+  background-color: var(--background-white);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px;
+}
+
+.photo-modal-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: var(--text-medium);
+  cursor: pointer;
+  transition: color 0.3s ease;
+  z-index: 10;
+}
+
+.photo-modal-close:hover {
+  color: var(--danger-color);
+}
+
+.expanded-photo-image {
+  max-width: 100%;
+  max-height: 60vh;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px var(--shadow-medium);
+  margin-bottom: 20px;
+}
+
+.expanded-photo-info {
+  width: 100%;
+  text-align: left;
+  padding: 20px;
+  background-color: var(--background-light);
+  border-radius: 8px;
+}
+
+.expanded-photo-info h4 {
+  color: var(--primary-blue);
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.3em;
+  border-bottom: 2px solid var(--border-light);
+  padding-bottom: 10px;
+}
+
+.expanded-photo-info p {
+  margin: 10px 0;
+  font-size: 1em;
+  color: var(--text-dark);
+  line-height: 1.6;
+}
+
+.expanded-photo-info p strong {
+  color: var(--text-medium);
+  margin-right: 8px;
+}
+
+/* History Charts Section Styles */
+.history-charts-section {
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px var(--shadow-light);
+  margin-bottom: 10px;
+}
+
+.history-charts-section h3 {
+  color: var(--text-dark);
+  margin-top: 0;
+  margin-bottom: 0px;
+  font-weight: 600;
+  font-size: 1.3em;
+  padding-bottom: 0px;
+}
+
+/* Individual chart containers */
+.blood-glucose-chart-container,
+.blood-pressure-chart-container,
+.risk-classification-chart-container {
+  margin-bottom: 10px;
+  background-color: var(--background-light);
+  border-radius: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-light);
+}
+
+.blood-glucose-chart-container h4,
+.blood-pressure-chart-container h4,
+.risk-classification-chart-container h4 {
+  color: var(--text-medium);
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+/* Risk Classification Legend Styles */
+.risk-legend-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px;
+  background-color: var(--background-white);
+  border-radius: 6px;
+  justify-content: center;
+}
+
+.risk-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9em;
+  color: var(--text-dark);
+}
+
+.risk-legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.risk-legend-color.low-risk {
+  background-color: rgba(34, 197, 94, 0.8);
+}
+
+.risk-legend-color.moderate-risk {
+  background-color: rgba(255, 193, 7, 0.8);
+}
+
+.risk-legend-color.high-risk {
+  background-color: rgba(244, 67, 54, 0.8);
+}
+
+.risk-legend-color.ppd-risk {
+  background-color: rgba(103, 101, 105, 0.8);
+}
+
+/* Chart wrapper to ensure proper sizing */
+.chart-wrapper {
+  position: relative;
+  height: 200px;
+  width: 100%;
+  background-color: var(--background-white);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+/* Time Filter Buttons for Charts */
+.time-filter-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.time-filter-btn {
+  padding: 6px 16px;
+  border: 1px solid var(--border-medium);
+  background-color: var(--background-white);
+  color: var(--text-medium);
+  border-radius: 6px;
+  font-size: 0.85em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.time-filter-btn:hover {
+  background-color: var(--background-light);
+  border-color: var(--primary-blue);
+  color: var(--primary-blue);
+}
+
+.time-filter-btn.active {
+  background-color: var(--primary-blue);
+  color: var(--background-white);
+  border-color: var(--primary-blue);
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(31, 170, 237, 0.3);
+}
+
+.time-filter-btn.active:hover {
+  background-color: #1a8fcc;
+  border-color: #1a8fcc;
+}
+
+/* Responsive chart adjustments */
+@media (max-width: 768px) {
+  .chart-wrapper {
+    height: 250px;
+  }
+  
+  .risk-legend-container {
+    gap: 10px;
+  }
+  
+  .blood-glucose-chart-container,
+  .blood-pressure-chart-container,
+  .risk-classification-chart-container {
+    padding: 10px;
+  }
+  
+  /* Health metrics table responsive styling */
+  .health-metrics-table {
+    font-size: 11px;
+  }
+  
+  .health-metrics-table th,
+  .health-metrics-table td {
+    padding: 8px 6px;
+  }
+  
+  .health-metrics-table th:first-child,
+  .health-metrics-table td:first-child {
+    min-width: 140px;
+    padding-right: 12px;
+  }
+  
+  .health-metrics-table th:nth-child(n+2),
+  .health-metrics-table td:nth-child(n+2) {
+    min-width: 90px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Health metrics table for very small screens */
+  .health-metrics-table {
+    font-size: 10px;
+  }
+  
+  .health-metrics-table th,
+  .health-metrics-table td {
+    padding: 6px 4px;
+  }
+  
+  .health-metrics-table th:first-child,
+  .health-metrics-table td:first-child {
+    min-width: 120px;
+    padding-right: 8px;
+  }
+  
+  .health-metrics-table th:nth-child(n+2),
+  .health-metrics-table td:nth-child(n+2) {
+    min-width: 70px;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  
+  .health-metrics-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 

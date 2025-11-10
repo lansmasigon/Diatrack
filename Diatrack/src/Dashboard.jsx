@@ -667,25 +667,36 @@ const Dashboard = ({ user, onLogout }) => {
   // Helper function to filter metrics by time period
   const filterMetricsByTimePeriod = React.useCallback((metrics, timePeriod) => {
     const now = new Date();
-    const filtered = metrics.filter(metric => {
-      const metricDate = new Date(metric.submission_date);
-      const diffTime = Math.abs(now - metricDate);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      switch(timePeriod) {
-        case 'day':
-          return diffDays <= 1;
-        case 'week':
-          return diffDays <= 7;
-        case 'month':
-          return diffDays <= 30;
-        default:
-          return true;
-      }
-    });
+    let filtered = [];
     
-    // Sort by date ascending (oldest first)
-    return filtered.sort((a, b) => new Date(a.submission_date) - new Date(b.submission_date));
+    if (timePeriod === 'day') {
+      // For 'day' filter, show the 5 latest submitted dates regardless of actual date
+      filtered = metrics
+        .sort((a, b) => new Date(b.submission_date) - new Date(a.submission_date)) // Sort by newest first
+        .slice(0, 5) // Take the 5 latest submissions
+        .reverse(); // Reverse to show oldest to newest for chart display
+    } else {
+      // For week and month filters, use the existing time-based logic
+      filtered = metrics.filter(metric => {
+        const metricDate = new Date(metric.submission_date);
+        const diffTime = Math.abs(now - metricDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        switch(timePeriod) {
+          case 'week':
+            return diffDays <= 7;
+          case 'month':
+            return diffDays <= 30;
+          default:
+            return true;
+        }
+      });
+      
+      // Sort by date ascending (oldest first) for time-based filters
+      filtered = filtered.sort((a, b) => new Date(a.submission_date) - new Date(b.submission_date));
+    }
+    
+    return filtered;
   }, []);
 
   // Filtered metrics for each chart based on their individual time filters
@@ -3604,14 +3615,14 @@ const renderReportsContent = () => {
 
             {/* History Charts Section */}
             <div className="history-charts-section">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h3 style={{ margin: 0 }}>History Charts</h3>
+              <div className="history-charts-section-header">
+                <h3>History Charts</h3>
               </div>
               
               {/* Blood Glucose Chart */}
               <div className="blood-glucose-chart-container">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <h4 style={{ margin: 0 }}>Blood Glucose Level History</h4>
+                <div className="chart-header">
+                  <h4>Blood Glucose Level History</h4>
                   <div className="time-filter-buttons">
                     <button 
                       className={`time-filter-btn ${glucoseTimeFilter === 'day' ? 'active' : ''}`}
@@ -3730,8 +3741,8 @@ const renderReportsContent = () => {
 
               {/* Blood Pressure Chart */}
               <div className="blood-pressure-chart-container">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <h4 style={{ margin: 0 }}>Blood Pressure History</h4>
+                <div className="chart-header">
+                  <h4>Blood Pressure History</h4>
                   <div className="time-filter-buttons">
                     <button 
                       className={`time-filter-btn ${bpTimeFilter === 'day' ? 'active' : ''}`}
@@ -3871,8 +3882,8 @@ const renderReportsContent = () => {
 
               {/* Risk Classification History Chart */}
               <div className="risk-classification-chart-container">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <h4 style={{ margin: 0 }}>Risk Classification History</h4>
+                <div className="chart-header">
+                  <h4>Risk Classification History</h4>
                   <div className="time-filter-buttons">
                     <button 
                       className={`time-filter-btn ${riskTimeFilter === 'day' ? 'active' : ''}`}
