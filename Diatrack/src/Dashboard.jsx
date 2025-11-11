@@ -554,6 +554,7 @@ const Dashboard = ({ user, onLogout }) => {
   // NEW: States for popup messages
   const [showUsersPopup, setShowUsersPopup] = useState(false);
   const [showMessagePopup, setShowMessagePopup] = useState(false);
+  const [showThreePhotoModal, setShowThreePhotoModal] = useState(false);
 
   // Dashboard analytics states
   const [totalPatientsCount, setTotalPatientsCount] = useState(0);
@@ -3112,6 +3113,7 @@ const renderReportsContent = () => {
                         <p><strong>Date of Birth:</strong> {selectedPatient.date_of_birth}</p>
                         <p><strong>Contact Info:</strong> {selectedPatient.contact_info}</p>
                         <p><strong>Gender:</strong> {selectedPatient.gender}</p>
+                         <p><strong>Phase:</strong> <span className={`phase3 ${selectedPatient.phase}`}>{selectedPatient.phase}</span></p>
                       </div>
                       <div className="patient-details-col-2"> {/* Second sub-column for patient details */}
                         <p><strong>Diabetes Type:</strong> {selectedPatient.diabetes_type}</p>
@@ -3123,7 +3125,6 @@ const renderReportsContent = () => {
                             {latestMetric?.risk_classification || selectedPatient.risk_classification || 'N/A'}
                           </span>
                         </p>
-                        <p><strong>Phase:</strong> <span className={`phase3 ${selectedPatient.phase}`}>{selectedPatient.phase}</span></p>
                       </div>
                     </div>
                   </div>
@@ -3134,6 +3135,12 @@ const renderReportsContent = () => {
                           <img src={latestWoundPhoto.url} alt="Latest Wound" className="latest-wound-image3" />
                           <p><strong>Date:</strong> {new Date(latestWoundPhoto.date).toLocaleDateString()}</p>
                           <p><strong>Notes:</strong> {latestWoundPhoto.notes || 'N/A'}</p>
+                          <button 
+                            className="view-analysis-button3" 
+                            onClick={() => setShowThreePhotoModal(true)}
+                          >
+                            View Analysis
+                          </button>
                       </div>
                   ) : (
                       <div className="wound-photo-column" style={{ maxWidth: '300px', marginLeft: '20px', flexShrink: 0 }}>
@@ -4632,6 +4639,49 @@ const renderReportsContent = () => {
           <button className="modal-cancel-button3" onClick={handleCancelModal}>
             Cancel
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+        {showThreePhotoModal && (
+  <div className="three-photo-modal-overlay" onClick={() => setShowThreePhotoModal(false)}>
+    <div className="three-photo-modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="three-photo-modal-header">
+        <h3>Wound Analysis</h3>
+        <button className="close-button3" onClick={() => setShowThreePhotoModal(false)}>
+          &times;
+        </button>
+      </div>
+      <div className="three-photo-container">
+        <div className="photo-analysis-item">
+          <h4>Original Image</h4>
+          <div className="photo-placeholder">
+            {woundPhotos.length > 0 ? (
+              <img src={woundPhotos[0].url} alt="Original" />
+            ) : (
+              <div className="no-photo">No image available</div>
+            )}
+          </div>
+        </div>
+        <div className="photo-analysis-item">
+          <h4>Grad-Cam Heatmap</h4>
+          <div className="photo-placeholder">
+            <div className="analysis-placeholder">Analysis coming soon...</div>
+          </div>
+        </div>
+        <div className="photo-analysis-item">
+          <h4>Segmentation Mask</h4>
+          <div className="photo-placeholder">
+            <div className="analysis-placeholder">Analysis coming soon...</div>
+          </div>
+        </div>
+      </div>
+      <div className="diagnosis-section">
+        <h4>Diagnosis</h4>
+        <div className="diagnosis-placeholder">
+          <p>Diagnosis results will be displayed here...</p>
         </div>
       </div>
     </div>
