@@ -555,6 +555,11 @@ const Dashboard = ({ user, onLogout }) => {
   const [showUsersPopup, setShowUsersPopup] = useState(false);
   const [showMessagePopup, setShowMessagePopup] = useState(false);
   const [showThreePhotoModal, setShowThreePhotoModal] = useState(false);
+  
+  // States for wound analysis API results
+  const [analysisResults, setAnalysisResults] = useState(null);
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
+  const [analysisError, setAnalysisError] = useState(null);
 
   // Dashboard analytics states
   const [totalPatientsCount, setTotalPatientsCount] = useState(0);
@@ -1218,12 +1223,24 @@ const Dashboard = ({ user, onLogout }) => {
       setAllPatientHealthMetrics(metrics || []); // Store all metrics for charts
 
       // Filter for wound photos and set the state
-      const photos = metrics.filter(metric => metric.wound_photo_url).map(metric => ({
-        metric_id: metric.metric_id, // Include metric_id to identify the row
-        url: metric.wound_photo_url,
-        date: metric.submission_date,
-        notes: metric.notes,
-      }));
+      const photos = metrics.filter(metric => metric.wound_photo_url).map(metric => {
+        let photoUrl = metric.wound_photo_url;
+        
+        // If the URL is not a complete URL, construct the Supabase storage URL
+        if (photoUrl && !photoUrl.startsWith('http')) {
+          const { data } = supabase.storage
+            .from('wound-photos')
+            .getPublicUrl(photoUrl);
+          photoUrl = data.publicUrl;
+        }
+        
+        return {
+          metric_id: metric.metric_id, // Include metric_id to identify the row
+          url: photoUrl,
+          date: metric.submission_date,
+          notes: metric.notes,
+        };
+      });
       setWoundPhotos(photos);
       setAllWoundPhotos(photos); // Store all wound photos for gallery
 
@@ -3014,6 +3031,80 @@ const renderReportsContent = () => {
         }
     };
 
+    // NEW: Function to handle wound analysis API call
+    const handleViewAnalysis = async () => {
+        // Get the wound photo - use selected or latest from woundPhotos
+        const woundPhotoToAnalyze = selectedWoundPhoto || (woundPhotos.length > 0 ? woundPhotos[0] : null);
+        
+        if (!woundPhotoToAnalyze || !woundPhotoToAnalyze.url) {
+            setAnalysisError("No wound photo available for analysis");
+            return;
+        }
+
+        setIsLoadingAnalysis(true);
+        setAnalysisError(null);
+        setAnalysisResults(null);
+
+        try {
+            let imageUrl = woundPhotoToAnalyze.url;
+            
+            // If the URL is not a complete URL (doesn't start with http), construct the Supabase storage URL
+            if (!imageUrl.startsWith('http')) {
+                const { data } = supabase.storage
+                    .from('wound-photos')
+                    .getPublicUrl(imageUrl);
+                imageUrl = data.publicUrl;
+            }
+
+            // Validate the URL
+            if (!imageUrl || imageUrl === 'undefined' || imageUrl === 'null') {
+                throw new Error('Invalid wound photo URL');
+            }
+
+            // Fetch the image as a blob
+            const imageResponse = await fetch(imageUrl);
+            
+            if (!imageResponse.ok) {
+                throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
+            }
+            
+            const imageBlob = await imageResponse.blob();
+
+            // Create FormData to send the image
+            const formData = new FormData();
+            formData.append('file', imageBlob, 'wound_image.jpg');
+
+            // Call the API
+            const response = await fetch('http://localhost:8000/predict', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status} ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            // Store the results from API response
+            setAnalysisResults({
+                gradcam: data.gradcam_overlay || null,
+                segmentation: data.segmentation_mask || null,
+                className: data.class_name || 'Unknown',
+                probability: data.probability || 0,
+                ulcerArea: data.ulcer_area_percentage || 0,
+                prediction: data.prediction
+            });
+
+            // Don't show modal - results will display inline
+        } catch (error) {
+            console.error('Error calling analysis API:', error);
+            setAnalysisError(error.message || 'Failed to analyze image. Please ensure the API is running.');
+        } finally {
+            setIsLoadingAnalysis(false);
+        }
+    };
+
     // NEW: Handlers for dynamic Diagnosis fields
     const handleAddDiagnosis = () => {
       setDiagnosisDetails([...diagnosisDetails, { id: Date.now(), text: '' }]);
@@ -3137,10 +3228,16 @@ const renderReportsContent = () => {
                           <p><strong>Notes:</strong> {latestWoundPhoto.notes || 'N/A'}</p>
                           <button 
                             className="view-analysis-button3" 
-                            onClick={() => setShowThreePhotoModal(true)}
+                            onClick={handleViewAnalysis}
+                            disabled={isLoadingAnalysis}
                           >
-                            View Analysis
+                            {isLoadingAnalysis ? 'Analyzing...' : 'View Analysis'}
                           </button>
+                          {analysisError && (
+                            <p style={{ color: 'red', fontSize: '12px', marginTop: '5px' }}>
+                              {analysisError}
+                            </p>
+                          )}
                       </div>
                   ) : (
                       <div className="wound-photo-column" style={{ maxWidth: '300px', marginLeft: '20px', flexShrink: 0 }}>
@@ -3148,6 +3245,73 @@ const renderReportsContent = () => {
                       </div>
                   )}
                 </div>
+
+              {/* Analysis Results Section - Shows above diagnosis when available */}
+              {analysisResults && (
+                <div className="card3" style={{ marginBottom: '20px' }}>
+                  <h3>Wound Analysis Results</h3>
+                  <div style={{ display: 'flex', gap: '20px', marginTop: '15px', flexWrap: 'wrap' }}>
+                    {/* Original Image */}
+                    <div style={{ flex: '1', minWidth: '200px' }}>
+                      <h4 style={{ fontSize: '16px', marginBottom: '10px' }}>Original Image</h4>
+                      {latestWoundPhoto && (
+                        <img 
+                          src={latestWoundPhoto.url} 
+                          alt="Original" 
+                          style={{ width: '100%', maxWidth: '300px', borderRadius: '8px', border: '1px solid #ddd' }}
+                        />
+                      )}
+                    </div>
+                    
+                    {/* Grad-CAM Heatmap */}
+                    <div style={{ flex: '1', minWidth: '200px' }}>
+                      <h4 style={{ fontSize: '16px', marginBottom: '10px' }}>Grad-CAM Heatmap</h4>
+                      {analysisResults.gradcam ? (
+                        <img 
+                          src={analysisResults.gradcam.startsWith('data:') ? analysisResults.gradcam : `data:image/png;base64,${analysisResults.gradcam}`}
+                          alt="Grad-CAM Heatmap" 
+                          style={{ width: '100%', maxWidth: '300px', borderRadius: '8px', border: '1px solid #ddd' }}
+                        />
+                      ) : (
+                        <div style={{ padding: '20px', backgroundColor: '#f5f5f5', borderRadius: '8px', textAlign: 'center' }}>
+                          Not available
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Segmentation Mask */}
+                    <div style={{ flex: '1', minWidth: '200px' }}>
+                      <h4 style={{ fontSize: '16px', marginBottom: '10px' }}>Segmentation Mask</h4>
+                      {analysisResults.segmentation ? (
+                        <img 
+                          src={analysisResults.segmentation.startsWith('data:') ? analysisResults.segmentation : `data:image/png;base64,${analysisResults.segmentation}`}
+                          alt="Segmentation Mask" 
+                          style={{ width: '100%', maxWidth: '300px', borderRadius: '8px', border: '1px solid #ddd' }}
+                        />
+                      ) : (
+                        <div style={{ padding: '20px', backgroundColor: '#f5f5f5', borderRadius: '8px', textAlign: 'center' }}>
+                          Not available
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Diagnosis Results */}
+                  <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
+                    <h4 style={{ fontSize: '16px', marginBottom: '10px' }}>AI Diagnosis</h4>
+                    <p><strong>Classification:</strong> {analysisResults.className}</p>
+                    <p><strong>Confidence:</strong> {(analysisResults.probability * 100).toFixed(2)}%</p>
+                    {analysisResults.prediction === 0 && (
+                      <p><strong>Ulcer Area:</strong> {analysisResults.ulcerArea.toFixed(2)}% of total area</p>
+                    )}
+                    <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
+                      {analysisResults.prediction === 0 
+                        ? 'Diabetic foot ulcer detected. The green overlay shows the affected region.'
+                        : 'No ulcer detected. The skin appears healthy.'}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="forms-container3"> {/* New container for two-column forms */}
                   <div className="card3 diagnosis-form3"> {/* NEW: Diagnosis Form */}
@@ -4658,8 +4822,8 @@ const renderReportsContent = () => {
         <div className="photo-analysis-item">
           <h4>Original Image</h4>
           <div className="photo-placeholder">
-            {woundPhotos.length > 0 ? (
-              <img src={woundPhotos[0].url} alt="Original" />
+            {(selectedWoundPhoto || woundPhotos[0]) ? (
+              <img src={(selectedWoundPhoto || woundPhotos[0]).url} alt="Original" />
             ) : (
               <div className="no-photo">No image available</div>
             )}
@@ -4668,20 +4832,47 @@ const renderReportsContent = () => {
         <div className="photo-analysis-item">
           <h4>Grad-Cam Heatmap</h4>
           <div className="photo-placeholder">
-            <div className="analysis-placeholder">Analysis coming soon...</div>
+            {analysisResults && analysisResults.gradcam ? (
+              <img src={analysisResults.gradcam.startsWith('data:') ? analysisResults.gradcam : `data:image/png;base64,${analysisResults.gradcam}`} alt="Grad-Cam Heatmap" />
+            ) : (
+              <div className="analysis-placeholder">
+                {isLoadingAnalysis ? 'Loading...' : 'Analysis not available'}
+              </div>
+            )}
           </div>
         </div>
         <div className="photo-analysis-item">
           <h4>Segmentation Mask</h4>
           <div className="photo-placeholder">
-            <div className="analysis-placeholder">Analysis coming soon...</div>
+            {analysisResults && analysisResults.segmentation ? (
+              <img src={analysisResults.segmentation.startsWith('data:') ? analysisResults.segmentation : `data:image/png;base64,${analysisResults.segmentation}`} alt="Segmentation Mask" />
+            ) : (
+              <div className="analysis-placeholder">
+                {isLoadingAnalysis ? 'Loading...' : 'Analysis not available'}
+              </div>
+            )}
           </div>
         </div>
       </div>
       <div className="diagnosis-section">
-        <h4>Diagnosis</h4>
+        <h4>Diagnosis Results</h4>
         <div className="diagnosis-placeholder">
-          <p>Diagnosis results will be displayed here...</p>
+          {analysisResults ? (
+            <div>
+              <p><strong>Classification:</strong> {analysisResults.className}</p>
+              <p><strong>Confidence:</strong> {(analysisResults.probability * 100).toFixed(2)}%</p>
+              {analysisResults.prediction === 0 && (
+                <p><strong>Ulcer Area:</strong> {analysisResults.ulcerArea.toFixed(2)}% of total area</p>
+              )}
+              <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
+                {analysisResults.prediction === 0 
+                  ? 'Diabetic foot ulcer detected. The green overlay shows the affected region.'
+                  : 'No ulcer detected. The skin appears healthy.'}
+              </p>
+            </div>
+          ) : (
+            <p>{isLoadingAnalysis ? 'Analyzing...' : 'Diagnosis results will be displayed here...'}</p>
+          )}
         </div>
       </div>
     </div>
