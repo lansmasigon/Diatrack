@@ -560,6 +560,8 @@ const Dashboard = ({ user, onLogout }) => {
   const [analysisResults, setAnalysisResults] = useState(null);
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
   const [analysisError, setAnalysisError] = useState(null);
+  const [isSavingAnalysis, setIsSavingAnalysis] = useState(false);
+  const [analysisSaved, setAnalysisSaved] = useState(false);
 
   // Dashboard analytics states
   const [totalPatientsCount, setTotalPatientsCount] = useState(0);
@@ -736,6 +738,16 @@ const Dashboard = ({ user, onLogout }) => {
       fetchPatientDetails(selectedPatient.patient_id);
     }
   }, [activePage, user.doctor_id, selectedPatient?.patient_id]); // Only depend on patient_id, not the full object
+
+  // Clear analysis results when navigating away from treatment plan
+  useEffect(() => {
+    if (activePage !== "treatment-plan") {
+      setAnalysisResults(null);
+      setAnalysisError(null);
+      setAnalysisSaved(false);
+      setIsLoadingAnalysis(false);
+    }
+  }, [activePage]);
 
   const fetchPatients = async () => {
     setLoading(true);
@@ -3105,6 +3117,116 @@ const renderReportsContent = () => {
         }
     };
 
+    // NEW: Function to handle retry analysis
+    const handleRetryAnalysis = () => {
+        setAnalysisResults(null);
+        setAnalysisError(null);
+        setAnalysisSaved(false);
+        handleViewAnalysis();
+    };
+
+    // NEW: Function to save analysis images to database
+    const handleSaveAnalysis = async () => {
+        // Get the wound photo - use selected or latest from woundPhotos
+        const woundPhotoToSave = selectedWoundPhoto || (woundPhotos.length > 0 ? woundPhotos[0] : null);
+        
+        if (!analysisResults || !selectedPatient || !woundPhotoToSave) {
+            alert('No analysis results to save');
+            return;
+        }
+
+        setIsSavingAnalysis(true);
+
+        try {
+            // Helper function to convert base64 to blob
+            const base64ToBlob = (base64String) => {
+                // Remove data URL prefix if present
+                const base64Data = base64String.includes('base64,') 
+                    ? base64String.split('base64,')[1] 
+                    : base64String;
+                
+                const byteCharacters = atob(base64Data);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                return new Blob([byteArray], { type: 'image/jpeg' });
+            };
+
+            // Generate unique filenames
+            const timestamp = Date.now();
+            const patientId = selectedPatient.patient_id;
+            const gradcamFilename = `${patientId}_gradcam_${timestamp}.jpg`;
+            const maskFilename = `${patientId}_mask_${timestamp}.jpg`;
+
+            // Upload Grad-CAM image
+            const gradcamBlob = base64ToBlob(analysisResults.gradcam);
+            const { data: gradcamData, error: gradcamError } = await supabase.storage
+                .from('dfu')
+                .upload(gradcamFilename, gradcamBlob, {
+                    contentType: 'image/jpeg',
+                    upsert: false
+                });
+
+            if (gradcamError) throw new Error(`Failed to upload Grad-CAM: ${gradcamError.message}`);
+
+            // Upload Segmentation Mask image
+            const maskBlob = base64ToBlob(analysisResults.segmentation);
+            const { data: maskData, error: maskError } = await supabase.storage
+                .from('dfu')
+                .upload(maskFilename, maskBlob, {
+                    contentType: 'image/jpeg',
+                    upsert: false
+                });
+
+            if (maskError) throw new Error(`Failed to upload Segmentation Mask: ${maskError.message}`);
+
+            // Get public URLs
+            const { data: gradcamUrlData } = supabase.storage
+                .from('dfu')
+                .getPublicUrl(gradcamFilename);
+            
+            const { data: maskUrlData } = supabase.storage
+                .from('dfu')
+                .getPublicUrl(maskFilename);
+
+            // Update the health_metrics table with the URLs
+            // Find the metric_id associated with this wound photo
+            const metricId = woundPhotoToSave.metric_id;
+
+            if (!metricId) {
+                throw new Error('No metric ID found for this wound photo');
+            }
+
+            const { error: updateError } = await supabase
+                .from('health_metrics')
+                .update({
+                    wound_photo_grad_url: gradcamUrlData.publicUrl,
+                    wound_photo_mask_url: maskUrlData.publicUrl
+                })
+                .eq('metric_id', metricId);
+
+            if (updateError) throw new Error(`Failed to update database: ${updateError.message}`);
+
+            // Log the action
+            await logSystemAction(
+                selectedPatient.patient_id,
+                'Analysis Saved',
+                `Saved Grad-CAM and Segmentation Mask for patient ${selectedPatient.first_name} ${selectedPatient.last_name}`
+            );
+
+            setAnalysisSaved(true);
+            alert('Analysis images saved successfully!');
+
+        } catch (error) {
+            console.error('Error saving analysis:', error);
+            alert(`Failed to save analysis: ${error.message}`);
+        } finally {
+            setIsSavingAnalysis(false);
+        }
+    };
+
     // NEW: Handlers for dynamic Diagnosis fields
     const handleAddDiagnosis = () => {
       setDiagnosisDetails([...diagnosisDetails, { id: Date.now(), text: '' }]);
@@ -3309,6 +3431,42 @@ const renderReportsContent = () => {
                         ? 'Diabetic foot ulcer detected. The green overlay shows the affected region.'
                         : 'No ulcer detected. The skin appears healthy.'}
                     </p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div style={{ marginTop: '15px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                    <button 
+                      className="retry-analysis-button"
+                      onClick={handleRetryAnalysis}
+                      disabled={isLoadingAnalysis || isSavingAnalysis}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: '#6c757d',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '5px',
+                        cursor: isLoadingAnalysis || isSavingAnalysis ? 'not-allowed' : 'pointer',
+                        opacity: isLoadingAnalysis || isSavingAnalysis ? 0.6 : 1
+                      }}
+                    >
+                      {isLoadingAnalysis ? 'Analyzing...' : 'Retry Analysis'}
+                    </button>
+                    <button 
+                      className="save-analysis-button"
+                      onClick={handleSaveAnalysis}
+                      disabled={isSavingAnalysis || analysisSaved || isLoadingAnalysis}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: analysisSaved ? '#28a745' : '#007bff',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '5px',
+                        cursor: isSavingAnalysis || analysisSaved || isLoadingAnalysis ? 'not-allowed' : 'pointer',
+                        opacity: isSavingAnalysis || analysisSaved || isLoadingAnalysis ? 0.6 : 1
+                      }}
+                    >
+                      {isSavingAnalysis ? 'Saving...' : analysisSaved ? '✓ Saved' : 'Save Analysis'}
+                    </button>
                   </div>
                 </div>
               )}
