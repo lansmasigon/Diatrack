@@ -597,6 +597,9 @@ const Dashboard = ({ user, onLogout }) => {
   // Patient list filtering and pagination states
   const [selectedRiskFilter, setSelectedRiskFilter] = useState('all');
   const [selectedLabStatusFilter, setSelectedLabStatusFilter] = useState('all');
+  const [showReportTable, setShowReportTable] = useState(false);
+  const [reportTableType, setReportTableType] = useState(null);
+  const [reportTableTitle, setReportTableTitle] = useState('');
   const [selectedProfileStatusFilter, setSelectedProfileStatusFilter] = useState('all');
   const [currentPagePatients, setCurrentPagePatients] = useState(1);
   const PATIENTS_PER_PAGE = 10;
@@ -739,6 +742,15 @@ const Dashboard = ({ user, onLogout }) => {
     }
   }, [activePage, user.doctor_id, selectedPatient?.patient_id]); // Only depend on patient_id, not the full object
 
+  // Reset report table when changing pages
+  useEffect(() => {
+    if (activePage !== 'reports') {
+      setShowReportTable(false);
+      setReportTableType(null);
+      setReportTableTitle('');
+    }
+  }, [activePage]);
+
   // Clear analysis results when navigating away from treatment plan
   useEffect(() => {
     if (activePage !== "treatment-plan") {
@@ -861,10 +873,9 @@ const Dashboard = ({ user, onLogout }) => {
           highRisk++;
         }
         
-        // Pending Lab Results (patients who need lab work)
-        // This can be determined by checking if they have recent lab results
-        // For now, we'll use a simple check - you can modify this logic based on your needs
-        if (!patient.latest_lab_result || patient.lab_status === 'Awaiting' || patient.lab_status === 'N/A') {
+        // Pending Lab Results (patients with "Awaiting" lab status)
+        // Count patients whose lab status is specifically "Awaiting"
+        if (getLabStatus(patient.latest_lab_result) === 'Awaiting') {
           pendingLabs++;
         }
       });
@@ -1844,14 +1855,150 @@ const Dashboard = ({ user, onLogout }) => {
     setCurrentPagePatients(1); // Reset to first page when filter changes
   };
 
+  // Handle report widget clicks
+  const handleReportWidgetClick = (type, title) => {
+    setReportTableType(type);
+    setReportTableTitle(title);
+    setShowReportTable(true);
+    
+    // Reset pagination when opening report table
+    setCurrentPagePatients(1);
+    
+    // Clear existing filters first
+    setSelectedRiskFilter('all');
+    setSelectedLabStatusFilter('all');
+    setSelectedProfileStatusFilter('all');
+    setSearchTerm('');
+    
+    // Set appropriate filters based on report type
+    switch (type) {
+      case 'low-risk':
+        setSelectedRiskFilter('low');
+        break;
+      case 'moderate-risk':
+        setSelectedRiskFilter('moderate');
+        break;
+      case 'high-risk':
+        setSelectedRiskFilter('high');
+        break;
+      case 'full-compliance':
+        // Will be handled by getFilteredPatients with custom logic
+        break;
+      case 'missing-logs':
+        // Will be handled by getFilteredPatients with custom logic
+        break;
+      case 'non-compliant':
+        // Will be handled by getFilteredPatients with custom logic
+        setSelectedRiskFilter('high');
+        break;
+      case 'pre-operative':
+        // Will be handled by getFilteredPatients with custom logic
+        break;
+      case 'post-operative':
+        // Will be handled by getFilteredPatients with custom logic
+        break;
+      case 'total':
+      default:
+        // Show all patients
+        break;
+    }
+  };
+
+  // Handle view patient from report table
+  const handleViewPatient = (patientId) => {
+    const patient = patients.find(p => p.patient_id === patientId);
+    if (patient) {
+      setSelectedPatient(patient);
+      setActivePage("patient-profile");
+    }
+  };
+
+  // Get filtered patients for report table
+  const getReportFilteredPatients = () => {
+    switch (reportTableType) {
+      case 'total':
+        return patients;
+      case 'full-compliance':
+        return patients.filter(pat => {
+          const compliance = getPatientComplianceStatus(pat);
+          return compliance.isFullCompliance;
+        });
+      case 'missing-logs':
+        return patients.filter(pat => {
+          const compliance = getPatientComplianceStatus(pat);
+          return compliance.isMissingLogs;
+        });
+      case 'non-compliant':
+        return patients.filter(pat => {
+          const compliance = getPatientComplianceStatus(pat);
+          const isHighRisk = (pat.risk_classification || '').toLowerCase() === 'high';
+          return compliance.isNonCompliant && isHighRisk;
+        });
+      case 'low-risk':
+        return patients.filter(p => (p.risk_classification || '').toLowerCase() === 'low');
+      case 'moderate-risk':
+        return patients.filter(p => (p.risk_classification || '').toLowerCase() === 'moderate');
+      case 'high-risk':
+        return patients.filter(p => (p.risk_classification || '').toLowerCase() === 'high');
+      case 'pre-operative':
+        return patients.filter(p => p.phase === 'Pre-Operative');
+      case 'post-operative':
+        return patients.filter(p => p.phase === 'Post-Operative');
+      default:
+        return patients;
+    }
+  };
+
   // Filter patients based on search term and risk filter
   const getFilteredPatients = () => {
     let filtered = patients.filter((patient) =>
       `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Apply risk filter
-    if (selectedRiskFilter !== 'all') {
+    // Apply specific report table filtering when report table is shown
+    if (showReportTable) {
+      switch (reportTableType) {
+        case 'full-compliance':
+          // Patients with complete lab results and finalized profile
+          filtered = filtered.filter(patient => 
+            getLabStatus(patient.latest_lab_result) === 'Submitted' && 
+            getProfileStatus(patient) === '🟢Finalized'
+          );
+          break;
+        case 'missing-logs':
+          // Patients with pending profile compliance
+          filtered = filtered.filter(patient => 
+            getProfileStatus(patient) === '🟡Pending'
+          );
+          break;
+        case 'non-compliant':
+          // High risk patients with lab or profile issues
+          filtered = filtered.filter(patient => {
+            const risk = (patient.risk_classification || '').toLowerCase();
+            return risk === 'high' &&
+              (getLabStatus(patient.latest_lab_result) === 'Awaiting' || getProfileStatus(patient) === '🟡Pending');
+          });
+          break;
+        case 'pre-operative':
+          // Patients in Pre-Operative phase
+          filtered = filtered.filter(patient => 
+            (patient.phase || 'Pre-Operative') === 'Pre-Operative'
+          );
+          break;
+        case 'post-operative':
+          // Patients in Post-Operative phase
+          filtered = filtered.filter(patient => 
+            patient.phase === 'Post-Operative'
+          );
+          break;
+        default:
+          // For risk-based filters and total, let the existing logic handle it
+          break;
+      }
+    }
+
+    // Apply risk filter (only if not in specific report mode or for risk-based reports)
+    if (selectedRiskFilter !== 'all' && (!showReportTable || ['low-risk', 'moderate-risk', 'high-risk', 'non-compliant'].includes(reportTableType))) {
       filtered = filtered.filter(patient => {
         const risk = (patient.risk_classification || '').toLowerCase();
         return risk === selectedRiskFilter;
@@ -2021,7 +2168,7 @@ const Dashboard = ({ user, onLogout }) => {
           />
         </div>
         
-        <table className="patient-table">
+        <table className="patient-table3">
           <thead>
             <tr>
               <th>Patient Name</th>
@@ -2165,7 +2312,7 @@ const Dashboard = ({ user, onLogout }) => {
       {/* Reports Widgets Grid */}
       <div className="reports-widgets-grid">
         {/* Total Patients Report Widget */}
-        <div className="report-widget report-total-patients">
+        <div className="report-widget report-total-patients" onClick={() => handleReportWidgetClick('total', 'Total Patients')}>
           <div className="report-widget-header">
             <img src="../picture/total.png" alt="Total Patients" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=👥"; }}/>
             <h4>Total Patients</h4>
@@ -2255,7 +2402,7 @@ const Dashboard = ({ user, onLogout }) => {
         </div>
 
         {/* Full Compliance Report Widget */}
-        <div className="report-widget report-full-compliance">
+        <div className="report-widget report-full-compliance" onClick={() => handleReportWidgetClick('full-compliance', 'Full Compliance Patients')}>
           <div className="report-widget-header">
             <img src="../picture/full.svg" alt="Full Compliance" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/28a745/ffffff?text=✓"; }}/>
             <h4>Full Compliance</h4>
@@ -2343,7 +2490,7 @@ const Dashboard = ({ user, onLogout }) => {
         </div>
 
         {/* Missing Logs Report Widget */}
-        <div className="report-widget report-missing-logs">
+        <div className="report-widget report-missing-logs" onClick={() => handleReportWidgetClick('missing-logs', 'Missing Logs Patients')}>
           <div className="report-widget-header">
             <img src="../picture/missinglogs.svg" alt="Missing Logs" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ffc107/ffffff?text=⚠"; }}/>
             <h4>Missing Logs</h4>
@@ -2431,7 +2578,7 @@ const Dashboard = ({ user, onLogout }) => {
         </div>
 
         {/* Non-Compliant Report Widget */}
-        <div className="report-widget report-non-compliant">
+        <div className="report-widget report-non-compliant" onClick={() => handleReportWidgetClick('non-compliant', 'Non-Compliant Patients')}>
           <div className="report-widget-header">
             <img src="../picture/noncompliant.svg" alt="Non-Compliant" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/dc3545/ffffff?text=✗"; }}/>
             <h4>Non-Compliant</h4>
@@ -2555,6 +2702,22 @@ const Dashboard = ({ user, onLogout }) => {
             options={{
               responsive: true,
               maintainAspectRatio: false,
+              layout: {
+                padding: {
+                  top: 10,
+                  bottom: 30,
+                  left: 10,
+                  right: 10
+                }
+              },
+              onClick: (event, elements) => {
+                if (elements.length > 0) {
+                  const index = elements[0].index;
+                  const riskLevels = ['low-risk', 'moderate-risk', 'high-risk'];
+                  const titles = ['Low Risk Patients', 'Moderate Risk Patients', 'High Risk Patients'];
+                  handleReportWidgetClick(riskLevels[index], titles[index]);
+                }
+              },
               plugins: {
                 legend: {
                   display: false,
@@ -2619,8 +2782,8 @@ const Dashboard = ({ user, onLogout }) => {
                 {
                   label: 'Number of Patients',
                   data: [
-                    preOpCount,
-                    postOpCount,
+                    patients.filter(p => p.phase === 'Pre-Operative').length,
+                    patients.filter(p => p.phase === 'Post-Operative').length,
                   ],
                   backgroundColor: [
                     'rgba(141, 73, 247, 0.7)',  // Purple for Pre-Op
@@ -2639,6 +2802,22 @@ const Dashboard = ({ user, onLogout }) => {
             options={{
               responsive: true,
               maintainAspectRatio: false,
+              layout: {
+                padding: {
+                  top: 10,
+                  bottom: 30,
+                  left: 10,
+                  right: 10
+                }
+              },
+              onClick: (event, elements) => {
+                if (elements.length > 0) {
+                  const index = elements[0].index;
+                  const phase = index === 0 ? 'pre-operative' : 'post-operative';
+                  const title = index === 0 ? 'Pre-Operative Patients' : 'Post-Operative Patients';
+                  handleReportWidgetClick(phase, title);
+                }
+              },
               plugins: {
                 legend: {
                   display: false,
@@ -2695,6 +2874,261 @@ const Dashboard = ({ user, onLogout }) => {
       </div>
     </div>
   );
+
+  // Report Table View Component
+  const renderReportTable = () => {
+    const filteredPatients = getReportFilteredPatients();
+    
+    // Get paginated patients for the filtered category
+    const getPaginatedReportPatients = () => {
+      const filtered = filteredPatients.filter((patient) =>
+        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      // Apply additional filters (same as patient list)
+      let finalFiltered = filtered;
+      
+      if (selectedRiskFilter !== 'all') {
+        finalFiltered = finalFiltered.filter(patient => {
+          const risk = (patient.risk_classification || '').toLowerCase();
+          return risk === selectedRiskFilter;
+        });
+      }
+
+      if (selectedLabStatusFilter !== 'all') {
+        finalFiltered = finalFiltered.filter(patient => {
+          const labStatus = getLabStatus(patient.latest_lab_result);
+          if (selectedLabStatusFilter === 'awaiting') {
+            return labStatus === 'Awaiting';
+          } else if (selectedLabStatusFilter === 'submitted') {
+            return labStatus === 'Submitted';
+          }
+          return true;
+        });
+      }
+
+      if (selectedProfileStatusFilter !== 'all') {
+        finalFiltered = finalFiltered.filter(patient => {
+          const profileStatus = getProfileStatus(patient);
+          if (selectedProfileStatusFilter === 'pending') {
+            return profileStatus === '🟡Pending';
+          } else if (selectedProfileStatusFilter === 'finalized') {
+            return profileStatus === '🟢Finalized';
+          }
+          return true;
+        });
+      }
+
+      const startIndex = (currentPagePatients - 1) * PATIENTS_PER_PAGE;
+      const endIndex = startIndex + PATIENTS_PER_PAGE;
+      return finalFiltered.slice(startIndex, endIndex);
+    };
+
+    // Get counts for the filtered category
+    const getFilteredPatientCounts = () => {
+      const filtered = filteredPatients.filter((patient) =>
+        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      const counts = {
+        all: filtered.length,
+        low: 0,
+        moderate: 0,
+        high: 0,
+        ppd: 0
+      };
+
+      filtered.forEach(patient => {
+        const risk = (patient.risk_classification || '').toLowerCase();
+        if (counts.hasOwnProperty(risk)) {
+          counts[risk]++;
+        }
+      });
+
+      return counts;
+    };
+
+    // Get lab status counts for the filtered category
+    const getFilteredLabStatusCounts = () => {
+      const filtered = filteredPatients.filter((patient) =>
+        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      const counts = {
+        all: filtered.length,
+        awaiting: 0,
+        submitted: 0
+      };
+
+      filtered.forEach(patient => {
+        const labStatus = getLabStatus(patient.latest_lab_result);
+        if (labStatus === 'Awaiting') {
+          counts.awaiting++;
+        } else if (labStatus === 'Submitted') {
+          counts.submitted++;
+        }
+      });
+
+      return counts;
+    };
+
+    // Get profile status counts for the filtered category
+    const getFilteredProfileStatusCounts = () => {
+      const filtered = filteredPatients.filter((patient) =>
+        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      const counts = {
+        all: filtered.length,
+        pending: 0,
+        finalized: 0
+      };
+
+      filtered.forEach(patient => {
+        const profileStatus = getProfileStatus(patient);
+        if (profileStatus === '🟡Pending') {
+          counts.pending++;
+        } else if (profileStatus === '🟢Finalized') {
+          counts.finalized++;
+        }
+      });
+
+      return counts;
+    };
+
+    // Calculate total pages for filtered category
+    const getTotalReportPages = () => {
+      const filtered = filteredPatients.filter((patient) =>
+        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      return Math.ceil(filtered.length / PATIENTS_PER_PAGE);
+    };
+
+    const paginatedReportPatients = getPaginatedReportPatients();
+    const patientRiskCounts = getFilteredPatientCounts();
+    const patientLabStatusCounts = getFilteredLabStatusCounts();
+    const patientProfileStatusCounts = getFilteredProfileStatusCounts();
+    const totalReportPages = getTotalReportPages();
+    
+    return (
+      <div className="patient-list-section">
+        <div className="report-table-header">
+          <h2>{reportTableTitle}</h2>
+          <button 
+            className="back-button3" 
+            onClick={() => setShowReportTable(false)}
+          >
+            <i className="fas fa-arrow-left button-icon back-icon"></i>
+            Back to Reports
+          </button>
+        </div>
+
+        <div className="search-and-filter-row">
+          <div className="search-bar">
+            <input
+              type="text"
+              placeholder="Search patients by name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="patient-search-input"
+            />
+            <img src="../picture/search.svg" alt="Search" className="search-icon" />
+          </div>
+          
+          {/* Risk Classification Filter */}
+          <RiskFilter
+            selectedRisk={selectedRiskFilter}
+            onRiskChange={handleRiskFilterChange}
+            selectedLabStatus={selectedLabStatusFilter}
+            onLabStatusChange={handleLabStatusFilterChange}
+            selectedProfileStatus={selectedProfileStatusFilter}
+            onProfileStatusChange={handleProfileStatusFilterChange}
+            showCounts={true}
+            counts={patientRiskCounts}
+            labStatusCounts={patientLabStatusCounts}
+            profileStatusCounts={patientProfileStatusCounts}
+          />
+        </div>
+        
+        <table className="patient-table3">
+          <thead>
+            <tr>
+              <th>Patient Name</th>
+              <th>Age/Sex</th>
+              <th>Classification</th>
+              <th>Lab Status</th>
+              <th>Profile Status</th>
+              <th>Last Visit</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedReportPatients.length > 0 ? (
+              paginatedReportPatients.map((patient) => (
+                <tr key={patient.patient_id}>
+                  <td className="patient-name-cell">
+                    <div className="patient-name-container">
+                      <img 
+                        src={patient.patient_picture || "../picture/secretary.png"} 
+                        alt="Patient Avatar" 
+                        className="patient-avatar-table"
+                        onError={(e) => e.target.src = "../picture/secretary.png"}
+                      />
+                      <span className="patient-name-text">{patient.first_name} {patient.last_name}</span>
+                    </div>
+                  </td>
+                  <td>{patient.date_of_birth ? `${Math.floor((new Date() - new Date(patient.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${patient.gender}` : 'N/A'}</td>
+                  <td className={`doctor-classification-cell ${
+                    getLabStatus(patient.latest_lab_result) === 'Awaiting' ? 'doctor-classification-awaiting' :
+                    ((patient.risk_classification || '').toLowerCase() === 'low' ? 'doctor-classification-low' :
+                    (patient.risk_classification || '').toLowerCase() === 'moderate' ? 'doctor-classification-moderate' :
+                    (patient.risk_classification || '').toLowerCase() === 'high' ? 'doctor-classification-high' :
+                    (patient.risk_classification || '').toLowerCase() === 'ppd' ? 'doctor-classification-ppd' : 
+                    'doctor-classification-default')
+                  }`}>
+                    {getClassificationDisplay(patient)}
+                  </td>
+                  <td className={
+                    getLabStatus(patient.latest_lab_result) === 'Submitted' ? 'lab-status-complete' :
+                    getLabStatus(patient.latest_lab_result) === 'Awaiting' ? 'lab-status-awaiting' : 
+                    'lab-status-awaiting'
+                  }>
+                    {getLabStatus(patient.latest_lab_result) === 'Awaiting' ? '❌Awaiting' : getLabStatus(patient.latest_lab_result) === 'Submitted' ? '✅Submitted' : getLabStatus(patient.latest_lab_result)}
+                  </td>
+                  <td className={getProfileStatus(patient) === '🟢Finalized' ? 'status-complete' : 'status-incomplete'}>
+                    {getProfileStatus(patient)}
+                  </td>
+                  <td>{formatDateToReadable(patient.last_doctor_visit)}</td>
+                  <td className="patient-actions-cell">
+                    <button className="view-button" onClick={() => handleViewClick(patient)}>👁️ View</button>
+                    <button className="delete-button" onClick={() => handleDeleteClick(patient)}>🗑️ Delete</button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="7">No patients found.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        {/* Pagination */}
+        {totalReportPages > 1 && (
+          <Pagination
+            currentPage={currentPagePatients}
+            totalPages={totalReportPages}
+            onPageChange={setCurrentPagePatients}
+            itemsPerPage={PATIENTS_PER_PAGE}
+            totalItems={filteredPatients.filter((patient) =>
+              `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+            ).length}
+            showPageInfo={true}
+          />
+        )}
+      </div>
+    );
+  };
 
 
 const handleShowModal = (appointment, action) => {
@@ -4932,7 +5366,8 @@ const renderReportsContent = () => {
         {activePage === "patient-profile" && selectedPatient?.patient_id && renderPatientProfile()}
         {activePage === "patient-list" && renderPatientList()}
         {activePage === "appointments" && renderAppointmentsSection()}
-        {activePage === "reports" && renderReportsSection()}
+        {activePage === "reports" && !showReportTable && renderReportsSection()}
+        {activePage === "reports" && showReportTable && renderReportTable()}
         {activePage === "treatment-plan" && selectedPatient && renderTreatmentPlan()} {/* Render the first step of treatment plan */}
         {activePage === "treatment-plan-next-step" && selectedPatient && renderNextStepForms()} {/* Render the next step of treatment plan */}
         {activePage === "treatment-plan-summary" && selectedPatient && renderTreatmentPlanSummary()} {/* NEW: Render the summary page */}

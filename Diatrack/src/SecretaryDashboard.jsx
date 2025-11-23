@@ -205,11 +205,11 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
   // Prepare data for the submitted lab results area chart
   // This chart displays how many patients submitted their lab results each month
   const pendingLabChartData = {
-    labels: pendingLabHistory?.labels?.length > 0 ? pendingLabHistory.labels : ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
+    labels: pendingLabHistory?.labels || [],
     datasets: [
       {
         label: 'Submitted Lab Results',
-        data: pendingLabHistory?.data?.length > 0 ? pendingLabHistory.data : [0, 0, 0, 0, 0, 0],
+        data: pendingLabHistory?.data || [],
         fill: true,
         backgroundColor: (context) => {
           const chart = context.chart;
@@ -530,6 +530,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     stroke: "",
     heartAttack: "",
     hypertensive: "",
+    family_diabetes: "",
+    family_hypertension: "",
+    cardiovascular: "",
     smokingStatus: "",
     monitoringFrequencyGlucose: "",
     lastDoctorVisit: "",
@@ -558,6 +561,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [currentPageReportDetail, setCurrentPageReportDetail] = useState(1);
   const REPORT_DETAIL_PER_PAGE = 10;
 
+  // State for filtered patients in report detail view
+  const [reportDetailPatients, setReportDetailPatients] = useState([]);
+
   // State for chart data (dynamically fetched)
   const [totalPatientsCount, setTotalPatientsCount] = useState(0);
   const [pendingLabResultsCount, setPendingLabResultsCount] = useState(0);
@@ -566,6 +572,16 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [lowRiskCount, setLowRiskCount] = useState(0);
   const [moderateRiskCount, setModerateRiskCount] = useState(0);
   const [highRiskCount, setHighRiskCount] = useState(0);
+
+  // State for report widgets (real data)
+  const [fullComplianceCount, setFullComplianceCount] = useState(0);
+  const [missingLogsCount, setMissingLogsCount] = useState(0);
+  const [nonCompliantCount, setNonCompliantCount] = useState(0);
+
+  // State for compliance history charts
+  const [fullComplianceHistory, setFullComplianceHistory] = useState({ labels: [], data: [] });
+  const [missingLogsHistory, setMissingLogsHistory] = useState({ labels: [], data: [] });
+  const [nonCompliantHistory, setNonCompliantHistory] = useState({ labels: [], data: [] });
 
   const [appointmentsToday, setAppointmentsToday] = useState([]);
 
@@ -1076,6 +1092,14 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       setModerateRiskCount(0);
       setHighRiskCount(0);
       setPendingLabResultsCount(0);
+      // Reset compliance metrics
+      setFullComplianceCount(0);
+      setMissingLogsCount(0);
+      setNonCompliantCount(0);
+      // Reset compliance history
+      setFullComplianceHistory({ labels: [], data: [] });
+      setMissingLogsHistory({ labels: [], data: [] });
+      setNonCompliantHistory({ labels: [], data: [] });
     }
   }, [linkedDoctors, user]); // Dependencies ensure it runs when doctors are fetched
 
@@ -1630,6 +1654,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       setModerateRiskCount(0);
       setHighRiskCount(0);
       setPendingLabResultsCount(0);
+      // Reset compliance metrics
+      setFullComplianceCount(0);
+      setMissingLogsCount(0);
+      setNonCompliantCount(0);
+      // Reset compliance history
+      setFullComplianceHistory({ labels: [], data: [] });
+      setMissingLogsHistory({ labels: [], data: [] });
+      setNonCompliantHistory({ labels: [], data: [] });
       return;
     }
   
@@ -1737,6 +1769,318 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setModerateRiskCount(moderateRisk);
     setHighRiskCount(highRisk);
     setPendingLabResultsCount(pendingLabs);
+
+    // Calculate compliance metrics with real data
+    calculateComplianceMetrics(filteredAndProcessedPatients);
+
+    // Calculate compliance history for charts
+    calculateComplianceHistory();
+  };
+
+  // Function to calculate real compliance metrics
+  const calculateComplianceMetrics = async (patientsData) => {
+    if (!patientsData || patientsData.length === 0) {
+      setFullComplianceCount(0);
+      setMissingLogsCount(0);
+      setNonCompliantCount(0);
+      return;
+    }
+
+    let fullCompliance = 0;
+    let missingLogs = 0;
+    let nonCompliant = 0;
+
+    // For each patient, check their metrics
+    for (const patient of patientsData) {
+      try {
+        // Check Blood Glucose and Blood Pressure (from health_metrics)
+        const { data: healthMetrics, error: healthError } = await supabase
+          .from('health_metrics')
+          .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url, risk_classification')
+          .eq('patient_id', patient.patient_id)
+          .order('submission_date', { ascending: false })
+          .limit(1);
+
+        // Check if patient has submitted each metric
+        let hasBloodGlucose = false;
+        let hasBloodPressure = false;
+        let hasWoundPhoto = false;
+        let riskClassification = '';
+
+        if (!healthError && healthMetrics && healthMetrics.length > 0) {
+          const latest = healthMetrics[0];
+          hasBloodGlucose = latest.blood_glucose !== null && latest.blood_glucose !== undefined && latest.blood_glucose !== '';
+          hasBloodPressure = (latest.bp_systolic !== null && latest.bp_systolic !== undefined && latest.bp_systolic !== '') &&
+                            (latest.bp_diastolic !== null && latest.bp_diastolic !== undefined && latest.bp_diastolic !== '');
+          hasWoundPhoto = latest.wound_photo_url !== null && latest.wound_photo_url !== undefined && latest.wound_photo_url !== '';
+          riskClassification = latest.risk_classification || '';
+        }
+
+        // Count submitted metrics
+        const submittedMetrics = [hasBloodGlucose, hasBloodPressure, hasWoundPhoto].filter(Boolean).length;
+        const isHighRisk = riskClassification.toLowerCase() === 'high';
+        
+        // Categorize patient based on logic:
+        if (submittedMetrics === 3) {
+          // All 3 metrics submitted = Full Compliance
+          fullCompliance++;
+        } else if (submittedMetrics < 3) {
+          // Less than 3 metrics submitted = at least 1 missing
+          if (submittedMetrics > 0 || !isHighRisk) {
+            // Has some metrics OR not high risk = Missing Logs
+            missingLogs++;
+          } else if (submittedMetrics === 0 && isHighRisk) {
+            // High risk + all 3 missing = Non-Compliant
+            nonCompliant++;
+          }
+        }
+
+      } catch (error) {
+        console.error(`Error checking metrics for patient ${patient.patient_id}:`, error);
+        // On error, count as missing logs
+        missingLogs++;
+      }
+    }
+
+    console.log('Compliance Metrics Calculated:', {
+      totalPatients: patientsData.length,
+      fullCompliance,
+      missingLogs,
+      nonCompliant
+    });
+
+    setFullComplianceCount(fullCompliance);
+    setMissingLogsCount(missingLogs);
+    setNonCompliantCount(nonCompliant);
+  };
+
+  // Function to get filtered patients for each report widget category
+  const getFilteredPatientsForWidget = async (widgetType) => {
+    if (!patients || patients.length === 0) {
+      return [];
+    }
+
+    let filteredPatients = [];
+
+    for (const patient of patients) {
+      try {
+        // Get health metrics for compliance check
+        const { data: healthMetrics, error: healthError } = await supabase
+          .from('health_metrics')
+          .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
+          .eq('patient_id', patient.patient_id)
+          .order('submission_date', { ascending: false })
+          .limit(1);
+
+        // Check if patient has submitted each metric
+        let hasBloodGlucose = false;
+        let hasBloodPressure = false;
+        let hasWoundPhoto = false;
+
+        if (!healthError && healthMetrics && healthMetrics.length > 0) {
+          const latest = healthMetrics[0];
+          hasBloodGlucose = latest.blood_glucose !== null && latest.blood_glucose !== undefined && latest.blood_glucose !== '';
+          hasBloodPressure = (latest.bp_systolic !== null && latest.bp_systolic !== undefined && latest.bp_systolic !== '') &&
+                            (latest.bp_diastolic !== null && latest.bp_diastolic !== undefined && latest.bp_diastolic !== '');
+          hasWoundPhoto = latest.wound_photo_url !== null && latest.wound_photo_url !== undefined && latest.wound_photo_url !== '';
+        }
+
+        // Count submitted metrics
+        const submittedMetrics = [hasBloodGlucose, hasBloodPressure, hasWoundPhoto].filter(Boolean).length;
+        const isHighRisk = (patient.risk_classification || '').toLowerCase() === 'high';
+
+        // Filter based on widget type
+        switch (widgetType) {
+          case 'total-patients':
+            // All patients
+            filteredPatients.push(patient);
+            break;
+          case 'full-compliance':
+            // Patients with all 3 metrics
+            if (submittedMetrics === 3) {
+              filteredPatients.push(patient);
+            }
+            break;
+          case 'missing-logs':
+            // Patients with at least 1 missing metric (not full compliance)
+            // This includes: patients with 1-2 metrics submitted, OR non-high-risk patients with 0 metrics
+            if (submittedMetrics < 3) {
+              if (submittedMetrics > 0 || !isHighRisk) {
+                filteredPatients.push(patient);
+              }
+            }
+            break;
+          case 'non-compliant':
+            // High risk patients with 0 metrics
+            if (submittedMetrics === 0 && isHighRisk) {
+              filteredPatients.push(patient);
+            }
+            break;
+        }
+
+      } catch (error) {
+        console.error(`Error filtering patient ${patient.patient_id}:`, error);
+        // On error, include in missing logs for safety
+        if (widgetType === 'missing-logs' || widgetType === 'total-patients') {
+          filteredPatients.push(patient);
+        }
+      }
+    }
+
+    return filteredPatients;
+  };
+
+  // Function to calculate compliance history over the past 6 months
+  const calculateComplianceHistory = async () => {
+    const doctorIds = linkedDoctors.map(d => d.doctor_id);
+    if (doctorIds.length === 0) {
+      setFullComplianceHistory({ labels: [], data: [] });
+      setMissingLogsHistory({ labels: [], data: [] });
+      setNonCompliantHistory({ labels: [], data: [] });
+      return;
+    }
+
+    try {
+      const now = new Date();
+      const months = [];
+      const fullComplianceData = [];
+      const missingLogsData = [];
+      const nonCompliantData = [];
+      
+      console.log('Starting compliance history calculation...');
+
+      // Calculate for the past 6 months
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date();
+        date.setMonth(now.getMonth() - i);
+        const monthYear = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        months.push(monthYear);
+        
+        // Calculate end of month for filtering
+        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        endOfMonth.setHours(23, 59, 59, 999);
+
+        console.log(`Processing month: ${monthYear} (end: ${endOfMonth.toISOString()})`);
+
+        // Get patients that existed by the end of this month
+        const { data: monthPatientsData, error: patientsError } = await supabase
+          .from('patients')
+          .select('patient_id')
+          .in('preferred_doctor_id', doctorIds)
+          .lte('created_at', endOfMonth.toISOString());
+
+        if (patientsError) {
+          console.error(`Error fetching patients for month ${monthYear}:`, patientsError);
+          fullComplianceData.push(0);
+          missingLogsData.push(0);
+          nonCompliantData.push(0);
+          continue;
+        }
+
+        if (!monthPatientsData || monthPatientsData.length === 0) {
+          console.log(`No patients found for month ${monthYear}`);
+          fullComplianceData.push(0);
+          missingLogsData.push(0);
+          nonCompliantData.push(0);
+          continue;
+        }
+
+        console.log(`Found ${monthPatientsData.length} patients for month ${monthYear}`);
+
+        // Get all health metrics for these patients up to end of month in one query
+        const patientIds = monthPatientsData.map(p => p.patient_id);
+        const { data: allHealthMetrics, error: healthError } = await supabase
+          .from('health_metrics')
+          .select('patient_id, blood_glucose, bp_systolic, bp_diastolic, wound_photo_url, risk_classification, submission_date')
+          .in('patient_id', patientIds)
+          .lte('submission_date', endOfMonth.toISOString())
+          .order('submission_date', { ascending: false });
+
+        if (healthError) {
+          console.error(`Error fetching health metrics for month ${monthYear}:`, healthError);
+          fullComplianceData.push(0);
+          missingLogsData.push(0);
+          nonCompliantData.push(0);
+          continue;
+        }
+
+        // Group health metrics by patient and get the latest one for each patient
+        const latestMetricsByPatient = {};
+        if (allHealthMetrics) {
+          allHealthMetrics.forEach(metric => {
+            if (!latestMetricsByPatient[metric.patient_id]) {
+              latestMetricsByPatient[metric.patient_id] = metric;
+            }
+          });
+        }
+
+        let monthFullCompliance = 0;
+        let monthMissingLogs = 0;
+        let monthNonCompliant = 0;
+
+        // Check compliance for each patient as of the end of this month
+        for (const patient of monthPatientsData) {
+          const latestMetric = latestMetricsByPatient[patient.patient_id];
+          
+          // Check if patient has submitted each metric
+          let hasBloodGlucose = false;
+          let hasBloodPressure = false;
+          let hasWoundPhoto = false;
+
+          if (latestMetric) {
+            hasBloodGlucose = latestMetric.blood_glucose !== null && latestMetric.blood_glucose !== undefined && latestMetric.blood_glucose !== '';
+            hasBloodPressure = (latestMetric.bp_systolic !== null && latestMetric.bp_systolic !== undefined && latestMetric.bp_systolic !== '') &&
+                              (latestMetric.bp_diastolic !== null && latestMetric.bp_diastolic !== undefined && latestMetric.bp_diastolic !== '');
+            hasWoundPhoto = latestMetric.wound_photo_url !== null && latestMetric.wound_photo_url !== undefined && latestMetric.wound_photo_url !== '';
+          }
+
+          // Count submitted metrics
+          const submittedMetrics = [hasBloodGlucose, hasBloodPressure, hasWoundPhoto].filter(Boolean).length;
+
+          // Use risk classification from health metrics (patient record doesn't have this field)
+          const riskClassification = latestMetric?.risk_classification || '';
+          const isHighRisk = riskClassification.toLowerCase() === 'high';
+
+          // Categorize patient for this month using the same logic
+          if (submittedMetrics === 3) {
+            // All 3 metrics submitted = Full Compliance
+            monthFullCompliance++;
+          } else if (submittedMetrics < 3) {
+            // Less than 3 metrics submitted = at least 1 missing
+            if (submittedMetrics > 0 || !isHighRisk) {
+              // Has some metrics OR not high risk = Missing Logs
+              monthMissingLogs++;
+            } else if (submittedMetrics === 0 && isHighRisk) {
+              // High risk + all 3 missing = Non-Compliant
+              monthNonCompliant++;
+            }
+          }
+        }
+
+        console.log(`Month ${monthYear} results: Full Compliance: ${monthFullCompliance}, Missing Logs: ${monthMissingLogs}, Non-Compliant: ${monthNonCompliant}`);
+
+        fullComplianceData.push(monthFullCompliance);
+        missingLogsData.push(monthMissingLogs);
+        nonCompliantData.push(monthNonCompliant);
+      }
+
+      setFullComplianceHistory({ labels: months, data: fullComplianceData });
+      setMissingLogsHistory({ labels: months, data: missingLogsData });
+      setNonCompliantHistory({ labels: months, data: nonCompliantData });
+
+      console.log('Compliance History Calculated:', {
+        months,
+        fullCompliance: fullComplianceData,
+        missingLogs: missingLogsData,
+        nonCompliant: nonCompliantData
+      });
+
+    } catch (error) {
+      console.error("Error calculating compliance history:", error);
+      setFullComplianceHistory({ labels: [], data: [] });
+      setMissingLogsHistory({ labels: [], data: [] });
+      setNonCompliantHistory({ labels: [], data: [] });
+    }
   };
 
  const fetchAllAppointments = async () => {
@@ -3210,6 +3554,20 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           <div className="form-group checkbox-group">
                             <input type="checkbox" id="hypertensive" checked={patientForm.hypertensive} onChange={(e) => handleInputChange("hypertensive", e.target.checked)} />
                             <label htmlFor="hypertensive">Hypertensive</label>
+                          </div>
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group checkbox-group">
+                            <input type="checkbox" id="family_diabetes" checked={patientForm.family_diabetes} onChange={(e) => handleInputChange("family_diabetes", e.target.checked)} />
+                            <label htmlFor="family_diabetes">Family Diabetes</label>
+                          </div>
+                          <div className="form-group checkbox-group">
+                            <input type="checkbox" id="family_hypertension" checked={patientForm.family_hypertension} onChange={(e) => handleInputChange("family_hypertension", e.target.checked)} />
+                            <label htmlFor="family_hypertension">Family Hypertension</label>
+                          </div>
+                          <div className="form-group checkbox-group">
+                            <input type="checkbox" id="cardiovascular" checked={patientForm.cardiovascular} onChange={(e) => handleInputChange("cardiovascular", e.target.checked)} />
+                            <label htmlFor="cardiovascular">Cardiovascular</label>
                           </div>
                         </div>
                       </div>
@@ -4958,7 +5316,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     {/* New Reports Widgets Row */}
     <div className="reports-widgets-grid">
       {/* Total Patients Report Widget */}
-      <div className="report-widget report-total-patients" onClick={() => {
+      <div className="report-widget report-total-patients" onClick={async () => {
+        const filteredPatients = await getFilteredPatientsForWidget('total-patients');
+        setReportDetailPatients(filteredPatients);
         setReportDetailView('total-patients');
         setActivePage('report-detail');
         setCurrentPageReportDetail(1);
@@ -5087,7 +5447,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       </div>
 
       {/* Full Compliance Report Widget */}
-      <div className="report-widget report-full-compliance" onClick={() => {
+      <div className="report-widget report-full-compliance" onClick={async () => {
+        const filteredPatients = await getFilteredPatientsForWidget('full-compliance');
+        setReportDetailPatients(filteredPatients);
         setReportDetailView('full-compliance');
         setActivePage('report-detail');
         setCurrentPageReportDetail(1);
@@ -5098,16 +5460,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         </div>
         <div className="report-widget-content">
           <div className="report-widget-left">
-            <p className="report-number">
-              {patients.filter(pat => {
-                // Count patients who have submitted all three metrics
-                const hasLabResults = pat.lab_status === '✅Submitted' || pat.lab_status === '✅Submitted';
-                // For blood glucose and blood pressure, we'll assume they're submitted if they have health metrics
-                // For wound photos, we'll check if they have wound photo data
-                // For now, we'll count full compliance as having submitted lab results
-                return hasLabResults;
-              }).length}
-            </p>
+            <p className="report-number">{fullComplianceCount}</p>
           </div>
           <div className="report-widget-right">
             <p className="report-subtitle">Patients with complete metrics (Blood Glucose, Blood Pressure, Wound Photos)</p>
@@ -5115,13 +5468,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         </div>
         {/* Mini Area Chart for Full Compliance History */}
         <div className="mini-chart-container">
-          <Line 
-            data={{
-              labels: patientCountHistory?.labels || ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
-              datasets: [
-                {
-                  label: 'Full Compliance',
-                  data: patientCountHistory?.data?.map(count => Math.floor(count * 0.7)) || [0, 2, 4, 6, 8, 10],
+          {fullComplianceHistory?.labels?.length > 0 ? (
+            <Line 
+              data={{
+                labels: fullComplianceHistory.labels,
+                datasets: [
+                  {
+                    label: 'Full Compliance',
+                    data: fullComplianceHistory.data,
                   fill: true,
                   backgroundColor: (context) => {
                     const chart = context.chart;
@@ -5214,11 +5568,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
               },
             }}
           />
+          ) : (
+            <div className="no-chart-data">
+              <p>No historical data available</p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Missing Logs Report Widget */}
-      <div className="report-widget report-missing-logs" onClick={() => {
+      <div className="report-widget report-missing-logs" onClick={async () => {
+        const filteredPatients = await getFilteredPatientsForWidget('missing-logs');
+        setReportDetailPatients(filteredPatients);
         setReportDetailView('missing-logs');
         setActivePage('report-detail');
         setCurrentPageReportDetail(1);
@@ -5229,29 +5590,22 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         </div>
         <div className="report-widget-content">
           <div className="report-widget-left">
-            <p className="report-number">
-              {patients.filter(pat => {
-                // Count patients who have 1 or 2 missing metrics
-                const hasLabResults = pat.lab_status === '✅Submitted' || pat.lab_status === '✅Submitted';
-                // For simplicity, we'll count missing logs as patients without full lab results
-                // but who have some activity (not completely non-compliant)
-                return !hasLabResults && pat.profile_status === '🟢Finalized';
-              }).length}
-            </p>
+            <p className="report-number">{missingLogsCount}</p>
           </div>
           <div className="report-widget-right">
-            <p className="report-subtitle">Patients with 1-2 missing metrics (Blood Glucose, Blood Pressure, Wound Photos)</p>
+            <p className="report-subtitle">Patients with at least 1 missing metric (Blood Glucose, Blood Pressure, Wound Photos)</p>
           </div>
         </div>
         {/* Mini Area Chart for Missing Logs History */}
         <div className="mini-chart-container">
-          <Line 
-            data={{
-              labels: patientCountHistory?.labels || ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
-              datasets: [
-                {
-                  label: 'Missing Logs',
-                  data: patientCountHistory?.data?.map(count => Math.floor(count * 0.2)) || [1, 2, 1, 3, 2, 1],
+          {missingLogsHistory?.labels?.length > 0 ? (
+            <Line 
+              data={{
+                labels: missingLogsHistory.labels,
+                datasets: [
+                  {
+                    label: 'Missing Logs',
+                    data: missingLogsHistory.data,
                   fill: true,
                   backgroundColor: (context) => {
                     const chart = context.chart;
@@ -5344,11 +5698,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
               },
             }}
           />
+          ) : (
+            <div className="no-chart-data">
+              <p>No historical data available</p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Non-Compliant Cases Report Widget */}
-      <div className="report-widget report-non-compliant" onClick={() => {
+      <div className="report-widget report-non-compliant" onClick={async () => {
+        const filteredPatients = await getFilteredPatientsForWidget('non-compliant');
+        setReportDetailPatients(filteredPatients);
         setReportDetailView('non-compliant');
         setActivePage('report-detail');
         setCurrentPageReportDetail(1);
@@ -5359,15 +5720,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         </div>
         <div className="report-widget-content">
           <div className="report-widget-left">
-            <p className="report-number">
-              {patients.filter(pat => {
-                // Count patients who are high risk with 3 missing metrics
-                const isHighRisk = (pat.risk_classification || '').toLowerCase() === 'high';
-                const hasNoLabResults = pat.lab_status === '❌Awaiting' || pat.lab_status === 'N/A';
-                const hasIncompleteProfile = pat.profile_status === '🟡Pending';
-                return isHighRisk && hasNoLabResults && hasIncompleteProfile;
-              }).length}
-            </p>
+            <p className="report-number">{nonCompliantCount}</p>
           </div>
           <div className="report-widget-right">
             <p className="report-subtitle">High-risk patients with 3 missing metrics (Blood Glucose, Blood Pressure, Wound Photos)</p>
@@ -5375,13 +5728,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         </div>
         {/* Mini Area Chart for Non-Compliant Cases History */}
         <div className="mini-chart-container">
-          <Line 
-            data={{
-              labels: patientCountHistory?.labels || ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
-              datasets: [
-                {
-                  label: 'Non-Compliant Cases',
-                  data: patientCountHistory?.data?.map(count => Math.floor(count * 0.1)) || [0, 1, 0, 2, 1, 0],
+          {nonCompliantHistory?.labels?.length > 0 ? (
+            <Line 
+              data={{
+                labels: nonCompliantHistory.labels,
+                datasets: [
+                  {
+                    label: 'Non-Compliant Cases',
+                    data: nonCompliantHistory.data,
                   fill: true,
                   backgroundColor: (context) => {
                     const chart = context.chart;
@@ -5474,6 +5828,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
               },
             }}
           />
+          ) : (
+            <div className="no-chart-data">
+              <p>No historical data available</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -5666,7 +6025,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       {(() => {
                         const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
                         const endIndex = startIndex + REPORT_DETAIL_PER_PAGE;
-                        const paginatedData = patients.slice(startIndex, endIndex);
+                        const paginatedData = reportDetailPatients.slice(startIndex, endIndex);
                         
                         return paginatedData.length > 0 ? (
                           paginatedData.map((pat) => (
@@ -5726,13 +6085,13 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   </table>
                   
                   {/* Pagination */}
-                  {patients.length > REPORT_DETAIL_PER_PAGE && (
+                  {reportDetailPatients.length > REPORT_DETAIL_PER_PAGE && (
                     <Pagination
                       currentPage={currentPageReportDetail}
-                      totalPages={Math.ceil(patients.length / REPORT_DETAIL_PER_PAGE)}
+                      totalPages={Math.ceil(reportDetailPatients.length / REPORT_DETAIL_PER_PAGE)}
                       onPageChange={setCurrentPageReportDetail}
                       itemsPerPage={REPORT_DETAIL_PER_PAGE}
-                      totalItems={patients.length}
+                      totalItems={reportDetailPatients.length}
                     />
                   )}
                 </div>
@@ -5763,13 +6122,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     </thead>
                     <tbody>
                       {(() => {
-                        const filteredData = patients.filter(pat => {
-                          const hasLabResults = pat.lab_status === '✅Submitted' || pat.lab_status === '✅Submitted';
-                          return hasLabResults;
-                        });
                         const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
                         const endIndex = startIndex + REPORT_DETAIL_PER_PAGE;
-                        const paginatedData = filteredData.slice(startIndex, endIndex);
+                        const paginatedData = reportDetailPatients.slice(startIndex, endIndex);
                         
                         return paginatedData.length > 0 ? (
                           paginatedData.map((pat) => (
@@ -5829,21 +6184,15 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   </table>
                   
                   {/* Pagination */}
-                  {(() => {
-                    const filteredData = patients.filter(pat => {
-                      const hasLabResults = pat.lab_status === '✅Submitted' || pat.lab_status === '✅Submitted';
-                      return hasLabResults;
-                    });
-                    return filteredData.length > REPORT_DETAIL_PER_PAGE && (
-                      <Pagination
-                        currentPage={currentPageReportDetail}
-                        totalPages={Math.ceil(filteredData.length / REPORT_DETAIL_PER_PAGE)}
-                        onPageChange={setCurrentPageReportDetail}
-                        itemsPerPage={REPORT_DETAIL_PER_PAGE}
-                        totalItems={filteredData.length}
-                      />
-                    );
-                  })()}
+                  {reportDetailPatients.length > REPORT_DETAIL_PER_PAGE && (
+                    <Pagination
+                      currentPage={currentPageReportDetail}
+                      totalPages={Math.ceil(reportDetailPatients.length / REPORT_DETAIL_PER_PAGE)}
+                      onPageChange={setCurrentPageReportDetail}
+                      itemsPerPage={REPORT_DETAIL_PER_PAGE}
+                      totalItems={reportDetailPatients.length}
+                    />
+                  )}
                 </div>
               )}
 
@@ -5856,7 +6205,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     }}>
                       <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Reports
                     </button>
-                    <h2>Missing Logs - Patients with 1-2 Missing Metrics</h2>
+                    <h2>Missing Logs - Patients with Missing Metrics</h2>
                   </div>
                   <table className="patient-table">
                     <thead>
@@ -5872,13 +6221,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     </thead>
                     <tbody>
                       {(() => {
-                        const filteredData = patients.filter(pat => {
-                          const hasLabResults = pat.lab_status === '✅Submitted' || pat.lab_status === '✅Submitted';
-                          return !hasLabResults && pat.profile_status === '🟢Finalized';
-                        });
                         const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
                         const endIndex = startIndex + REPORT_DETAIL_PER_PAGE;
-                        const paginatedData = filteredData.slice(startIndex, endIndex);
+                        const paginatedData = reportDetailPatients.slice(startIndex, endIndex);
                         
                         return paginatedData.length > 0 ? (
                           paginatedData.map((pat) => (
@@ -5938,21 +6283,15 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   </table>
                   
                   {/* Pagination */}
-                  {(() => {
-                    const filteredData = patients.filter(pat => {
-                      const hasLabResults = pat.lab_status === '✅Submitted' || pat.lab_status === '✅Submitted';
-                      return !hasLabResults && pat.profile_status === '🟢Finalized';
-                    });
-                    return filteredData.length > REPORT_DETAIL_PER_PAGE && (
-                      <Pagination
-                        currentPage={currentPageReportDetail}
-                        totalPages={Math.ceil(filteredData.length / REPORT_DETAIL_PER_PAGE)}
-                        onPageChange={setCurrentPageReportDetail}
-                        itemsPerPage={REPORT_DETAIL_PER_PAGE}
-                        totalItems={filteredData.length}
-                      />
-                    );
-                  })()}
+                  {reportDetailPatients.length > REPORT_DETAIL_PER_PAGE && (
+                    <Pagination
+                      currentPage={currentPageReportDetail}
+                      totalPages={Math.ceil(reportDetailPatients.length / REPORT_DETAIL_PER_PAGE)}
+                      onPageChange={setCurrentPageReportDetail}
+                      itemsPerPage={REPORT_DETAIL_PER_PAGE}
+                      totalItems={reportDetailPatients.length}
+                    />
+                  )}
                 </div>
               )}
 
@@ -5965,7 +6304,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     }}>
                       <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Reports
                     </button>
-                    <h2>Non-Compliant Cases - High-Risk Patients with 3 Missing Metrics</h2>
+                    <h2>Non-Compliant Cases - High-Risk Patients with All Missing Metrics</h2>
                   </div>
                   <table className="patient-table">
                     <thead>
@@ -5981,15 +6320,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     </thead>
                     <tbody>
                       {(() => {
-                        const filteredData = patients.filter(pat => {
-                          const isHighRisk = (pat.risk_classification || '').toLowerCase() === 'high';
-                          const hasNoLabResults = pat.lab_status === '❌Awaiting' || pat.lab_status === 'N/A';
-                          const hasIncompleteProfile = pat.profile_status === '🟡Pending';
-                          return isHighRisk && hasNoLabResults && hasIncompleteProfile;
-                        });
                         const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
                         const endIndex = startIndex + REPORT_DETAIL_PER_PAGE;
-                        const paginatedData = filteredData.slice(startIndex, endIndex);
+                        const paginatedData = reportDetailPatients.slice(startIndex, endIndex);
                         
                         return paginatedData.length > 0 ? (
                           paginatedData.map((pat) => (
@@ -6049,23 +6382,15 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   </table>
                   
                   {/* Pagination */}
-                  {(() => {
-                    const filteredData = patients.filter(pat => {
-                      const isHighRisk = (pat.risk_classification || '').toLowerCase() === 'high';
-                      const hasNoLabResults = pat.lab_status === '❌Awaiting' || pat.lab_status === 'N/A';
-                      const hasIncompleteProfile = pat.profile_status === '🟡Pending';
-                      return isHighRisk && hasNoLabResults && hasIncompleteProfile;
-                    });
-                    return filteredData.length > REPORT_DETAIL_PER_PAGE && (
-                      <Pagination
-                        currentPage={currentPageReportDetail}
-                        totalPages={Math.ceil(filteredData.length / REPORT_DETAIL_PER_PAGE)}
-                        onPageChange={setCurrentPageReportDetail}
-                        itemsPerPage={REPORT_DETAIL_PER_PAGE}
-                        totalItems={filteredData.length}
-                      />
-                    );
-                  })()}
+                  {reportDetailPatients.length > REPORT_DETAIL_PER_PAGE && (
+                    <Pagination
+                      currentPage={currentPageReportDetail}
+                      totalPages={Math.ceil(reportDetailPatients.length / REPORT_DETAIL_PER_PAGE)}
+                      onPageChange={setCurrentPageReportDetail}
+                      itemsPerPage={REPORT_DETAIL_PER_PAGE}
+                      totalItems={reportDetailPatients.length}
+                    />
+                  )}
                 </div>
               )}
               </div>
