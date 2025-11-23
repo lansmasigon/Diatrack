@@ -3273,9 +3273,9 @@ const handleConfirmAction = async () => {
             <div className="quick-links-grid">
               <div className="quick-link-item" onClick={() => setActivePage("patient-list")}>
                 <div className="quick-link-icon patient-list">
-                  <img src="../picture/secretary.png" alt="Patient List" className="quick-link-image" />
+              
                 </div>
-                <span>Patient List</span>
+                <span>DiaSight</span>
               </div>
               <div className="quick-link-item" onClick={() => setActivePage("appointments")}>
                 <div className="quick-link-icon set-appointment">
@@ -3525,7 +3525,7 @@ const renderReportsContent = () => {
             formData.append('file', imageBlob, 'wound_image.jpg');
 
             // Call the API
-            const response = await fetch('http://localhost:8000/predict', {
+            const response = await fetch('https://faultily-flighty-joellen.ngrok-free.dev/predict', {
                 method: 'POST',
                 body: formData,
             });
