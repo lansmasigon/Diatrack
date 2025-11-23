@@ -2219,7 +2219,9 @@ const Dashboard = ({ user, onLogout }) => {
                   <td>{formatDateToReadable(patient.last_doctor_visit)}</td>
                   <td className="patient-actions-cell">
                     <button className="view-button" onClick={() => handleViewClick(patient)}>👁️ View</button>
-                    <button className="delete-button" onClick={() => handleDeleteClick(patient)}>🗑️ Delete</button>
+                    <button className="toggle-phase-button" onClick={() => handlePhaseToggle(patient)} style={{ marginLeft: '8px' }}>
+                      {patient.phase === 'Pre-Operative' ? '🔄 Post-Op' : '🔄 Pre-Op'}
+                    </button>
                   </td>
                 </tr>
               ))
@@ -3101,7 +3103,9 @@ const Dashboard = ({ user, onLogout }) => {
                   <td>{formatDateToReadable(patient.last_doctor_visit)}</td>
                   <td className="patient-actions-cell">
                     <button className="view-button" onClick={() => handleViewClick(patient)}>👁️ View</button>
-                    <button className="delete-button" onClick={() => handleDeleteClick(patient)}>🗑️ Delete</button>
+                    <button className="toggle-phase-button" onClick={() => handlePhaseToggle(patient)} style={{ marginLeft: '8px' }}>
+                      {patient.phase === 'Pre-Operative' ? '🔄 Post-Op' : '🔄 Pre-Op'}
+                    </button>
                   </td>
                 </tr>
               ))

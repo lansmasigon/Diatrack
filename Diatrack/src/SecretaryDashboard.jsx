@@ -2221,6 +2221,19 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
   };
 
   const savePatient = async () => {
+    // Check for duplicate email before saving
+    const { data: existingPatient, error: emailCheckError } = await supabase
+      .from("patients")
+      .select("patient_id, email")
+      .eq("email", patientForm.email)
+      .single();
+
+    // If we found a patient with this email and it's not the one we're editing
+    if (existingPatient && (!editingPatientId || existingPatient.patient_id !== editingPatientId)) {
+      setMessage(`Error: A patient with email "${patientForm.email}" already exists. Please use a different email address.`);
+      return;
+    }
+
     const patientData = {
         first_name: patientForm.firstName,
         last_name: patientForm.lastName,
@@ -2244,6 +2257,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
           patientForm.stroke && "Stroke",
           patientForm.heartAttack && "Heart Attack",
           patientForm.hypertensive && "Hypertensive",
+          patientForm.family_diabetes && "Family Diabetes",
+          patientForm.family_hypertension && "Family Hypertension",
+          patientForm.cardiovascular && "Cardiovascular",
         ].filter(Boolean).join(", ") || null,
         smoking_status: patientForm.smokingStatus,
         monitoring_frequency: patientForm.monitoringFrequencyGlucose,
@@ -2252,7 +2268,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         phase: 'Pre-Operative', // Default to Pre-Operative on creation
         patient_height: patientForm.patientHeight || null,
         patient_weight: patientForm.patientWeight || null,
-        bmi: patientForm.bmi || null,
+        BMI: patientForm.bmi || null,
       };
 
       let error;
@@ -2386,7 +2402,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       lastEyeExam: patient.last_eye_exam || "",
       patientHeight: patient.patient_height || "",
       patientWeight: patient.patient_weight || "",
-      bmi: patient.bmi || ""
+      bmi: patient.BMI || ""
     });
     try {
       setMedications(patient.medication ? JSON.parse(patient.medication) : [{ drugName: "", dosage: "", frequency: "", prescribedBy: "" }]);
