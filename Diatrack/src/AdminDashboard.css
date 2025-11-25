@@ -358,8 +358,8 @@ body {
 }
 
 .content-header {
-  padding: 14px 20px;
-  margin:0px;
+  padding: 10px 0px 0px 20px;
+  margin:0px 0px 0px 0px;
 }
 
 .page-title {
@@ -743,7 +743,6 @@ body {
 
 .action-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .reviewed-btn {
@@ -912,6 +911,7 @@ body {
   
   .content-header {
     padding: 20px;
+    margin:0px;
   }
   
   .page-title {
@@ -1249,14 +1249,13 @@ body {
 h2 {
   font-size: 2rem;
   color: #1e293b;
-  margin-bottom: 24px;
+  margin-bottom: 0px;
 }
 
 h3 {
   font-size: 1.5rem;
   color: #334155;
-  margin-top: 24px;
-  margin-bottom: 16px;
+  margin:0px;
 }
 
 /* Container for the two "Create" buttons */

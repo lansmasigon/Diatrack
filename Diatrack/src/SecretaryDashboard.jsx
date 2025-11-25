@@ -869,6 +869,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   // NEW STATE FOR ALL PATIENT HEALTH METRICS HISTORY (FOR CHARTS)
   const [allPatientHealthMetrics, setAllPatientHealthMetrics] = useState([]);
 
+  // NEW STATE FOR HEALTH METRICS LAST SUBMISSIONS (FOR DAYS SINCE SUBMISSION COLUMN)
+  const [healthMetricsSubmissions, setHealthMetricsSubmissions] = useState({});
+
   // Individual time period filters for each chart
   const [glucoseTimeFilter, setGlucoseTimeFilter] = useState('week'); // 'day', 'week', 'month'
   const [bpTimeFilter, setBpTimeFilter] = useState('week');
@@ -1775,6 +1778,39 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
     // Calculate compliance history for charts
     calculateComplianceHistory();
+
+    // Fetch health metrics last submissions for days since submission column
+    fetchHealthMetricsSubmissions();
+  };
+
+  // Function to fetch last health metrics submissions for each patient
+  const fetchHealthMetricsSubmissions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("health_metrics")
+        .select("patient_id, updated_at")
+        .order("updated_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching health metrics submissions:", error);
+        setMessage(`Error fetching health metrics: ${error.message}`);
+        return;
+      }
+
+      // Create a map to store the most recent updated_at timestamp for each patient
+      const lastSubmissions = new Map();
+      data.forEach((metric) => {
+        if (!lastSubmissions.has(metric.patient_id)) {
+          lastSubmissions.set(metric.patient_id, metric.updated_at);
+        }
+      });
+
+      // Convert the Map to an object for state
+      setHealthMetricsSubmissions(Object.fromEntries(lastSubmissions));
+    } catch (error) {
+      console.error("Error fetching health metrics submissions:", error);
+      setHealthMetricsSubmissions({});
+    }
   };
 
   // Function to calculate real compliance metrics
@@ -6231,7 +6267,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         <th>Classification</th>
                         <th>Lab Status</th>
                         <th>Profile Status</th>
-                        <th>Last Visit</th>
+                        <th>Last day of Submission</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
@@ -6274,18 +6310,24 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                                 {pat.profile_status}
                               </td>
-                              <td>{formatDateToReadable(pat.last_doctor_visit)}</td>
+                              <td>{(() => {
+                                const lastSubmissionDate = healthMetricsSubmissions[pat.patient_id];
+                                const daysPassed = lastSubmissionDate
+                                  ? Math.max(0, Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(lastSubmissionDate).setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24)))
+                                  : "No Submission";
+                                
+                                return (
+                                  <span className={`compliance-status ${
+                                    daysPassed === "No Submission" ? "no-submission" : 
+                                    daysPassed > 7 ? "overdue" : 
+                                    daysPassed > 3 ? "warning" : "good"
+                                  }`}>
+                                    {daysPassed}
+                                  </span>
+                                );
+                              })()}</td>
                               <td className="patient-actions-cell">
-                                <button className="enter-labs-button" onClick={() => {
-                                  setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
-                                  setLabEntryStep(2);
-                                  setActivePage("lab-result-entry");
-                                  setReportDetailView(null);
-                                }}>🧪 Enter Labs</button>
-                                <button className="view-button" onClick={() => {
-                                  handleViewPatientDetails(pat);
-                                  setReportDetailView(null);
-                                }}>👁️ View</button>
+                                <button className="action-btn flag-button">🚩 Flag</button>
                               </td>
                             </tr>
                           ))

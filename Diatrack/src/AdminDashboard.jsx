@@ -1171,11 +1171,11 @@ const handlePrevSecretaryStep = () => {
               <div className="content-header">
                 <h1 className="page-title">
                   {activeTab === "dashboard" && "Welcome, System Admin! 👋"}
-                  {activeTab === "manage" && "Manage Users"}
-                  {activeTab === "list" && "Master Lists"}
-                  {activeTab === "accounts" && "User Accounts"}
-                  {activeTab === "compliance" && "Compliance Management"}
-                  {activeTab === "ml" && "ML Settings"}
+                  {activeTab === "manage"}
+                  {activeTab === "list"}
+                  {activeTab === "accounts"}
+                  {activeTab === "compliance"}
+                  {activeTab === "ml"}
                 </h1>
               </div>
             )}
