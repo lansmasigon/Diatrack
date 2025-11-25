@@ -7,6 +7,12 @@ import "./AdminDashboard.css";
 import logo from "../picture/logo.png"; // Import the logo image
 import AuditLogs from "./AuditLogs"; // Import the AuditLogs component
 import { logSystemAction, logPatientDataChange } from "./auditLogger"; // Import audit logging functions
+import Header from "./components/Header";
+import { Line } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+
+// Register Chart.js components
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
 const AdminDashboard = ({ onLogout, user }) => {
   const [secretaries, setSecretaries] = useState([]);
@@ -36,8 +42,6 @@ const AdminDashboard = ({ onLogout, user }) => {
 
   const [showUsersPopup, setShowUsersPopup] = useState(false);
   const [showMessagePopup, setShowMessagePopup] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
 
    // Updated doctorForm state to include new fields for the multi-step form
   const [doctorForm, setDoctorForm] = useState({
@@ -88,6 +92,12 @@ const handlePrevSecretaryStep = () => {
   const [doctorsPerPage] = useState(6); // Max 6 items per page
 
   const [healthMetrics, setHealthMetrics] = useState([]);
+  const [chartData, setChartData] = useState({
+    patients: [],
+    doctors: [],
+    secretaries: [],
+    labels: []
+  });
 
   const fetchLastSubmissions = async () => {
   const { data, error } = await supabase
@@ -112,6 +122,89 @@ const handlePrevSecretaryStep = () => {
   // Convert the Map to an object for state
   setHealthMetrics(Object.fromEntries(lastSubmissions));
 };
+
+  // Function to generate last 6 months chart data with actual database data
+  const generateChartData = async () => {
+    try {
+      // Get current date and calculate 6 months
+      const now = new Date();
+      const months = [];
+      const patientData = [];
+      const doctorData = [];
+      const secretaryData = [];
+      
+      // Generate last 6 months labels and data
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date();
+        date.setMonth(now.getMonth() - i);
+        const monthYear = date.toLocaleDateString('en-US', { month: 'short' });
+        months.push(monthYear);
+        
+        // Calculate start and end of the month
+        const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        
+        // Fetch patient registrations for this month
+        const { data: patientMonthData, error: patientError } = await supabase
+          .from('patients')
+          .select('patient_id, created_at')
+          .gte('created_at', startOfMonth.toISOString())
+          .lte('created_at', endOfMonth.toISOString());
+
+        if (patientError) {
+          console.error("Error fetching patient data for month:", monthYear, patientError);
+          patientData.push(0);
+        } else {
+          patientData.push(patientMonthData ? patientMonthData.length : 0);
+        }
+
+        // Fetch doctor registrations for this month
+        const { data: doctorMonthData, error: doctorError } = await supabase
+          .from('doctors')
+          .select('doctor_id, created_at')
+          .gte('created_at', startOfMonth.toISOString())
+          .lte('created_at', endOfMonth.toISOString());
+
+        if (doctorError) {
+          console.error("Error fetching doctor data for month:", monthYear, doctorError);
+          doctorData.push(0);
+        } else {
+          doctorData.push(doctorMonthData ? doctorMonthData.length : 0);
+        }
+
+        // Fetch secretary registrations for this month
+        const { data: secretaryMonthData, error: secretaryError } = await supabase
+          .from('secretaries')
+          .select('secretary_id, created_at')
+          .gte('created_at', startOfMonth.toISOString())
+          .lte('created_at', endOfMonth.toISOString());
+
+        if (secretaryError) {
+          console.error("Error fetching secretary data for month:", monthYear, secretaryError);
+          secretaryData.push(0);
+        } else {
+          secretaryData.push(secretaryMonthData ? secretaryMonthData.length : 0);
+        }
+      }
+
+      setChartData({
+        patients: patientData,
+        doctors: doctorData,
+        secretaries: secretaryData,
+        labels: months
+      });
+
+    } catch (error) {
+      console.error("Error generating chart data:", error);
+      // Fallback to empty data if there's an error
+      setChartData({
+        patients: [0, 0, 0, 0, 0, 0],
+        doctors: [0, 0, 0, 0, 0, 0],
+        secretaries: [0, 0, 0, 0, 0, 0],
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+      });
+    }
+  };
 
   // New states for secretary pagination
   const [currentPageSecretaries, setCurrentPageSecretaries] = useState(1);
@@ -157,10 +250,15 @@ const handlePrevSecretaryStep = () => {
 
 
   useEffect(() => {
-    fetchSecretaries();
-    fetchDoctors();
-    fetchLinks();
-    fetchLastSubmissions();
+    const initializeData = async () => {
+      await fetchSecretaries();
+      await fetchDoctors();
+      await fetchLinks();
+      await fetchLastSubmissions();
+      await generateChartData();
+    };
+    
+    initializeData();
   }, []);
 
   // Effect to update adminName when the user prop changes
@@ -215,85 +313,6 @@ const handlePrevSecretaryStep = () => {
       .select("link_id, secretary_id, doctor_id, secretaries(first_name, last_name), doctors(first_name, last_name)");
     if (error) setMessage(`Error fetching links: ${error.message}`);
     else setLinks(data);
-  };
-
-  const fetchNotifications = async () => {
-    if (!user || !user.admin_id) {
-      console.log("No admin user found:", user);
-      return;
-    }
-    
-    console.log("Fetching notifications for admin:", user.admin_id);
-    
-    const { data, error } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", user.admin_id)
-      .eq("user_role", "admin")
-      .order("created_at", { ascending: false });
-    if (error) {
-      console.error("Error fetching notifications:", error.message);
-      setNotifications([]);
-      setUnreadCount(0);
-    } else {
-      console.log("Fetched notifications:", data);
-      setNotifications(data || []);
-      // Count unread notifications
-      const unread = (data || []).filter(notif => !notif.is_read).length;
-      setUnreadCount(unread);
-    }
-  };
-
-  const handleOpenNotifications = async () => {
-    await fetchNotifications();
-    setShowUsersPopup(true);
-  };
-
-  const markNotificationAsRead = async (notificationId) => {
-    const { error } = await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("notification_id", notificationId);
-
-    if (error) {
-      console.error("Error marking notification as read:", error.message);
-    } else {
-      // Update local state
-      setNotifications(notifications.map(notif => 
-        notif.notification_id === notificationId 
-          ? { ...notif, is_read: true } 
-          : notif
-      ));
-      // Update unread count
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    }
-  };
-
-  // Handle notification click
-  const handleNotificationClick = async (notif) => {
-    // Mark as read if unread
-    if (!notif.is_read) {
-      await markNotificationAsRead(notif.notification_id);
-    }
-
-    // Handle navigation based on notification type
-    if (notif.type === 'appointment' || notif.type === 'Appointment') {
-      setActiveTab('dashboard');
-      setShowUsersPopup(false);
-    } else if (notif.type === 'user_management' || notif.type === 'User Management') {
-      setActiveTab('manage');
-      setShowUsersPopup(false);
-    } else if (notif.type === 'compliance' || notif.type === 'Compliance') {
-      setActiveTab('compliance');
-      setShowUsersPopup(false);
-    } else if (notif.type === 'audit' || notif.type === 'Audit') {
-      setActiveTab('audit');
-      setShowUsersPopup(false);
-    } else {
-      // For other types, just go to dashboard
-      setActiveTab('dashboard');
-      setShowUsersPopup(false);
-    }
   };
 
   // Renamed and modified from fetchDoctorsBySecretary
@@ -1041,52 +1060,17 @@ const handlePrevSecretaryStep = () => {
    return (
     <>
       <div className="dashboard-container">
-        {/* Global Header */}
-        <div className="global-header">
-          <div className="header-left">
-            <div className="header-logo-section">
-              <img src={logo} alt="DiaTrack Logo" className="header-logo" />
-              <h1 className="header-title">
-                <span>Dia</span>
-                <span style={{ color: "#ff9800" }}>Track</span>
-              </h1>
-            </div>
-          </div>
-          <div className="header-right">
-            <button className="header-icon">
-              <i className="fas fa-cog"></i>
-            </button>
-            <button className="header-icon notification-icon-admin" onClick={handleOpenNotifications}>
-              <i className="fas fa-bell"></i>
-              {unreadCount > 0 && (
-                <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
-              )}
-            </button>
-            <div className="user-profile-header">
-              <img
-                src="../picture/secretary.png"
-                alt="User Avatar"
-                className="user-avatar-header"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = "https://placehold.co/40x40/aabbcc/ffffff?text=User";
-                }}
-              />
-              <div className="user-info-header">
-                <span className="user-name-header">{adminName}</span>
-                <span className="user-role-header">Admin</span>
-              </div>
-            </div>
-            <button
-              className="header-icon logout-btn"
-              onClick={() => {
-                if (window.confirm("Are you sure you want to sign out?")) onLogout();
-              }}
-            >
-              <i className="fas fa-sign-out-alt"></i>
-            </button>
-          </div>
-        </div>
+        <Header 
+          user={user}
+          activePage={activeTab}
+          setActivePage={setActiveTab}
+          onLogout={onLogout}
+          showUsersPopup={showUsersPopup}
+          setShowUsersPopup={setShowUsersPopup}
+          showMessagePopup={showMessagePopup}
+          setShowMessagePopup={setShowMessagePopup}
+          userRole="Admin"
+        />
 
         <div className="dashboard-layout">
           {/* Sidebar Navigation */}
@@ -1097,14 +1081,12 @@ const handlePrevSecretaryStep = () => {
                   className={activeTab === "dashboard" ? "nav-item active" : "nav-item"}
                   onClick={() => setActiveTab("dashboard")}
                 >
-                  <i className="fas fa-tachometer-alt nav-icon"></i>
                   <span>Dashboard</span>
                 </li>
                 <li
                   className={activeTab === "manage" ? "nav-item active" : "nav-item"}
                   onClick={() => setActiveTab("manage")}
                 >
-                  <i className="fas fa-users-cog nav-icon"></i>
                   <span>Manage</span>
                 </li>
                 <li className="nav-item dropdown-menu">
@@ -1115,7 +1097,6 @@ const handlePrevSecretaryStep = () => {
                       setActiveTab("list");
                     }}
                   >
-                    <i className="fas fa-list nav-icon"></i>
                     <span>Masterlist</span>
                     <img
                       src="../picture/down.png"
@@ -1159,28 +1140,24 @@ const handlePrevSecretaryStep = () => {
                   className={activeTab === "accounts" ? "nav-item active" : "nav-item"}
                   onClick={() => setActiveTab("accounts")}
                 >
-                  <i className="fas fa-user-friends nav-icon"></i>
                   <span>Accounts</span>
                 </li>
                 <li
                   className={activeTab === "audit" ? "nav-item active" : "nav-item"}
                   onClick={() => setActiveTab("audit")}
                 >
-                  <i className="fas fa-clipboard-list nav-icon"></i>
                   <span>Audit Logs</span>
                 </li>
                 <li
                   className={activeTab === "compliance" ? "nav-item active" : "nav-item"}
                   onClick={() => setActiveTab("compliance")}
                 >
-                  <i className="fas fa-shield-alt nav-icon"></i>
                   <span>Compliance</span>
                 </li>
                 <li
                   className={activeTab === "ml" ? "nav-item active" : "nav-item"}
                   onClick={() => setActiveTab("ml")}
                 >
-                  <i className="fas fa-brain nav-icon"></i>
                   <span>ML Settings</span>
                 </li>
               </ul>
@@ -1207,37 +1184,190 @@ const handlePrevSecretaryStep = () => {
             <div className="content-body">
               {activeTab === "dashboard" && (
               <>
-                <div className="summary-widget-grid">
-                  <div className="summary-widget total-patients">
-                    <div className="summary-widget-icon">
-                      <i className="fas fa-users"></i>
+                <div className="admin-widgets-grid">
+                  <div className="admin-widget admin-total-patients">
+                    <div className="admin-widget-header">
+                      <img src="../picture/total.png" alt="Total Patients" className="admin-widget-image" onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "https://placehold.co/40x40/1FAAED/ffffff?text=👥";
+                      }}/>
+                      <h4>Total Patients</h4>
                     </div>
-                    <div className="summary-widget-content">
-                      <h3>Total Patients</h3>
-                      <p className="summary-number">{patients.length}</p>
-                      <p className="summary-subtitle">Patients registered in the system</p>
+                    <div className="admin-widget-content">
+                      <div className="admin-widget-left">
+                        <p className="admin-number">{patients.length}</p>
+                      </div>
+                      <div className="admin-widget-right">
+                        <p className="admin-subtitle">Patients registered in the system</p>
+                      </div>
+                    </div>
+                    <div className="admin-chart-container">
+                      <Line
+                        data={{
+                          labels: chartData.labels,
+                          datasets: [{
+                            label: 'Patient Registrations',
+                            data: chartData.patients,
+                            borderColor: '#1FAAED',
+                            backgroundColor: 'rgba(31, 170, 237, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                          }]
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: { display: false },
+                            title: { display: false },
+                            tooltip: {
+                              backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                              titleColor: '#ffffff',
+                              bodyColor: '#ffffff',
+                              borderColor: '#1FAAED',
+                              borderWidth: 1,
+                              callbacks: {
+                                title: (context) => `${context[0].label}`,
+                                label: (context) => `Patients Registered: ${context.parsed.y}`
+                              }
+                            }
+                          },
+                          scales: {
+                            x: { display: false },
+                            y: { display: false }
+                          },
+                          elements: {
+                            point: { radius: 0 }
+                          },
+                          interaction: {
+                            intersect: false
+                          }
+                        }}
+                      />
                     </div>
                   </div>
 
-                  <div className="summary-widget total-doctors">
-                    <div className="summary-widget-icon">
-                      <i className="fas fa-user-md"></i>
+                  <div className="admin-widget admin-total-doctors">
+                    <div className="admin-widget-header">
+                      <img src="../picture/total.png" alt="Total Doctors" className="admin-widget-image" onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "https://placehold.co/40x40/f59e0b/ffffff?text=👨‍⚕️";
+                      }}/>
+                      <h4>Total Doctors</h4>
                     </div>
-                    <div className="summary-widget-content">
-                      <h3>Total Doctors</h3>
-                      <p className="summary-number">{doctors.length}</p>
-                      <p className="summary-subtitle">Doctors registered in the system</p>
+                    <div className="admin-widget-content">
+                      <div className="admin-widget-left">
+                        <p className="admin-number">{doctors.length}</p>
+                      </div>
+                      <div className="admin-widget-right">
+                        <p className="admin-subtitle">Doctors registered in the system</p>
+                      </div>
+                    </div>
+                    <div className="admin-chart-container">
+                      <Line
+                        data={{
+                          labels: chartData.labels,
+                          datasets: [{
+                            label: 'Doctor Registrations',
+                            data: chartData.doctors,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                          }]
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: { display: false },
+                            title: { display: false },
+                            tooltip: {
+                              backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                              titleColor: '#ffffff',
+                              bodyColor: '#ffffff',
+                              borderColor: '#f59e0b',
+                              borderWidth: 1,
+                              callbacks: {
+                                title: (context) => `${context[0].label}`,
+                                label: (context) => `Doctors Registered: ${context.parsed.y}`
+                              }
+                            }
+                          },
+                          scales: {
+                            x: { display: false },
+                            y: { display: false }
+                          },
+                          elements: {
+                            point: { radius: 0 }
+                          },
+                          interaction: {
+                            intersect: false
+                          }
+                        }}
+                      />
                     </div>
                   </div>
 
-                  <div className="summary-widget total-secretaries">
-                    <div className="summary-widget-icon">
-                      <i className="fas fa-user-tie"></i>
+                  <div className="admin-widget admin-total-secretaries">
+                    <div className="admin-widget-header">
+                      <img src="../picture/total.png" alt="Total Secretaries" className="admin-widget-image" onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "https://placehold.co/40x40/10b981/ffffff?text=👤";
+                      }}/>
+                      <h4>Total Secretaries</h4>
                     </div>
-                    <div className="summary-widget-content">
-                      <h3>Total Secretaries</h3>
-                      <p className="summary-number">{secretaries.length}</p>
-                      <p className="summary-subtitle">Secretaries registered in the system</p>
+                    <div className="admin-widget-content">
+                      <div className="admin-widget-left">
+                        <p className="admin-number">{secretaries.length}</p>
+                      </div>
+                      <div className="admin-widget-right">
+                        <p className="admin-subtitle">Secretaries registered in the system</p>
+                      </div>
+                    </div>
+                    <div className="admin-chart-container">
+                      <Line
+                        data={{
+                          labels: chartData.labels,
+                          datasets: [{
+                            label: 'Secretary Registrations',
+                            data: chartData.secretaries,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                          }]
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: { display: false },
+                            title: { display: false },
+                            tooltip: {
+                              backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                              titleColor: '#ffffff',
+                              bodyColor: '#ffffff',
+                              borderColor: '#10b981',
+                              borderWidth: 1,
+                              callbacks: {
+                                title: (context) => `${context[0].label}`,
+                                label: (context) => `Secretaries Registered: ${context.parsed.y}`
+                              }
+                            }
+                          },
+                          scales: {
+                            x: { display: false },
+                            y: { display: false }
+                          },
+                          elements: {
+                            point: { radius: 0 }
+                          },
+                          interaction: {
+                            intersect: false
+                          }
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -1810,45 +1940,6 @@ const handlePrevSecretaryStep = () => {
           </div>
         </div>
       </div>
-
-      {/* Pop-ups */}
-      {showUsersPopup && (
-        <div className="popup-overlay" onClick={() => setShowUsersPopup(false)}>
-          <div className="popup-content notifications-popup" onClick={(e) => e.stopPropagation()}>
-            <div className="popup-header">
-              <h3>Notifications</h3>
-              <button className="close-btn" onClick={() => setShowUsersPopup(false)}>
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            <div className="notifications-list">
-              {notifications.length > 0 ? (
-                notifications.map((notif) => (
-                  <div
-                    key={notif.notification_id}
-                    className={`notification-item ${!notif.is_read ? 'unread' : ''}`}
-                    onClick={() => handleNotificationClick(notif)}
-                  >
-                    <div className="notification-title">
-                      <strong>{notif.title}</strong>
-                      {!notif.is_read && <span className="unread-badge">New</span>}
-                    </div>
-                    <div className="notification-message">{notif.message}</div>
-                    <div className="notification-time">
-                      {new Date(notif.created_at).toLocaleString()}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="no-notifications">
-                  <i className="fas fa-bell-slash"></i>
-                  <p>No notifications at this time</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {showMessagePopup && (
         <div className="popup-overlay">

@@ -99,20 +99,39 @@ const Header = ({
       await markNotificationAsRead(notif.notification_id);
     }
 
-    // Handle navigation based on notification type
-    if (notif.type === 'appointment' || notif.type === 'Appointment') {
-      setActivePage('dashboard');
-      setShowUsersPopup(false);
-    } else if (notif.type === 'patient' || notif.type === 'Patient') {
-      setActivePage('patient-list');
-      setShowUsersPopup(false);
-    } else if (notif.type === 'report' || notif.type === 'Report') {
-      setActivePage('reports');
-      setShowUsersPopup(false);
+    // Handle navigation based on notification type and user role
+    if (userRole === 'Admin') {
+      if (notif.type === 'appointment' || notif.type === 'Appointment') {
+        setActivePage('dashboard');
+        setShowUsersPopup(false);
+      } else if (notif.type === 'user_management' || notif.type === 'User Management') {
+        setActivePage('manage');
+        setShowUsersPopup(false);
+      } else if (notif.type === 'compliance' || notif.type === 'Compliance') {
+        setActivePage('compliance');
+        setShowUsersPopup(false);
+      } else if (notif.type === 'audit' || notif.type === 'Audit') {
+        setActivePage('audit');
+        setShowUsersPopup(false);
+      } else {
+        setActivePage('dashboard');
+        setShowUsersPopup(false);
+      }
     } else {
-      // For other types, just go to dashboard
-      setActivePage('dashboard');
-      setShowUsersPopup(false);
+      // For Secretary/Doctor roles
+      if (notif.type === 'appointment' || notif.type === 'Appointment') {
+        setActivePage('dashboard');
+        setShowUsersPopup(false);
+      } else if (notif.type === 'patient' || notif.type === 'Patient') {
+        setActivePage('patient-list');
+        setShowUsersPopup(false);
+      } else if (notif.type === 'report' || notif.type === 'Report') {
+        setActivePage('reports');
+        setShowUsersPopup(false);
+      } else {
+        setActivePage('dashboard');
+        setShowUsersPopup(false);
+      }
     }
   };
   return (
@@ -122,12 +141,14 @@ const Header = ({
           <img src={logo} alt="DiaTrack Logo" className="app-logo" />
           <img src="../picture/diatracktext.png" alt="diatracktext" className="diatracktext" />
         </h1>
-        <ul className="navbar-menu">
-          <li className={activePage === "dashboard" ? "active" : ""} onClick={() => setActivePage("dashboard")}>Dashboard</li>
-          <li className={activePage === "patient-list" ? "active" : ""} onClick={() => setActivePage("patient-list")}>Patient List</li>
-          <li className={activePage === "appointments" ? "active" : ""} onClick={() => setActivePage("appointments")}>Appointments</li>
-          <li className={activePage === "reports" ? "active" : ""} onClick={() => setActivePage("reports")}>Reports</li>
-        </ul>
+        {userRole !== 'Admin' && (
+          <ul className="navbar-menu">
+            <li className={activePage === "dashboard" ? "active" : ""} onClick={() => setActivePage("dashboard")}>Dashboard</li>
+            <li className={activePage === "patient-list" ? "active" : ""} onClick={() => setActivePage("patient-list")}>Patient List</li>
+            <li className={activePage === "appointments" ? "active" : ""} onClick={() => setActivePage("appointments")}>Appointments</li>
+            <li className={activePage === "reports" ? "active" : ""} onClick={() => setActivePage("reports")}>Reports</li>
+          </ul>
+        )}
         <div className="navbar-right">
           <button className="notification-icon" onClick={handleOpenNotifications}>
             <img src="../picture/notif.svg" alt="Notifications" className="header-icon-img" />
@@ -137,9 +158,10 @@ const Header = ({
           </button>
           <div className="user-profile">
             <img 
-              src={userRole === 'Secretary' ? "../picture/secretary.png" : "https://placehold.co/40x40/aabbcc/ffffff?text=User"} 
-              alt="User Avatar" 
-              className="user-avatar" 
+              src={userRole === 'Secretary' ? "../picture/secretary.png" : 
+                userRole === 'Admin' ? "../picture/secretary.png" :  "https://placehold.co/40x40/aabbcc/ffffff?text=User"} 
+                alt="User Avatar" 
+                className="user-avatar" 
               onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/aabbcc/ffffff?text=User"; }}
             />
             <div className="user-info">

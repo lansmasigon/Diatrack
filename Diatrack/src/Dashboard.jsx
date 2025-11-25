@@ -3273,7 +3273,7 @@ const handleConfirmAction = async () => {
             <div className="quick-links-grid">
               <div className="quick-link-item" onClick={() => setActivePage("patient-list")}>
                 <div className="quick-link-icon patient-list">
-              
+                  <img src="../picture/diasight.svg" alt="DiaSight" className="quick-link-image" style={{ width: '55px', height: '55px' }} />
                 </div>
                 <span>DiaSight</span>
               </div>
@@ -4307,7 +4307,7 @@ const renderReportsContent = () => {
                     </div>
                     <div className="patient-detail-item">
                       <span className="detail-label">BMI:</span>
-                      <span className="detail-value">{selectedPatient.bmi || 'N/A'}</span>
+                      <span className="detail-value">{selectedPatient.BMI || 'N/A'}</span>
                     </div>
                     <div className="patient-detail-item">
                       <span className="detail-label">Hypertensive:</span>

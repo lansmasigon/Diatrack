@@ -358,10 +358,8 @@ body {
 }
 
 .content-header {
-  background: white;
-  padding: 24px 32px;
-  border-bottom: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 14px 20px;
+  margin:0px;
 }
 
 .page-title {
@@ -373,10 +371,105 @@ body {
 
 .content-body {
   flex: 1;
-  padding: 32px;
+  padding: 10px;
   overflow-y: auto;
   background: #f5f6f8;
 }
+
+
+/* Admin Widgets Grid - Compact for single row */
+.admin-widgets-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+/* Admin Widget Styles - Ultra Compact */
+.admin-widget {
+  background: white;
+  border-radius: 6px;
+  padding: 16px;
+  border: 1px solid #e9ecef;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 140px;
+}
+
+.admin-widget:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.admin-widget-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-widget-image {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.admin-widget-header h4 {
+  color: #2C3E50;
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-widget-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-widget-left {
+  flex-shrink: 0;
+}
+
+.admin-number {
+  font-size: 28px;
+  font-weight: 700;
+  color: #2C3E50;
+  margin: 0;
+  line-height: 1;
+}
+
+.admin-widget-right {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-subtitle {
+  font-size: 14px;
+  color: #6c757d;
+  margin: 0;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Admin chart container - Fixed visibility */
+.admin-chart-container {
+  height: 120px;
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 6px;
+  overflow: visible;
+}
+
 
 /* Summary Widgets */
 .summary-widget-grid {
@@ -571,7 +664,7 @@ body {
 }
 
 .compliance-table tbody tr {
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e7e7eb;
 
 }
 
