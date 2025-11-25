@@ -3271,7 +3271,7 @@ const handleConfirmAction = async () => {
           <div className="quick-links">
             <h3>Quick links</h3>
             <div className="quick-links-grid">
-              <div className="quick-link-item" onClick={() => setActivePage("patient-list")}>
+              <div className="quick-link-item" onClick={() => window.open('https://diasight.vercel.app/dashboard', '_blank', 'noopener,noreferrer')}>
                 <div className="quick-link-icon patient-list">
                   <img src="../picture/diasight.svg" alt="DiaSight" className="quick-link-image" style={{ width: '55px', height: '55px' }} />
                 </div>
