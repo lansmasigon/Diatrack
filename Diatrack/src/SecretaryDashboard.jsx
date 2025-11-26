@@ -503,6 +503,34 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
   );
 };
 
+// Helper function to send notifications
+const sendNotification = async (userId, userRole, title, message, type = 'general') => {
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .insert([
+        {
+          user_id: userId,
+          user_role: userRole,
+          title: title,
+          message: message,
+          type: type,
+          is_read: false,
+          created_at: new Date().toISOString()
+        }
+      ]);
+
+    if (error) {
+      console.error('Error sending notification:', error.message);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Error in sendNotification function:', error);
+    return false;
+  }
+};
+
 // ... (rest of the SecretaryDashboard component remains unchanged) ...
 const SecretaryDashboard = ({ user, onLogout }) => {
   const [activePage, setActivePage] = useState("dashboard");
@@ -2709,6 +2737,50 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setActivePage("appointments"); // Navigate to the appointment scheduling page
   };
 
+  // Handler for "Flag" button in missing logs table
+  const handleFlagPatient = async (patient) => {
+    try {
+      setMessage("Sending notifications...");
+      
+      // Send notification to patient - using 'patient' type instead of 'compliance'
+      const patientNotificationSuccess = await sendNotification(
+        patient.patient_id,
+        'patient',
+        'Missing Health Metrics Submission',
+        'You have missing health metrics that need to be submitted. Please log your blood pressure, blood glucose, and wound photos as required for your treatment plan.',
+        'patient'
+      );
+
+      // Send notification to preferred doctor if patient has one - using 'patient' type
+      let doctorNotificationSuccess = true;
+      if (patient.preferred_doctor_id) {
+        doctorNotificationSuccess = await sendNotification(
+          patient.preferred_doctor_id,
+          'doctor',
+          'Patient Flagged for Missing Metrics',
+          `Patient ${patient.first_name} ${patient.last_name} has been flagged for missing health metrics submissions. They have been notified to submit their required data.`,
+          'patient'
+        );
+      }
+
+      // Note: Audit logging removed temporarily to avoid constraint violations
+
+      if (patientNotificationSuccess && doctorNotificationSuccess) {
+        setMessage(`✅ Notifications sent successfully to ${patient.first_name} ${patient.last_name} and their doctor.`);
+      } else {
+        setMessage(`⚠️ Some notifications may have failed to send. Please try again.`);
+      }
+
+      // Clear the message after 5 seconds
+      setTimeout(() => setMessage(""), 5000);
+
+    } catch (error) {
+      console.error('Error flagging patient:', error);
+      setMessage(`❌ Error sending notifications: ${error.message}`);
+      setTimeout(() => setMessage(""), 5000);
+    }
+  };
+
 
   const filteredPatients = patients.filter((pat) => {
     const nameMatch = `${pat.first_name} ${pat.last_name}`.toLowerCase().includes(searchTerm.toLowerCase());
@@ -4309,25 +4381,25 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                           label: 'Risk Classification',
                                           data: riskFilteredMetrics.map(entry => {
                                             const risk = entry.risk_classification?.toLowerCase();
-                                            if (risk === 'low') return 2;
-                                            if (risk === 'moderate') return 3;
-                                            if (risk === 'high') return 4;
+                                            if (risk === 'low' || risk === 'low risk') return 2;
+                                            if (risk === 'moderate' || risk === 'moderate risk') return 3;
+                                            if (risk === 'high' || risk === 'high risk') return 4;
                                             if (risk === 'ppd') return 1;
-                                            return 0; // For unknown/null values
+                                            return 1; // For unknown/null values
                                           }),
                                           backgroundColor: riskFilteredMetrics.map(entry => {
                                             const risk = entry.risk_classification?.toLowerCase();
-                                            if (risk === 'low') return 'rgba(34, 197, 94, 0.8)'; // Green
-                                            if (risk === 'moderate') return 'rgba(255, 193, 7, 0.8)'; // Yellow
-                                            if (risk === 'high') return 'rgba(244, 67, 54, 0.8)'; // Red
+                                            if (risk === 'low' || risk === 'low risk') return 'rgba(34, 197, 94, 0.8)'; // Green
+                                            if (risk === 'moderate' || risk === 'moderate risk') return 'rgba(255, 193, 7, 0.8)'; // Yellow
+                                            if (risk === 'high' || risk === 'high risk') return 'rgba(244, 67, 54, 0.8)'; // Red
                                             if (risk === 'ppd') return 'rgba(103, 101, 105, 0.8)'; // Purple
                                             return 'rgba(156, 163, 175, 0.8)'; // Gray for unknown
                                           }),
                                           borderColor: riskFilteredMetrics.map(entry => {
                                             const risk = entry.risk_classification?.toLowerCase();
-                                            if (risk === 'low') return 'rgba(34, 197, 94, 1)';
-                                            if (risk === 'moderate') return 'rgba(255, 193, 7, 1)';
-                                            if (risk === 'high') return 'rgba(244, 67, 54, 1)';
+                                            if (risk === 'low' || risk === 'low risk') return 'rgba(34, 197, 94, 1)';
+                                            if (risk === 'moderate' || risk === 'moderate risk') return 'rgba(255, 193, 7, 1)';
+                                            if (risk === 'high' || risk === 'high risk') return 'rgba(244, 67, 54, 1)';
                                             if (risk === 'ppd') return 'rgba(103, 101, 105, 1)'; // Purple
                                             return 'rgba(156, 163, 175, 1)';
                                           }),
@@ -4399,6 +4471,15 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                           ticks: {
                                             display: true,
                                             stepSize: 1,
+                                            callback: function(value) {
+                                              const labels = {
+                                                1: 'PPD',
+                                                2: 'Low',
+                                                3: 'Moderate',
+                                                4: 'High'
+                                              };
+                                              return labels[value] || '';
+                                            }
                                           },
                                           grid: {
                                             display: true,
@@ -6259,6 +6340,27 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     </button>
                     <h2>Missing Logs - Patients with Missing Metrics</h2>
                   </div>
+                  {/* Message display for flag notifications */}
+                  {message && (
+                    <div className="message-display" style={{
+                      padding: '10px',
+                      margin: '10px 0',
+                      borderRadius: '5px',
+                      backgroundColor: message.includes('✅') ? '#d4edda' : 
+                                      message.includes('⚠️') ? '#fff3cd' : 
+                                      message.includes('❌') ? '#f8d7da' : '#cce7ff',
+                      color: message.includes('✅') ? '#155724' : 
+                             message.includes('⚠️') ? '#856404' : 
+                             message.includes('❌') ? '#721c24' : '#004085',
+                      border: `1px solid ${message.includes('✅') ? '#c3e6cb' : 
+                                           message.includes('⚠️') ? '#ffeaa7' : 
+                                           message.includes('❌') ? '#f5c6cb' : '#bee5eb'}`,
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}>
+                      {message}
+                    </div>
+                  )}
                   <table className="patient-table">
                     <thead>
                       <tr>
@@ -6327,7 +6429,13 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 );
                               })()}</td>
                               <td className="patient-actions-cell">
-                                <button className="action-btn flag-button">🚩 Flag</button>
+                                <button 
+                                  className="action-btn flag-button"
+                                  onClick={() => handleFlagPatient(pat)}
+                                  title="Flag patient for missing metrics and send notifications"
+                                >
+                                  🚩 Flag
+                                </button>
                               </td>
                             </tr>
                           ))

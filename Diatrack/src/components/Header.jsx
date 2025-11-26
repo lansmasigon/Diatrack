@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Header.css';
 import logo from '../../picture/logo.png';
 import supabase from '../supabaseClient';
@@ -62,6 +62,17 @@ const Header = ({
       setUnreadCount(unread);
     }
   };
+
+  // Auto-fetch notifications when component mounts or user changes
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+    } else {
+      // Clear notifications if no user
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  }, [user, userRole]); // Re-run when user or userRole changes
 
   // Handle opening notifications popup
   const handleOpenNotifications = async () => {

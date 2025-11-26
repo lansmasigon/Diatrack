@@ -2681,9 +2681,18 @@ const Dashboard = ({ user, onLogout }) => {
                 {
                   label: 'Number of Patients',
                   data: [
-                    patients.filter(p => (p.risk_classification || '').toLowerCase() === 'low').length,
-                    patients.filter(p => (p.risk_classification || '').toLowerCase() === 'moderate').length,
-                    patients.filter(p => (p.risk_classification || '').toLowerCase() === 'high').length,
+                    patients.filter(p => {
+                      const risk = (p.risk_classification || '').toLowerCase();
+                      return risk === 'low' || risk === 'low risk';
+                    }).length,
+                    patients.filter(p => {
+                      const risk = (p.risk_classification || '').toLowerCase();
+                      return risk === 'moderate' || risk === 'moderate risk';
+                    }).length,
+                    patients.filter(p => {
+                      const risk = (p.risk_classification || '').toLowerCase();
+                      return risk === 'high' || risk === 'high risk';
+                    }).length,
                   ],
                   backgroundColor: [
                     'rgba(40, 167, 69, 0.7)',   // Green for Low
@@ -4702,25 +4711,25 @@ const renderReportsContent = () => {
                           label: 'Risk Classification',
                           data: riskFilteredMetrics.map(entry => {
                             const risk = entry.risk_classification?.toLowerCase();
-                            if (risk === 'low') return 2;
-                            if (risk === 'moderate') return 3;
-                            if (risk === 'high') return 4;
+                            if (risk === 'low' || risk === 'low risk') return 2;
+                            if (risk === 'moderate' || risk === 'moderate risk') return 3;
+                            if (risk === 'high' || risk === 'high risk') return 4;
                             if (risk === 'ppd') return 1;
                             return 0;
                           }),
                           backgroundColor: riskFilteredMetrics.map(entry => {
                             const risk = entry.risk_classification?.toLowerCase();
-                            if (risk === 'low') return 'rgba(34, 197, 94, 0.8)';
-                            if (risk === 'moderate') return 'rgba(255, 193, 7, 0.8)';
-                            if (risk === 'high') return 'rgba(244, 67, 54, 0.8)';
+                            if (risk === 'low' || risk === 'low risk') return 'rgba(34, 197, 94, 0.8)';
+                            if (risk === 'moderate' || risk === 'moderate risk') return 'rgba(255, 193, 7, 0.8)';
+                            if (risk === 'high' || risk === 'high risk') return 'rgba(244, 67, 54, 0.8)';
                             if (risk === 'ppd') return 'rgba(103, 101, 105, 0.8)';
                             return 'rgba(156, 163, 175, 0.8)';
                           }),
                           borderColor: riskFilteredMetrics.map(entry => {
                             const risk = entry.risk_classification?.toLowerCase();
-                            if (risk === 'low') return 'rgba(34, 197, 94, 1)';
-                            if (risk === 'moderate') return 'rgba(255, 193, 7, 1)';
-                            if (risk === 'high') return 'rgba(244, 67, 54, 1)';
+                            if (risk === 'low' || risk === 'low risk') return 'rgba(34, 197, 94, 1)';
+                            if (risk === 'moderate' || risk === 'moderate risk') return 'rgba(255, 193, 7, 1)';
+                            if (risk === 'high' || risk === 'high risk') return 'rgba(244, 67, 54, 1)';
                             if (risk === 'ppd') return 'rgba(103, 101, 105, 1)';
                             return 'rgba(156, 163, 175, 1)';
                           }),
