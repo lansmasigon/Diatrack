@@ -765,17 +765,69 @@ const Dashboard = ({ user, onLogout }) => {
     setLoading(true);
     setError("");
     try {
-      const { data, error } = await supabase
+      // Fetch patients where this doctor is the preferred doctor
+      const { data: preferredPatients, error: preferredError } = await supabase
         .from("patients")
         .select("*")
         .eq("preferred_doctor_id", user.doctor_id)
         .order("patient_id", { ascending: true });
 
-      if (error) throw error;
+      if (preferredError) throw preferredError;
+
+      // Fetch patients where this doctor is assigned as a specialist
+      const { data: specialistAssignments, error: specialistError } = await supabase
+        .from("patient_specialists")
+        .select(`
+          patient_id,
+          patients!patient_id (*)
+        `)
+        .eq("doctor_id", user.doctor_id);
+
+      if (specialistError) {
+        console.error("Error fetching specialist assignments:", specialistError);
+        // Continue with just preferred patients if specialist fetch fails
+      }
+
+      // Combine both lists, avoiding duplicates and track relationship type
+      const allPatients = [];
+      const patientIds = new Set();
+
+      // Add preferred patients
+      if (preferredPatients) {
+        preferredPatients.forEach(patient => {
+          allPatients.push({ ...patient, relationship_type: 'preferred' });
+          patientIds.add(patient.patient_id);
+        });
+      }
+
+      // Add specialist-assigned patients
+      if (specialistAssignments) {
+        specialistAssignments.forEach(assignment => {
+          if (assignment.patients && !patientIds.has(assignment.patients.patient_id)) {
+            allPatients.push({ ...assignment.patients, relationship_type: 'specialist' });
+            patientIds.add(assignment.patients.patient_id);
+          }
+        });
+      }
+
+      // Sort the combined list
+      allPatients.sort((a, b) => a.patient_id - b.patient_id);
+
+      if (allPatients.length === 0) {
+        setPatients([]);
+        setTotalPatientsCount(0);
+        setPreOpCount(0);
+        setPostOpCount(0);
+        setLowRiskCount(0);
+        setModerateRiskCount(0);
+        setHighRiskCount(0);
+        setLoading(false);
+        return;
+      }
 
       // Fetch latest risk classification for each patient from health_metrics
       const patientsWithRisk = await Promise.all(
-        data.map(async (patient) => {
+        allPatients.map(async (patient) => {
           // Get current month date range
           const now = new Date();
           const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -910,13 +962,47 @@ const Dashboard = ({ user, onLogout }) => {
     }
     
     try {
-      // Fetch all patients with their created_at dates
-      const { data: allPatients, error: patientsError } = await supabase
+      // Fetch all patients with their created_at dates (preferred patients)
+      const { data: preferredPatients, error: preferredError } = await supabase
         .from('patients')
         .select('patient_id, created_at')
         .eq('preferred_doctor_id', user.doctor_id);
 
-      if (patientsError) throw patientsError;
+      if (preferredError) throw preferredError;
+
+      // Fetch patients where this doctor is assigned as a specialist
+      const { data: specialistAssignments, error: specialistError } = await supabase
+        .from('patient_specialists')
+        .select(`
+          patient_id,
+          patients!patient_id (patient_id, created_at)
+        `)
+        .eq('doctor_id', user.doctor_id);
+
+      // Combine patient lists, avoiding duplicates
+      const allPatients = [];
+      const patientIds = new Set();
+
+      // Add preferred patients
+      if (preferredPatients) {
+        preferredPatients.forEach(patient => {
+          allPatients.push(patient);
+          patientIds.add(patient.patient_id);
+        });
+      }
+
+      // Add specialist-assigned patients
+      if (!specialistError && specialistAssignments) {
+        specialistAssignments.forEach(assignment => {
+          if (assignment.patients && !patientIds.has(assignment.patients.patient_id)) {
+            allPatients.push({
+              patient_id: assignment.patients.patient_id,
+              created_at: assignment.patients.created_at
+            });
+            patientIds.add(assignment.patients.patient_id);
+          }
+        });
+      }
 
       // Count patients registered per month (NOT cumulative)
       const patientData = monthKeys.map((monthKey) => {
