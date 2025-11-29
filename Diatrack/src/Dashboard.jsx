@@ -4408,14 +4408,14 @@ const renderReportsContent = () => {
                       <span className="detail-label">Hypertensive:</span>
                       <span className="detail-value">{selectedPatient.complication_history?.includes("Hypertensive") ? "Yes" : "No"}</span>
                     </div>
-                    <div className="patient-detail-item">
+                    <div className="patient-detail-item full-width">
                       <span className="detail-label">Heart Disease:</span>
                       <span className="detail-value">{selectedPatient.complication_history?.includes("Heart Attack") ? "Yes" : "None"}</span>
                     </div>
-                  </div>
-                  <div className="patient-detail-item">
-                    <span className="detail-label">Smoking History:</span>
-                    <span className="detail-value">{selectedPatient.smoking_status || 'N/A'}</span>
+                    <div className="patient-detail-item full-width">
+                      <span className="detail-label">Smoking History:</span>
+                      <span className="detail-value">{selectedPatient.smoking_status || 'N/A'}</span>
+                    </div>
                   </div>
                 </div>
               </div>

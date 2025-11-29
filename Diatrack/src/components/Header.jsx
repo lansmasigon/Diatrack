@@ -194,7 +194,7 @@ const Header = ({
               <div className="popup-header">
                 <h3>Notifications</h3>
                 <button className="close-btn" onClick={() => setShowUsersPopup(false)}>
-                  <i className="fas fa-times"></i>
+                  <img src="../picture/close.png" alt="Close" className="close-icon" />
                 </button>
               </div>
               <div className="notifications-list">

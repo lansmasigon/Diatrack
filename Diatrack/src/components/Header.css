@@ -285,7 +285,7 @@
 
 /* Notification Popup Styles */
 .notifications-popup {
-  max-width: 600px;
+  max-width: 700px;
   max-height: 80vh;
   padding: 0;
   overflow: hidden;
@@ -328,6 +328,12 @@
 .close-btn:hover {
   background-color: #f3f4f6;
   color: #1f2937;
+}
+
+.close-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
 }
 
 .notifications-list {

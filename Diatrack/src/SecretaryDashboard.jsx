@@ -660,6 +660,13 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   // State for pending lab results count over the past 6 months
   const [pendingLabHistory, setPendingLabHistory] = useState([]);
   
+  // Analysis states for wound photo analysis
+  const [analysisResults, setAnalysisResults] = useState(null);
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
+  const [analysisError, setAnalysisError] = useState(null);
+  const [selectedWoundPhotoForAnalysis, setSelectedWoundPhotoForAnalysis] = useState(null);
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  
   useEffect(() => {
     const fetchUpcomingAppointments = async () => {
       const doctorIds = linkedDoctors.map(d => d.doctor_id);
@@ -2978,6 +2985,64 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setSelectedPhoto(null);
   };
 
+  // Function to fetch and display saved analysis for a specific wound photo
+  const handleViewWoundAnalysis = async (photo) => {
+    setIsLoadingAnalysis(true);
+    setAnalysisError(null);
+    setSelectedWoundPhotoForAnalysis(photo);
+    setShowAnalysisModal(true);
+
+    try {
+      // Fetch the health metric associated with this wound photo
+      const { data: healthMetric, error: metricError } = await supabase
+        .from('health_metrics')
+        .select('wound_photo_grad_url, wound_photo_mask_url, risk_classification')
+        .eq('patient_id', selectedPatientForDetail.patient_id)
+        .eq('wound_photo_url', photo.url)
+        .order('submission_date', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (metricError) {
+        console.error('Error fetching analysis:', metricError);
+        setAnalysisError('No saved analysis found for this wound photo.');
+        setAnalysisResults(null);
+        setIsLoadingAnalysis(false);
+        return;
+      }
+
+      if (!healthMetric || !healthMetric.wound_photo_grad_url || !healthMetric.wound_photo_mask_url) {
+        setAnalysisError('No saved analysis found for this wound photo.');
+        setAnalysisResults(null);
+        setIsLoadingAnalysis(false);
+        return;
+      }
+
+      // Set the analysis results with the saved URLs
+      setAnalysisResults({
+        gradcam: healthMetric.wound_photo_grad_url,
+        segmentation: healthMetric.wound_photo_mask_url,
+        className: healthMetric.risk_classification || 'Unknown',
+        originalImage: photo.url
+      });
+
+    } catch (error) {
+      console.error('Error fetching wound analysis:', error);
+      setAnalysisError('Failed to load analysis. Please try again.');
+      setAnalysisResults(null);
+    } finally {
+      setIsLoadingAnalysis(false);
+    }
+  };
+
+  // Function to close the analysis modal
+  const handleCloseAnalysisModal = () => {
+    setShowAnalysisModal(false);
+    setAnalysisResults(null);
+    setAnalysisError(null);
+    setSelectedWoundPhotoForAnalysis(null);
+  };
+
 // ... rest of the component's functions and return statement ...
 
   // New function to handle viewing lab details
@@ -3975,6 +4040,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                                 <span className="detail-value">{selectedPatientForDetail.diabetes_type || 'N/A'}</span>
                                             </div>
                                             <div className="patient-detail-item">
+                                                <span className="detail-label">Duration of Diabetes:</span>
+                                                <span className="detail-value">{selectedPatientForDetail.diabetes_duration || 'N/A'}</span>
+                                            </div>
+                                            <div className="patient-detail-item">
                                                 <span className="detail-label">Phone:</span>
                                                 <span className="detail-value">{selectedPatientForDetail.contact_info || 'N/A'}</span>
                                             </div>
@@ -4010,15 +4079,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                                 <span className="detail-label">Heart Disease:</span>
                                                 <span className="detail-value">{selectedPatientForDetail.complication_history?.includes("Heart Attack") ? "Yes" : "None"}</span>
                                             </div>
-                                        </div>
-                                         <div className="patient-detail-item">
+                                            <div className="patient-detail-item">
                                                 <span className="detail-label">Smoking History:</span>
                                                 <span className="detail-value">{selectedPatientForDetail.smoking_status || 'N/A'}</span>
                                             </div>
-                                         <div className="patient-detail-item">
-                                                <span className="detail-label">Duration of Diabetes:</span>
-                                                <span className="detail-value">{selectedPatientForDetail.diabetes_duration || 'N/A'}</span>
-                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -4816,7 +4881,12 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             
                                             <div className="photo-actions">
                                                 <button className="entry-btn">Entry ID: 00{allWoundPhotos.length - index}</button>
-                                                <button className="view-details-btn">View Details</button>
+                                                <button 
+                                                    className="view-details-btn"
+                                                    onClick={() => handleViewWoundAnalysis(photo)}
+                                                >
+                                                    View Details
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -6589,6 +6659,68 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       minute: '2-digit', 
                       hour12: true 
                     })}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Wound Analysis Modal */}
+            {showAnalysisModal && (
+              <div className="modal-backdrop" onClick={handleCloseAnalysisModal}>
+                <div className="analysis-modal-content" onClick={(e) => e.stopPropagation()}>
+                  <div className="analysis-modal-header">
+                    <h3>Wound Analysis Results</h3>
+                    <button className="modal-close" onClick={handleCloseAnalysisModal}>
+                      <i className="fas fa-times"></i>
+                    </button>
+                  </div>
+                  <div className="analysis-modal-body">
+                    {isLoadingAnalysis ? (
+                      <div className="loading-message">
+                        <p>Loading analysis...</p>
+                      </div>
+                    ) : analysisError ? (
+                      <div className="error-message">
+                        <p>{analysisError}</p>
+                      </div>
+                    ) : analysisResults ? (
+                      <>
+                        <div className="analysis-images-grid">
+                          <div className="analysis-image-item">
+                            <h4>Original Image</h4>
+                            <img 
+                              src={analysisResults.originalImage} 
+                              alt="Original" 
+                              className="analysis-image"
+                            />
+                          </div>
+                          <div className="analysis-image-item">
+                            <h4>Grad-CAM Heatmap</h4>
+                            <img 
+                              src={analysisResults.gradcam} 
+                              alt="Grad-CAM Heatmap" 
+                              className="analysis-image"
+                            />
+                          </div>
+                          <div className="analysis-image-item">
+                            <h4>Segmentation Mask</h4>
+                            <img 
+                              src={analysisResults.segmentation} 
+                              alt="Segmentation Mask" 
+                              className="analysis-image"
+                            />
+                          </div>
+                        </div>
+                        <div className="analysis-info">
+                          <h4>AI Diagnosis</h4>
+                          <p><strong>Risk Classification:</strong> {analysisResults.className}</p>
+                          <p className="analysis-note">
+                            The Grad-CAM heatmap shows regions of interest identified by the AI model, 
+                            and the segmentation mask highlights the wound area.
+                          </p>
+                        </div>
+                      </>
+                    ) : null}
                   </div>
                 </div>
               </div>
