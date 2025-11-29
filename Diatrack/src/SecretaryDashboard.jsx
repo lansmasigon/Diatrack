@@ -632,6 +632,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const APPOINTMENTS_PER_PAGE = 6; // Define how many appointments per page
 
   const [upcomingAppointmentsCount, setUpcomingAppointmentsCount] = useState(0);
+  
+  // Filter state for appointments table (today vs upcoming)
+  const [appointmentFilter, setAppointmentFilter] = useState('today'); // 'today' or 'upcoming'
 
   const [currentPagePatients, setCurrentPagePatients] = useState(1);
   const PATIENTS_PER_PAGE = 10;
@@ -1131,6 +1134,13 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       setMessage("Error: Secretary account not loaded properly.");
     }
   }, [user]);
+
+  // Re-fetch appointments when the filter changes
+  useEffect(() => {
+    if (user && user.secretary_id) {
+      fetchAllAppointments();
+    }
+  }, [appointmentFilter]);
 
   // This useEffect will run when linkedDoctors changes, and then fetch patients and update counts
   useEffect(() => {
@@ -2177,13 +2187,24 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Start of today in local time
   
-  // Expand the search range to include appointments that might appear as different dates due to UTC storage
-  const startDate = new Date(today);
-  startDate.setDate(startDate.getDate() - 1); // Start from yesterday
-  const endDate = new Date(today);
-  endDate.setDate(endDate.getDate() + 2); // Go to day after tomorrow
+  // Determine date range based on filter
+  let startDate, endDate;
+  
+  if (appointmentFilter === 'today') {
+    // For today: expand the search range to include appointments that might appear as different dates due to UTC storage
+    startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - 1); // Start from yesterday
+    endDate = new Date(today);
+    endDate.setDate(endDate.getDate() + 2); // Go to day after tomorrow
+  } else {
+    // For upcoming: from today onwards
+    startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - 1); // Include today with buffer
+    endDate = new Date(today);
+    endDate.setDate(endDate.getDate() + 90); // Next 90 days
+  }
 
-  console.log("Fetching appointments in expanded range:", startDate.toISOString(), "to", endDate.toISOString());
+  console.log("Fetching appointments in range:", startDate.toISOString(), "to", endDate.toISOString());
 
   const { data, error } = await supabase
     .from("appointments")
@@ -2209,28 +2230,36 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     console.error("Error fetching appointments:", error);
     setMessage(`Error fetching appointments: ${error.message}`);
   } else {
-    // Filter to only show appointments that are actually "today" when we extract the date
     const todayDateString = today.toLocaleDateString('en-CA'); // YYYY-MM-DD format
     
-    const todaysAppointments = data.filter(app => {
+    // Filter based on selected filter option
+    const filteredAppointments = data.filter(app => {
       const state = (app.appointment_state || '').toLowerCase();
       const isActive = state !== 'finished' && state !== 'done' && state !== 'cancelled';
       
-      // Extract the date part from the stored datetime and compare with today
+      // Extract the date part from the stored datetime
       const appointmentDateString = app.appointment_datetime.substring(0, 10); // Gets YYYY-MM-DD
-      const isToday = appointmentDateString === todayDateString;
       
-      console.log("Checking appointment:", app.appointment_id, "Date:", appointmentDateString, "Today:", todayDateString, "IsToday:", isToday, "IsActive:", isActive);
-      
-      return isActive && isToday;
+      if (appointmentFilter === 'today') {
+        const isToday = appointmentDateString === todayDateString;
+        console.log("Checking appointment:", app.appointment_id, "Date:", appointmentDateString, "Today:", todayDateString, "IsToday:", isToday, "IsActive:", isActive);
+        return isActive && isToday;
+      } else {
+        // For upcoming: include today and future dates
+        const appointmentDate = new Date(appointmentDateString);
+        appointmentDate.setHours(0, 0, 0, 0);
+        const isUpcoming = appointmentDate >= today;
+        console.log("Checking appointment:", app.appointment_id, "Date:", appointmentDateString, "IsUpcoming:", isUpcoming, "IsActive:", isActive);
+        return isActive && isUpcoming;
+      }
     });
 
-    console.log("Filtered appointments for today:", todaysAppointments);
+    console.log("Filtered appointments:", filteredAppointments);
 
-    const processedAppointments = todaysAppointments.map(app => {
+    const processedAppointments = filteredAppointments.map(app => {
       // Extract time directly from the ISO string (HH:MM format)
-      // Since we stored it as UTC, we just extract the time part
       const timeString = app.appointment_datetime.substring(11, 16); // Gets HH:MM
+      const dateString = app.appointment_datetime.substring(0, 10); // Gets YYYY-MM-DD
       
       console.log("Processing appointment:", app.appointment_id, "Raw datetime:", app.appointment_datetime, "Extracted time:", timeString);
       
@@ -2239,10 +2268,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         patient_name: app.patients ? `${app.patients.first_name} ${app.patients.last_name}` : 'Unknown Patient',
         doctor_name: app.doctors ? `${app.doctors.first_name} ${app.doctors.last_name}` : 'Unknown Doctor',
         timeDisplay: formatTimeTo12Hour(timeString),
+        dateDisplay: formatDateToReadable(dateString),
       };
     });
 
-    console.log("Final processed appointments for today table:", processedAppointments);
+    console.log("Final processed appointments:", processedAppointments);
     setAppointmentsToday(processedAppointments);
   }
 };
@@ -3586,11 +3616,32 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
               <div className="dashboard-right-column">
                 <div className="appointments-today">
-                  <h3>Appointments Today</h3> {/* Changed heading */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                    <h3>{appointmentFilter === 'today' ? 'Appointments Today' : 'All Upcoming Appointments'}</h3>
+                    <select 
+                      value={appointmentFilter} 
+                      onChange={(e) => {
+                        setAppointmentFilter(e.target.value);
+                        setCurrentPageAppointments(1); // Reset to first page when filter changes
+                      }}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '5px',
+                        border: '1px solid #ddd',
+                        backgroundColor: 'white',
+                        cursor: 'pointer',
+                        fontSize: '14px'
+                      }}
+                    >
+                      <option value="today">Today</option>
+                      <option value="upcoming">All Upcoming</option>
+                    </select>
+                  </div>
                   <div className="appointment-list-container"> {/* Added container for table + pagination */}
                     <table className="appointment-list-table"> {/* Class added for potential styling */}
                       <thead>
                         <tr>
+                          {appointmentFilter === 'upcoming' && <th>Date</th>}
                           <th>Time</th> {/* Changed to Time only */}
                           <th>Patient Name</th>
                           <th>Status</th>
@@ -3606,6 +3657,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           )
                           .map((appointment) => (
                             <tr key={appointment.appointment_id}>
+                              {appointmentFilter === 'upcoming' && <td>{appointment.dateDisplay}</td>}
                               <td>{appointment.timeDisplay}</td> {/* Use the new timeDisplay */}
                               <td>{appointment.patient_name}</td>
                               <td className="appointment-status">
@@ -3638,8 +3690,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         {/* Message for no appointments on the current page */}
                         {appointmentsToday.length === 0 && (
                           <tr>
-                            <td colSpan="4" style={{ textAlign: "center" }}>
-                              No appointments found.
+                            <td colSpan={appointmentFilter === 'upcoming' ? "5" : "4"} style={{ textAlign: "center" }}>
+                              {appointmentFilter === 'today' ? 'No appointments today.' : 'No upcoming appointments.'}
                             </td>
                           </tr>
                         )}
@@ -3650,7 +3702,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           currentPageAppointments * APPOINTMENTS_PER_PAGE
                         ).length === 0 && (
                           <tr>
-                            <td colSpan="4" style={{ textAlign: "center" }}>
+                            <td colSpan={appointmentFilter === 'upcoming' ? "5" : "4"} style={{ textAlign: "center" }}>
                               No appointments on this page.
                             </td>
                           </tr>
