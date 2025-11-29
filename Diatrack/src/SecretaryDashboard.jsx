@@ -667,6 +667,22 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [selectedWoundPhotoForAnalysis, setSelectedWoundPhotoForAnalysis] = useState(null);
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   
+  // State for demographics edit modal
+  const [showDemographicsEditModal, setShowDemographicsEditModal] = useState(false);
+  const [demographicsForm, setDemographicsForm] = useState({
+    firstName: "",
+    lastName: "",
+    dateOfBirth: "",
+    gender: "",
+    contactInfo: "",
+    address: "",
+    emergencyContactNumber: "",
+    password: "",
+    patientHeight: "",
+    patientWeight: "",
+    bmi: ""
+  });
+  
   useEffect(() => {
     const fetchUpcomingAppointments = async () => {
       const doctorIds = linkedDoctors.map(d => d.doctor_id);
@@ -2993,10 +3009,13 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setShowAnalysisModal(true);
 
     try {
-      // Fetch the health metric associated with this wound photo
+      console.log('Fetching analysis for photo:', photo.url);
+      console.log('Patient ID:', selectedPatientForDetail.patient_id);
+      
+      // Fetch the health metric associated with this wound photo including treatment plan
       const { data: healthMetric, error: metricError } = await supabase
         .from('health_metrics')
-        .select('wound_photo_grad_url, wound_photo_mask_url, risk_classification')
+        .select('wound_photo_grad_url, wound_photo_mask_url, risk_classification, wound_diagnosis, wound_care, wound_dressing, wound_medication, "wound_follow-up", "wound_important-notes"')
         .eq('patient_id', selectedPatientForDetail.patient_id)
         .eq('wound_photo_url', photo.url)
         .order('submission_date', { ascending: false })
@@ -3005,7 +3024,16 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
       if (metricError) {
         console.error('Error fetching analysis:', metricError);
-        setAnalysisError('No saved analysis found for this wound photo.');
+        console.error('Error code:', metricError.code);
+        console.error('Error message:', metricError.message);
+        console.error('Error details:', metricError.details);
+        
+        // If no rows found, show a more specific message
+        if (metricError.code === 'PGRST116') {
+          setAnalysisError('No analysis found for this wound photo. The doctor may not have submitted analysis results yet.');
+        } else {
+          setAnalysisError(`Error loading analysis: ${metricError.message}`);
+        }
         setAnalysisResults(null);
         setIsLoadingAnalysis(false);
         return;
@@ -3018,12 +3046,20 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         return;
       }
 
-      // Set the analysis results with the saved URLs
+      // Set the analysis results with the saved URLs and treatment plan
       setAnalysisResults({
         gradcam: healthMetric.wound_photo_grad_url,
         segmentation: healthMetric.wound_photo_mask_url,
         className: healthMetric.risk_classification || 'Unknown',
-        originalImage: photo.url
+        originalImage: photo.url,
+        treatmentPlan: {
+          diagnosis: healthMetric.wound_diagnosis || 'N/A',
+          care: healthMetric.wound_care || 'N/A',
+          dressing: healthMetric.wound_dressing || 'N/A',
+          medication: healthMetric.wound_medication || 'N/A',
+          followUp: healthMetric['wound_follow-up'] || 'N/A',
+          importantNotes: healthMetric['wound_important-notes'] || 'N/A'
+        }
       });
 
     } catch (error) {
@@ -3041,6 +3077,121 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setAnalysisResults(null);
     setAnalysisError(null);
     setSelectedWoundPhotoForAnalysis(null);
+  };
+
+  // Function to open demographics edit modal
+  const handleOpenDemographicsEdit = () => {
+    if (selectedPatientForDetail) {
+      setDemographicsForm({
+        firstName: selectedPatientForDetail.first_name || "",
+        lastName: selectedPatientForDetail.last_name || "",
+        dateOfBirth: selectedPatientForDetail.date_of_birth || "",
+        gender: selectedPatientForDetail.gender || "",
+        contactInfo: selectedPatientForDetail.contact_info || "",
+        address: selectedPatientForDetail.address || "",
+        emergencyContactNumber: selectedPatientForDetail.emergency_contact || "",
+        password: selectedPatientForDetail.password || "",
+        patientHeight: selectedPatientForDetail.patient_height || "",
+        patientWeight: selectedPatientForDetail.patient_weight || "",
+        bmi: selectedPatientForDetail.BMI || ""
+      });
+      setShowDemographicsEditModal(true);
+    }
+  };
+
+  // Function to close demographics edit modal
+  const handleCloseDemographicsEdit = () => {
+    setShowDemographicsEditModal(false);
+    setDemographicsForm({
+      firstName: "",
+      lastName: "",
+      dateOfBirth: "",
+      gender: "",
+      contactInfo: "",
+      address: "",
+      emergencyContactNumber: "",
+      password: "",
+      patientHeight: "",
+      patientWeight: "",
+      bmi: ""
+    });
+  };
+
+  // Function to handle demographics form input changes
+  const handleDemographicsInputChange = (field, value) => {
+    setDemographicsForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Function to save demographics changes
+  const handleSaveDemographics = async () => {
+    if (!selectedPatientForDetail) {
+      setMessage("No patient selected.");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('patients')
+        .update({
+          first_name: demographicsForm.firstName,
+          last_name: demographicsForm.lastName,
+          date_of_birth: demographicsForm.dateOfBirth,
+          gender: demographicsForm.gender,
+          contact_info: demographicsForm.contactInfo,
+          address: demographicsForm.address,
+          emergency_contact: demographicsForm.emergencyContactNumber,
+          password: demographicsForm.password,
+          patient_height: demographicsForm.patientHeight || null,
+          patient_weight: demographicsForm.patientWeight || null,
+          BMI: demographicsForm.bmi || null
+        })
+        .eq('patient_id', selectedPatientForDetail.patient_id);
+
+      if (error) {
+        console.error("Error updating patient demographics:", error);
+        setMessage(`Error: ${error.message}`);
+        return;
+      }
+
+      setMessage("Patient demographics updated successfully!");
+      
+      // Update the selected patient detail with new data
+      setSelectedPatientForDetail(prev => ({
+        ...prev,
+        first_name: demographicsForm.firstName,
+        last_name: demographicsForm.lastName,
+        date_of_birth: demographicsForm.dateOfBirth,
+        gender: demographicsForm.gender,
+        contact_info: demographicsForm.contactInfo,
+        address: demographicsForm.address,
+        emergency_contact: demographicsForm.emergencyContactNumber,
+        password: demographicsForm.password,
+        patient_height: demographicsForm.patientHeight,
+        patient_weight: demographicsForm.patientWeight,
+        BMI: demographicsForm.bmi
+      }));
+
+      // Refresh the patients list
+      await fetchPatients();
+
+      // Close the modal
+      handleCloseDemographicsEdit();
+
+      // Log the update
+      await logSystemAction(
+        'secretary',
+        user.secretary_id,
+        `${user.first_name} ${user.last_name}`,
+        'patient_update',
+        'update',
+        `Updated demographics for patient: ${demographicsForm.firstName} ${demographicsForm.lastName}`,
+        'Secretary Dashboard - Patient Demographics Update'
+      );
+
+    } catch (error) {
+      console.error("Error saving demographics:", error);
+      setMessage(`Error: ${error.message}`);
+    }
   };
 
 // ... rest of the component's functions and return statement ...
@@ -3998,12 +4149,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         </button>
                         <div className="patient-details-header-row">
                             <h2>Patient Details</h2>
-                            <button className="export-pdf-button" onClick={() => {
-                                // Export PDF functionality - will print and allow saving
-                                window.print();
-                            }}>
-                                <img src="../picture/upload.png" alt="Export" className="icon-button-img" /> Export PDF
-                            </button>
+                            <div className="patient-details-header-buttons">
+                                <button className="update-patient-button" onClick={handleOpenDemographicsEdit}>
+                                    <img src="../picture/edit.png" alt="Update" className="icon-button-img" /> Update Patient
+                                </button>
+                                <button className="export-pdf-button" onClick={() => {
+                                    // Export PDF functionality - will print and allow saving
+                                    window.print();
+                                }}>
+                                    <img src="../picture/upload.png" alt="Export" className="icon-button-img" /> Export PDF
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div className="patient-details-content-container">
@@ -6671,7 +6827,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   <div className="analysis-modal-header">
                     <h3>Wound Analysis Results</h3>
                     <button className="modal-close" onClick={handleCloseAnalysisModal}>
-                      <i className="fas fa-times"></i>
+                      <img src="/picture/close.png" alt="Close" className="icon-button-img" />
                     </button>
                   </div>
                   <div className="analysis-modal-body">
@@ -6719,8 +6875,179 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             and the segmentation mask highlights the wound area.
                           </p>
                         </div>
+                        
+                        {/* Treatment Plan Section */}
+                        {analysisResults.treatmentPlan && (
+                          <div className="treatment-plan-section">
+                            <h4>Doctor's Treatment Plan</h4>
+                            <div className="treatment-plan-grid">
+                              <div className="treatment-plan-item">
+                                <label>Diagnosis:</label>
+                                <p>{analysisResults.treatmentPlan.diagnosis}</p>
+                              </div>
+                              <div className="treatment-plan-item">
+                                <label>Wound Care:</label>
+                                <p>{analysisResults.treatmentPlan.care}</p>
+                              </div>
+                              <div className="treatment-plan-item">
+                                <label>Dressing:</label>
+                                <p>{analysisResults.treatmentPlan.dressing}</p>
+                              </div>
+                              <div className="treatment-plan-item">
+                                <label>Medication:</label>
+                                <p>{analysisResults.treatmentPlan.medication}</p>
+                              </div>
+                              <div className="treatment-plan-item">
+                                <label>Follow-up:</label>
+                                <p>{analysisResults.treatmentPlan.followUp}</p>
+                              </div>
+                              <div className="treatment-plan-item full-width">
+                                <label>Important Notes:</label>
+                                <p>{analysisResults.treatmentPlan.importantNotes}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </>
                     ) : null}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Demographics Edit Modal */}
+            {showDemographicsEditModal && (
+              <div className="modal-backdrop" onClick={handleCloseDemographicsEdit}>
+                <div className="demographics-modal-content" onClick={(e) => e.stopPropagation()}>
+                  <div className="demographics-modal-header">
+                    <h3>Update Patient Demographics</h3>
+                    <button className="modal-close" onClick={handleCloseDemographicsEdit}>
+                      <img src="/picture/close.png" alt="Close" className="icon-button-img" />
+                    </button>
+                  </div>
+                  <div className="demographics-modal-body">
+                    <div className="demographics-form-grid">
+                      <div className="form-group">
+                        <label>First Name *</label>
+                        <input
+                          type="text"
+                          value={demographicsForm.firstName}
+                          onChange={(e) => handleDemographicsInputChange('firstName', e.target.value)}
+                          placeholder="Enter first name"
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Last Name *</label>
+                        <input
+                          type="text"
+                          value={demographicsForm.lastName}
+                          onChange={(e) => handleDemographicsInputChange('lastName', e.target.value)}
+                          placeholder="Enter last name"
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Date of Birth *</label>
+                        <input
+                          type="date"
+                          value={demographicsForm.dateOfBirth}
+                          onChange={(e) => handleDemographicsInputChange('dateOfBirth', e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Gender *</label>
+                        <select
+                          value={demographicsForm.gender}
+                          onChange={(e) => handleDemographicsInputChange('gender', e.target.value)}
+                          required
+                        >
+                          <option value="">Select Gender</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Contact Number *</label>
+                        <input
+                          type="text"
+                          value={demographicsForm.contactInfo}
+                          onChange={(e) => handleDemographicsInputChange('contactInfo', e.target.value)}
+                          placeholder="Enter contact number"
+                          required
+                        />
+                      </div>
+                      <div className="form-group full-width">
+                        <label>Address *</label>
+                        <input
+                          type="text"
+                          value={demographicsForm.address}
+                          onChange={(e) => handleDemographicsInputChange('address', e.target.value)}
+                          placeholder="Enter address"
+                          required
+                        />
+                      </div>
+                      <div className="form-group full-width">
+                        <label>Emergency Contact Number *</label>
+                        <input
+                          type="text"
+                          value={demographicsForm.emergencyContactNumber}
+                          onChange={(e) => handleDemographicsInputChange('emergencyContactNumber', e.target.value)}
+                          placeholder="Enter emergency contact number"
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Password *</label>
+                        <input
+                          type="password"
+                          value={demographicsForm.password}
+                          onChange={(e) => handleDemographicsInputChange('password', e.target.value)}
+                          placeholder="Enter password"
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Height (cm)</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={demographicsForm.patientHeight}
+                          onChange={(e) => handleDemographicsInputChange('patientHeight', e.target.value)}
+                          placeholder="Enter height in cm"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Weight (kg)</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={demographicsForm.patientWeight}
+                          onChange={(e) => handleDemographicsInputChange('patientWeight', e.target.value)}
+                          placeholder="Enter weight in kg"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>BMI</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={demographicsForm.bmi}
+                          onChange={(e) => handleDemographicsInputChange('bmi', e.target.value)}
+                          placeholder="Enter BMI"
+                        />
+                      </div>
+                    </div>
+                    <div className="demographics-modal-footer">
+                      <button className="cancel-button" onClick={handleCloseDemographicsEdit}>
+                        Cancel
+                      </button>
+                      <button className="save-button" onClick={handleSaveDemographics}>
+                        Save Changes
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
