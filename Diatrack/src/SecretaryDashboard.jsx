@@ -51,7 +51,7 @@ const formatDateForChart = (dateString) => {
     if (isNaN(date.getTime())) return 'N/A';
     
     return date.toLocaleDateString('en-US', {
-      month: 'long',
+      month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
@@ -657,6 +657,10 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [selectedProfileStatusFilter, setSelectedProfileStatusFilter] = useState('all'); // For patient list
   const [selectedLabEntryProfileStatusFilter, setSelectedLabEntryProfileStatusFilter] = useState('all'); // For lab entry search
   
+  // Sort order filter states
+  const [sortOrder, setSortOrder] = useState('desc'); // For patient list (newest first by default)
+  const [labEntrySortOrder, setLabEntrySortOrder] = useState('desc'); // For lab entry search (newest first by default)
+  
   // State for patient count over the past 6 months
   const [patientCountHistory, setPatientCountHistory] = useState([]);
   
@@ -930,6 +934,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [glucoseTimeFilter, setGlucoseTimeFilter] = useState('week'); // 'day', 'week', 'month'
   const [bpTimeFilter, setBpTimeFilter] = useState('week');
   const [riskTimeFilter, setRiskTimeFilter] = useState('week');
+  const [riskScoreTimeFilter, setRiskScoreTimeFilter] = useState('week');
 
   // Helper function to filter metrics by time period
   const filterMetricsByTimePeriod = React.useCallback((metrics, timePeriod) => {
@@ -994,6 +999,11 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const riskFilteredMetrics = React.useMemo(() => 
     filterMetricsByTimePeriod(allPatientHealthMetrics, riskTimeFilter),
     [allPatientHealthMetrics, riskTimeFilter, filterMetricsByTimePeriod]
+  );
+
+  const riskScoreFilteredMetrics = React.useMemo(() => 
+    filterMetricsByTimePeriod(allPatientHealthMetrics, riskScoreTimeFilter),
+    [allPatientHealthMetrics, riskScoreTimeFilter, filterMetricsByTimePeriod]
   );
 
   // NEW STATE FOR PATIENT-SPECIFIC LAB RESULTS (ALL HISTORY)
@@ -1607,7 +1617,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         // --- Fetch ALL Health Metrics for Charts and Table ---
         const { data: historyHealthData, error: historyHealthError } = await supabase
           .from('health_metrics')
-          .select('blood_glucose, bp_systolic, bp_diastolic, submission_date, risk_classification')
+          .select('blood_glucose, bp_systolic, bp_diastolic, submission_date, risk_classification, risk_score')
           .eq('patient_id', selectedPatientForDetail.patient_id)
           .order('submission_date', { ascending: true });
 
@@ -2947,10 +2957,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     const paginatedLabSearchPatients = filteredLabSearchPatients.slice(startIndexLabSearchPatient, endIndexLabSearchPatient);
 
     // Health Metrics pagination calculations
-    const totalHealthMetricsPages = Math.ceil(allPatientHealthMetrics.length / HEALTH_METRICS_PER_PAGE);
+    const sortedHealthMetrics = [...allPatientHealthMetrics].sort((a, b) => new Date(b.submission_date) - new Date(a.submission_date));
+    const totalHealthMetricsPages = Math.ceil(sortedHealthMetrics.length / HEALTH_METRICS_PER_PAGE);
     const startIndexHealthMetrics = (currentPageHealthMetrics - 1) * HEALTH_METRICS_PER_PAGE;
     const endIndexHealthMetrics = startIndexHealthMetrics + HEALTH_METRICS_PER_PAGE;
-    const paginatedHealthMetrics = allPatientHealthMetrics.slice(startIndexHealthMetrics, endIndexHealthMetrics);
+    const paginatedHealthMetrics = sortedHealthMetrics.slice(startIndexHealthMetrics, endIndexHealthMetrics);
     
   // Risk filter handlers
   const handleRiskFilterChange = (riskLevel) => {
@@ -2983,6 +2994,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
   const handleLabEntryProfileStatusFilterChange = (status) => {
     setSelectedLabEntryProfileStatusFilter(status);
     setCurrentPageLabSearchPatients(1); // Reset to first page when filter changes
+  };
+
+  // Sort order handlers
+  const handleSortOrderChange = (order) => {
+    setSortOrder(order);
+    setCurrentPagePatients(1); // Reset to first page when sort order changes
+  };
+
+  const handleLabEntrySortOrderChange = (order) => {
+    setLabEntrySortOrder(order);
+    setCurrentPageLabSearchPatients(1); // Reset to first page when sort order changes
   };
 
   // Calculate risk counts for filter buttons
@@ -4132,6 +4154,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       onLabStatusChange={handleLabStatusFilterChange}
                       selectedProfileStatus={selectedProfileStatusFilter}
                       onProfileStatusChange={handleProfileStatusFilterChange}
+                      sortOrder={sortOrder}
+                      onSortOrderChange={handleSortOrderChange}
                       showCounts={true}
                       counts={patientRiskCounts}
                       labStatusCounts={patientLabStatusCounts}
@@ -4804,6 +4828,126 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   )}
                                 </div>
                               </div>
+
+                              {/* Risk Score Over Time Chart */}
+                              <div className="blood-glucose-chart-container">
+                                <div className="chart-header">
+                                  <h4>Risk Score Over Time</h4>
+                                  <div className="time-filter-buttons">
+                                    <button 
+                                      className={`time-filter-btn ${riskScoreTimeFilter === 'day' ? 'active' : ''}`}
+                                      onClick={() => setRiskScoreTimeFilter('day')}
+                                    >
+                                      Day
+                                    </button>
+                                    <button 
+                                      className={`time-filter-btn ${riskScoreTimeFilter === 'week' ? 'active' : ''}`}
+                                      onClick={() => setRiskScoreTimeFilter('week')}
+                                    >
+                                      Week
+                                    </button>
+                                    <button 
+                                      className={`time-filter-btn ${riskScoreTimeFilter === 'month' ? 'active' : ''}`}
+                                      onClick={() => setRiskScoreTimeFilter('month')}
+                                    >
+                                      Month
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="chart-wrapper">
+                                  {riskScoreFilteredMetrics.length > 0 ? (
+                                    <Line
+                                      data={{
+                                        labels: riskScoreFilteredMetrics.map(entry => formatDateForChart(entry.submission_date)),
+                                        datasets: [{
+                                          label: 'Risk Score',
+                                          data: riskScoreFilteredMetrics.map(entry => parseFloat(entry.risk_score) || 0),
+                                          fill: true,
+                                          backgroundColor: (context) => {
+                                            const chart = context.chart;
+                                            const {ctx, chartArea} = chart;
+                                            if (!chartArea) {
+                                              return null;
+                                            }
+                                            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                                            gradient.addColorStop(0, 'rgba(34, 197, 94, 0.8)');
+                                            gradient.addColorStop(1, 'rgba(34, 197, 94, 0.1)');
+                                            return gradient;
+                                          },
+                                          borderColor: '#22c55e',
+                                          borderWidth: 2,
+                                          pointBackgroundColor: '#22c55e',
+                                          pointBorderColor: '#fff',
+                                          pointBorderWidth: 2,
+                                          pointRadius: 4,
+                                          pointHoverRadius: 6,
+                                          tension: 0.4,
+                                        }],
+                                      }}
+                                      options={{
+                                        responsive: true,
+                                        maintainAspectRatio: false,
+                                        plugins: {
+                                          legend: {
+                                            display: false,
+                                          },
+                                          tooltip: {
+                                            callbacks: {
+                                              label: function(context) {
+                                                return `Risk Score: ${context.raw}/100`;
+                                              }
+                                            }
+                                          }
+                                        },
+                                        scales: {
+                                          y: {
+                                            beginAtZero: true,
+                                            title: {
+                                              display: true,
+                                              text: 'Risk Score',
+                                              font: {
+                                                size: 12,
+                                                weight: 'bold'
+                                              }
+                                            },
+                                            min: 0,
+                                            max: 100,
+                                            ticks: {
+                                              display: true,
+                                            },
+                                            grid: {
+                                              display: true,
+                                              color: 'rgba(0, 0, 0, 0.1)',
+                                            }
+                                          },
+                                          x: {
+                                            grid: {
+                                              display: false
+                                            },
+                                            title: {
+                                              display: true,
+                                              text: 'Date',
+                                              font: {
+                                                size: 12,
+                                                weight: 'bold'
+                                              }
+                                            },
+                                            ticks: {
+                                              display: true,
+                                              maxRotation: 45,
+                                              minRotation: 45
+                                            }
+                                          }
+                                        }
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="no-chart-data">
+                                      <p>No risk score data available for selected time period</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                         </div>
 
@@ -4935,9 +5079,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 <table className="health-metrics-table">
                                     <thead>
                                         <tr>
-                                            <th>Date & Time</th>
+                                            <th>Date</th>
                                             <th>Blood Glucose</th>
                                             <th>Blood Pressure</th>
+                                            <th>Risk Score</th>
                                             <th>Risk Classification</th>
                                         </tr>
                                     </thead>
@@ -4945,12 +5090,15 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         {paginatedHealthMetrics.length > 0 ? (
                                             paginatedHealthMetrics.map((metric, index) => (
                                                 <tr key={index}>
-                                                    <td>{formatDateToReadable(metric.submission_date) + ' ' + formatTimeTo12Hour(new Date(metric.submission_date).toTimeString().substring(0, 5))}</td>
+                                                    <td>{new Date(metric.submission_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                                                     <td>{metric.blood_glucose || 'N/A'}</td>
                                                     <td>
                                                         {metric.bp_systolic !== null && metric.bp_diastolic !== null
                                                             ? `${metric.bp_systolic}/${metric.bp_diastolic}`
                                                             : 'N/A'}
+                                                    </td>
+                                                    <td className="metric-value">
+                                                        {metric.risk_score ? `${metric.risk_score}/100` : 'N/A'}
                                                     </td>
                                                     <td className={`risk-classification-${(metric.risk_classification || 'N/A').toLowerCase()}`}>
                                                         {metric.risk_classification || 'N/A'}
@@ -4959,7 +5107,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             ))
                                         ) : (
                                             <tr>
-                                                <td colSpan="4">No health metrics history available for this patient.</td>
+                                                <td colSpan="5">No health metrics history available for this patient.</td>
                                             </tr>
                                         )}
                                     </tbody>
@@ -4967,14 +5115,16 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 
                                 {/* Health Metrics Pagination */}
                                 {allPatientHealthMetrics.length > HEALTH_METRICS_PER_PAGE && (
-                                    <Pagination
-                                        currentPage={currentPageHealthMetrics}
-                                        totalPages={totalHealthMetricsPages}
-                                        onPageChange={setCurrentPageHealthMetrics}
-                                        itemsPerPage={HEALTH_METRICS_PER_PAGE}
-                                        totalItems={allPatientHealthMetrics.length}
-                                        showPageInfo={false}
-                                    />
+                                    <div className="health-metrics-pagination">
+                                        <Pagination
+                                            currentPage={currentPageHealthMetrics}
+                                            totalPages={totalHealthMetricsPages}
+                                            onPageChange={setCurrentPageHealthMetrics}
+                                            itemsPerPage={HEALTH_METRICS_PER_PAGE}
+                                            totalItems={allPatientHealthMetrics.length}
+                                            showPageInfo={false}
+                                        />
+                                    </div>
                                 )}
                             </div>
                              {/* Appointment Schedule Section */}
@@ -5376,6 +5526,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             onLabStatusChange={handleLabEntryLabStatusFilterChange}
                             selectedProfileStatus={selectedLabEntryProfileStatusFilter}
                             onProfileStatusChange={handleLabEntryProfileStatusFilterChange}
+                            sortOrder={labEntrySortOrder}
+                            onSortOrderChange={handleLabEntrySortOrderChange}
                             showCounts={true}
                             counts={labSearchRiskCounts}
                             labStatusCounts={labSearchLabStatusCounts}
@@ -5758,16 +5910,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     {/* New Reports Widgets Row */}
     <div className="reports-widgets-grid">
       {/* Total Patients Report Widget */}
-      <div className="report-widget report-total-patients" onClick={async () => {
-        const filteredPatients = await getFilteredPatientsForWidget('total-patients');
-        setReportDetailPatients(filteredPatients);
-        setReportDetailView('total-patients');
-        setActivePage('report-detail');
-        setCurrentPageReportDetail(1);
-      }} style={{ cursor: 'pointer' }}>
+      <div className="report-widget report-total-patients">
         <div className="report-widget-header">
           <img src="../picture/total.png" alt="Total Patients" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=👥"; }}/>
           <h4>Total Patients</h4>
+          <button className="report-widget-view-button" onClick={async () => {
+            const filteredPatients = await getFilteredPatientsForWidget('total-patients');
+            setReportDetailPatients(filteredPatients);
+            setReportDetailView('total-patients');
+            setActivePage('report-detail');
+            setCurrentPageReportDetail(1);
+          }}>View</button>
         </div>
         <div className="report-widget-content">
           <div className="report-widget-left">
@@ -5889,16 +6042,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       </div>
 
       {/* Full Compliance Report Widget */}
-      <div className="report-widget report-full-compliance" onClick={async () => {
-        const filteredPatients = await getFilteredPatientsForWidget('full-compliance');
-        setReportDetailPatients(filteredPatients);
-        setReportDetailView('full-compliance');
-        setActivePage('report-detail');
-        setCurrentPageReportDetail(1);
-      }} style={{ cursor: 'pointer' }}>
+      <div className="report-widget report-full-compliance">
         <div className="report-widget-header">
           <img src="../picture/full.svg" alt="Full Compliance" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/28a745/ffffff?text=✓"; }}/>
           <h4>Full Compliance</h4>
+          <button className="report-widget-view-button" onClick={async () => {
+            const filteredPatients = await getFilteredPatientsForWidget('full-compliance');
+            setReportDetailPatients(filteredPatients);
+            setReportDetailView('full-compliance');
+            setActivePage('report-detail');
+            setCurrentPageReportDetail(1);
+          }}>View</button>
         </div>
         <div className="report-widget-content">
           <div className="report-widget-left">
@@ -6019,16 +6173,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       </div>
 
       {/* Missing Logs Report Widget */}
-      <div className="report-widget report-missing-logs" onClick={async () => {
-        const filteredPatients = await getFilteredPatientsForWidget('missing-logs');
-        setReportDetailPatients(filteredPatients);
-        setReportDetailView('missing-logs');
-        setActivePage('report-detail');
-        setCurrentPageReportDetail(1);
-      }} style={{ cursor: 'pointer' }}>
+      <div className="report-widget report-missing-logs">
         <div className="report-widget-header">
           <img src="../picture/missinglogs.svg" alt="Missing Logs" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ffc107/ffffff?text=⚠"; }}/>
           <h4>Missing Logs</h4>
+          <button className="report-widget-view-button" onClick={async () => {
+            const filteredPatients = await getFilteredPatientsForWidget('missing-logs');
+            setReportDetailPatients(filteredPatients);
+            setReportDetailView('missing-logs');
+            setActivePage('report-detail');
+            setCurrentPageReportDetail(1);
+          }}>View</button>
         </div>
         <div className="report-widget-content">
           <div className="report-widget-left">
@@ -6149,16 +6304,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       </div>
 
       {/* Non-Compliant Cases Report Widget */}
-      <div className="report-widget report-non-compliant" onClick={async () => {
-        const filteredPatients = await getFilteredPatientsForWidget('non-compliant');
-        setReportDetailPatients(filteredPatients);
-        setReportDetailView('non-compliant');
-        setActivePage('report-detail');
-        setCurrentPageReportDetail(1);
-      }} style={{ cursor: 'pointer' }}>
+      <div className="report-widget report-non-compliant">
         <div className="report-widget-header">
           <img src="../picture/noncompliant.svg" alt="Non-Compliant Cases" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/dc3545/ffffff?text=✗"; }}/>
           <h4>Non-Compliant Cases</h4>
+          <button className="report-widget-view-button" onClick={async () => {
+            const filteredPatients = await getFilteredPatientsForWidget('non-compliant');
+            setReportDetailPatients(filteredPatients);
+            setReportDetailView('non-compliant');
+            setActivePage('report-detail');
+            setCurrentPageReportDetail(1);
+          }}>View</button>
         </div>
         <div className="report-widget-content">
           <div className="report-widget-left">
@@ -6281,49 +6437,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
     {/* New container for side-by-side layout */}
     <div className="reports-content-row">
-      {/* Table for Patients with Submitted Labs */}
-      <div className="submitted-labs-table-container">
-        <h3>Patients with Submitted Lab Results</h3>
-        <table className="patient-list-table">
-          <thead>
-            <tr>
-              <th>Patient Name</th>
-              <th>Submission Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* Filter and map patients with 'Submitted' lab status and a valid submission date */}
-            {patients
-              .filter(
-                (pat) =>
-                  pat.lab_status === "✅Submitted" &&
-                  pat.latest_lab_date
-              )
-              .map((patient) => (
-                <tr key={patient.patient_id}>
-                  <td>{patient.first_name} {patient.last_name}</td>
-                  <td>{formatDateToReadable(patient.latest_lab_date)}</td>
-                </tr>
-              ))}
-            {/* Display message if no patients meet the criteria */}
-            {patients.filter(
-              (pat) =>
-                
-                pat.lab_status === "✅Submitted" &&
-                pat.latest_lab_date
-            ).length === 0 && (
-              <tr>
-                <td colSpan="2">
-                  No patients have submitted all their lab results yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
       {/* Appointment History Chart */}
-      <div className="appointment-chart-container">
+      <div className="appointment-chart-container chart-half-width">
         <h3>Appointment History</h3>
         {loadingAppointments && <p>Loading appointment data...</p>}
         {appointmentError && <p className="error-message">Error: {appointmentError}</p>}
@@ -6373,7 +6488,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       </div>
 
       {/* Lab Submission Report Chart */}
-      <div className="lab-submission-chart-container">
+      <div className="lab-submission-chart-container chart-half-width">
         <h3>Lab Submission Report</h3>
         {loadingLabSubmissionData && <p>Loading lab submission data...</p>}
         {labSubmissionError && <p className="error-message">Error: {labSubmissionError}</p>}

@@ -543,6 +543,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState([]); // Doctor's appointments
   const [patientAppointments, setPatientAppointments] = useState([]); // Patient-specific appointments
+  const [allDoctors, setAllDoctors] = useState([]); // All registered doctors
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(""); // Corrected: Initialized with useState
@@ -659,6 +660,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [glucoseTimeFilter, setGlucoseTimeFilter] = useState('week'); // 'day', 'week', 'month'
   const [bpTimeFilter, setBpTimeFilter] = useState('week');
   const [riskTimeFilter, setRiskTimeFilter] = useState('week');
+  const [riskScoreTimeFilter, setRiskScoreTimeFilter] = useState('week');
 
 
   // Filter patient metrics based on selected risk filter
@@ -723,6 +725,11 @@ const Dashboard = ({ user, onLogout }) => {
     [filteredPatientMetrics, riskTimeFilter, filterMetricsByTimePeriod]
   );
 
+  const riskScoreFilteredMetrics = React.useMemo(() => 
+    filterMetricsByTimePeriod(filteredPatientMetrics, riskScoreTimeFilter),
+    [filteredPatientMetrics, riskScoreTimeFilter, filterMetricsByTimePeriod]
+  );
+
 
   useEffect(() => {
     console.log("useEffect triggered - activePage:", activePage, "selectedPatient?.patient_id:", selectedPatient?.patient_id);
@@ -732,6 +739,7 @@ const Dashboard = ({ user, onLogout }) => {
     }
     if (activePage === "dashboard" || activePage === "appointments" || activePage === "reports") { // Added 'reports' here
         fetchAppointments();
+        fetchAllDoctors(); // Fetch all doctors when viewing appointments
     }
     if (activePage === "patient-profile" && selectedPatient?.patient_id) {
       console.log("Calling fetchPatientDetails for patient:", selectedPatient.patient_id);
@@ -1254,6 +1262,21 @@ const Dashboard = ({ user, onLogout }) => {
       setAppointments(data);
     } catch (err) {
       console.error("Error fetching appointments:", err);
+    }
+  };
+
+  const fetchAllDoctors = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("doctors")
+        .select("doctor_id, first_name, last_name, specialization")
+        .order("first_name", { ascending: true });
+
+      if (error) throw error;
+      setAllDoctors(data || []);
+    } catch (err) {
+      console.error("Error fetching all doctors:", err);
+      setAllDoctors([]);
     }
   };
 
@@ -2364,7 +2387,11 @@ const Dashboard = ({ user, onLogout }) => {
           <label>Select Doctor:</label>
           <select value={appointmentForm.doctorId} onChange={(e) => handleAppointmentChange("doctorId", e.target.value)}>
             <option value="">Select Doctor</option>
-            <option value={user.doctor_id}>{user.first_name} {user.last_name}</option>
+            {allDoctors.map(doctor => (
+              <option key={doctor.doctor_id} value={doctor.doctor_id}>
+                {doctor.first_name} {doctor.last_name} {doctor.specialization ? `(${doctor.specialization})` : ''}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -2421,10 +2448,11 @@ const Dashboard = ({ user, onLogout }) => {
       {/* Reports Widgets Grid */}
       <div className="reports-widgets-grid">
         {/* Total Patients Report Widget */}
-        <div className="report-widget report-total-patients" onClick={() => handleReportWidgetClick('total', 'Total Patients')}>
+        <div className="report-widget report-total-patients">
           <div className="report-widget-header">
             <img src="../picture/total.png" alt="Total Patients" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=👥"; }}/>
             <h4>Total Patients</h4>
+            <button className="report-widget-view-button" onClick={() => handleReportWidgetClick('total', 'Total Patients')}>View</button>
           </div>
           <div className="report-widget-content">
             <div className="report-widget-left">
@@ -2511,10 +2539,11 @@ const Dashboard = ({ user, onLogout }) => {
         </div>
 
         {/* Full Compliance Report Widget */}
-        <div className="report-widget report-full-compliance" onClick={() => handleReportWidgetClick('full-compliance', 'Full Compliance Patients')}>
+        <div className="report-widget report-full-compliance">
           <div className="report-widget-header">
             <img src="../picture/full.svg" alt="Full Compliance" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/28a745/ffffff?text=✓"; }}/>
             <h4>Full Compliance</h4>
+            <button className="report-widget-view-button" onClick={() => handleReportWidgetClick('full-compliance', 'Full Compliance Patients')}>View</button>
           </div>
           <div className="report-widget-content">
             <div className="report-widget-left">
@@ -2599,10 +2628,11 @@ const Dashboard = ({ user, onLogout }) => {
         </div>
 
         {/* Missing Logs Report Widget */}
-        <div className="report-widget report-missing-logs" onClick={() => handleReportWidgetClick('missing-logs', 'Missing Logs Patients')}>
+        <div className="report-widget report-missing-logs">
           <div className="report-widget-header">
             <img src="../picture/missinglogs.svg" alt="Missing Logs" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ffc107/ffffff?text=⚠"; }}/>
             <h4>Missing Logs</h4>
+            <button className="report-widget-view-button" onClick={() => handleReportWidgetClick('missing-logs', 'Missing Logs Patients')}>View</button>
           </div>
           <div className="report-widget-content">
             <div className="report-widget-left">
@@ -2687,10 +2717,11 @@ const Dashboard = ({ user, onLogout }) => {
         </div>
 
         {/* Non-Compliant Report Widget */}
-        <div className="report-widget report-non-compliant" onClick={() => handleReportWidgetClick('non-compliant', 'Non-Compliant Patients')}>
+        <div className="report-widget report-non-compliant">
           <div className="report-widget-header">
             <img src="../picture/noncompliant.svg" alt="Non-Compliant" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/dc3545/ffffff?text=✗"; }}/>
             <h4>Non-Compliant</h4>
+            <button className="report-widget-view-button" onClick={() => handleReportWidgetClick('non-compliant', 'Non-Compliant Patients')}>View</button>
           </div>
           <div className="report-widget-content">
             <div className="report-widget-left">
@@ -3137,16 +3168,14 @@ const Dashboard = ({ user, onLogout }) => {
     
     return (
       <div className="patient-list-section">
-        <div className="report-table-header">
-          <h2>{reportTableTitle}</h2>
-          <button 
-            className="back-button3" 
-            onClick={() => setShowReportTable(false)}
-          >
-            <img src="/picture/back.png" alt="Back" className="button-icon back-icon" />
-            Back to Reports
-          </button>
-        </div>
+        <button 
+          className="back-button3" 
+          onClick={() => setShowReportTable(false)}
+        >
+          <img src="/picture/back.png" alt="Back" className="button-icon back-icon" />
+          Back to Reports
+        </button>
+        <h2>{reportTableTitle}</h2>
 
         <div className="search-and-filter-row">
           <div className="search-bar">
@@ -4304,8 +4333,8 @@ const renderReportsContent = () => {
                 </div>
 
                 <div className="treatment-plan-actions3">
-                    <button className="send-button3" onClick={handleSend}>Send</button>
-                    <button className="print-button3" onClick={handlePrint}>Print</button>
+                    <button className="send-button3" onClick={handleSend}>📤 Send</button>
+                    <button className="print-button3" onClick={handlePrint}>🖨️ Print</button>
                 </div>
             </div>
         );
@@ -4900,6 +4929,126 @@ const renderReportsContent = () => {
                   )}
                 </div>
               </div>
+
+              {/* Risk Score Over Time Chart */}
+              <div className="blood-glucose-chart-container">
+                <div className="chart-header">
+                  <h4>Risk Score Over Time</h4>
+                  <div className="time-filter-buttons">
+                    <button 
+                      className={`time-filter-btn ${riskScoreTimeFilter === 'day' ? 'active' : ''}`}
+                      onClick={() => setRiskScoreTimeFilter('day')}
+                    >
+                      Day
+                    </button>
+                    <button 
+                      className={`time-filter-btn ${riskScoreTimeFilter === 'week' ? 'active' : ''}`}
+                      onClick={() => setRiskScoreTimeFilter('week')}
+                    >
+                      Week
+                    </button>
+                    <button 
+                      className={`time-filter-btn ${riskScoreTimeFilter === 'month' ? 'active' : ''}`}
+                      onClick={() => setRiskScoreTimeFilter('month')}
+                    >
+                      Month
+                    </button>
+                  </div>
+                </div>
+                <div className="chart-wrapper">
+                  {riskScoreFilteredMetrics.length > 0 ? (
+                    <Line
+                      data={{
+                        labels: riskScoreFilteredMetrics.map(entry => formatDateForChart(entry.submission_date)),
+                        datasets: [{
+                          label: 'Risk Score',
+                          data: riskScoreFilteredMetrics.map(entry => parseFloat(entry.risk_score) || 0),
+                          fill: true,
+                          backgroundColor: (context) => {
+                            const chart = context.chart;
+                            const {ctx, chartArea} = chart;
+                            if (!chartArea) {
+                              return null;
+                            }
+                            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                            gradient.addColorStop(0, 'rgba(34, 197, 94, 0.8)');
+                            gradient.addColorStop(1, 'rgba(34, 197, 94, 0.1)');
+                            return gradient;
+                          },
+                          borderColor: '#22c55e',
+                          borderWidth: 2,
+                          pointBackgroundColor: '#22c55e',
+                          pointBorderColor: '#fff',
+                          pointBorderWidth: 2,
+                          pointRadius: 4,
+                          pointHoverRadius: 6,
+                          tension: 0.4,
+                        }],
+                      }}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: {
+                            display: false,
+                          },
+                          tooltip: {
+                            callbacks: {
+                              label: function(context) {
+                                return `Risk Score: ${context.raw}/100`;
+                              }
+                            }
+                          }
+                        },
+                        scales: {
+                          y: {
+                            beginAtZero: true,
+                            title: {
+                              display: true,
+                              text: 'Risk Score',
+                              font: {
+                                size: 12,
+                                weight: 'bold'
+                              }
+                            },
+                            min: 0,
+                            max: 100,
+                            ticks: {
+                              display: true,
+                            },
+                            grid: {
+                              display: true,
+                              color: 'rgba(0, 0, 0, 0.1)',
+                            }
+                          },
+                          x: {
+                            grid: {
+                              display: false
+                            },
+                            title: {
+                              display: true,
+                              text: 'Date',
+                              font: {
+                                size: 12,
+                                weight: 'bold'
+                              }
+                            },
+                            ticks: {
+                              display: true,
+                              maxRotation: 45,
+                              minRotation: 45
+                            }
+                          }
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="no-chart-data">
+                      <p>No risk score data available for selected time period</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -5193,13 +5342,14 @@ const renderReportsContent = () => {
                           <th>Date</th>
                           <th>Blood Glucose (mg/dL)</th>
                           <th>Blood Pressure (mmHg)</th>
+                          <th>Risk Score</th>
                           <th>Risk Classification</th>
                         </tr>
                       </thead>
                       <tbody>
                         {getPaginatedHealthMetrics().map((metric, index) => (
                           <tr key={index}>
-                            <td>{formatDateToReadable(metric.submission_date)}</td>
+                            <td>{new Date(metric.submission_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                             <td className="metric-value">
                               {metric.blood_glucose || 'N/A'}
                             </td>
@@ -5207,6 +5357,9 @@ const renderReportsContent = () => {
                               {(metric.bp_systolic && metric.bp_diastolic) 
                                 ? `${metric.bp_systolic}/${metric.bp_diastolic}` 
                                 : metric.blood_pressure || 'N/A'}
+                            </td>
+                            <td className="metric-value">
+                              {metric.risk_score ? `${metric.risk_score}/100` : 'N/A'}
                             </td>
                             <td className={`risk-classification-${(metric.risk_classification || 'N/A').toLowerCase()}`}>
                               {metric.risk_classification || 'N/A'}
@@ -5218,14 +5371,16 @@ const renderReportsContent = () => {
 
                     {/* Health Metrics Pagination */}
                     {getTotalHealthMetricsPages() > 1 && (
-                      <Pagination
-                        currentPage={currentPageHealthMetrics}
-                        totalPages={getTotalHealthMetricsPages()}
-                        onPageChange={setCurrentPageHealthMetrics}
-                        itemsPerPage={HEALTH_METRICS_PER_PAGE}
-                        totalItems={allPatientHealthMetrics.length}
-                        showPageInfo={true}
-                      />
+                      <div className="health-metrics-pagination">
+                        <Pagination
+                          currentPage={currentPageHealthMetrics}
+                          totalPages={getTotalHealthMetricsPages()}
+                          onPageChange={setCurrentPageHealthMetrics}
+                          itemsPerPage={HEALTH_METRICS_PER_PAGE}
+                          totalItems={allPatientHealthMetrics.length}
+                          showPageInfo={true}
+                        />
+                      </div>
                     )}
                   </>
                 ) : (
@@ -5452,7 +5607,7 @@ const renderReportsContent = () => {
 
       <main className="content-area-full-width3">
         {activePage === "dashboard" && (
-          <h1>Welcome, Dr. {user.first_name} 👋</h1>
+          <h1 className="welcomeh1">Welcome, Dr. {user.first_name} 👋</h1>
         )}
         {activePage === "dashboard" && renderDashboardContent()}
         {activePage === "patient-profile" && selectedPatient?.patient_id && renderPatientProfile()}

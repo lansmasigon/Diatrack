@@ -222,13 +222,19 @@ body {
 /* Report Widget Styles */
 .report-widget {
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.report-widget-view-button{
+  background: none;
+  border: none;
+  color: var(--primary-blue);
+  font-size: 12px;
+  cursor: pointer;
 }
 
-.report-widget:hover {
+.report-widget-view-button:hover{
   transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
+
 
 .report-pending-labs:hover {
   box-shadow: 0 4px 20px rgba(255, 193, 7, 0.2);
@@ -238,7 +244,9 @@ body {
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   flex: 1;
-  min-width: 0;
+  min-width: 500px;
+  max-width: 590px;
+  width: 585px;
   height: 350px;
   max-height: 350px;
   overflow: visible;
@@ -518,23 +526,153 @@ body {
 }
 
 .back-button3{
-  color: white;
-  background-color: var(--primary-blue);
-  border: 1px solid;
-  border-radius: 20px;
+  color: black;
+  background-color: none;
+  background:none;
+  border: none;
   cursor: pointer;
   font-size: 0.95em;
-  padding: 5px 8px;
+  padding: 0px;
   margin: 0 4px;
-  transition: background-color 0.2s ease, color 0.2s ease;
   border-radius: 6px;
+  font-weight: 400;
+  margin-bottom: 10px;
+}
+
+/* Risk Score Over Time Chart Section */
+
+
+
+.risk-score-chart-section .chart-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.risk-score-chart-section .time-filter-buttons {
+  display: flex;
+  gap: 8px;
+  background: #f3f4f6;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.risk-score-chart-section .time-filter-btn {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 14px;
   font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.risk-score-chart-section .time-filter-btn:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.risk-score-chart-section .time-filter-btn.active {
+  background: #9333ea;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(147, 51, 234, 0.3);
+}
+
+.risk-score-chart-section .chart-wrapper {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  padding: 10px 0;
+}
+
+.risk-score-chart-section .no-chart-data {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 2px dashed #d1d5db;
+}
+
+.risk-score-chart-section .no-chart-data p {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Responsive adjustments for risk score chart */
+@media (max-width: 768px) {
+  .risk-score-chart-section {
+    padding: 15px;
+  }
+
+  .risk-score-chart-section h3 {
+    font-size: 16px;
+  }
+
+  .risk-score-chart-section .chart-wrapper {
+    height: 250px;
+  }
+
+  .risk-score-chart-section .time-filter-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .risk-score-chart-section .chart-wrapper {
+    height: 200px;
+  }
+
+  .risk-score-chart-section .time-filter-buttons {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .risk-score-chart-section .time-filter-btn {
+    flex: 1;
+    padding: 6px 8px;
+  }
 }
 
 .back-button3:hover{
-  color: white;
-  background-color: #007bff;
+  
 }
+
+/* Back to Edit Treatment Plan Button */
+
+
+.patient-profile-header3 .back-button3 {
+  padding: 10px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--primary-blue);
+  background: var(--primary-blue);;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.patient-profile-header3 .back-button3::before {
+  content: "←";
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.patient-profile-header3 .back-button3:hover {
+  color: white;
+  transform: translateX(-2px);
+}
+
 
 /* Patient Profile specific styles (Remains largely the same) */
 .patient-profile-wrapper3 {
@@ -1125,34 +1263,47 @@ body {
 /* Specific column widths and spacing for health metrics table */
 .health-metrics-table th:first-child,
 .health-metrics-table td:first-child {
-  min-width: 160px;
+  width: 12%;
+  min-width: 100px;
   white-space: nowrap;
-  padding-right: 20px;
+  padding-right: 12px;
   font-weight: 500;
 }
 
 .health-metrics-table th:nth-child(2),
 .health-metrics-table td:nth-child(2) {
-  min-width: 120px;
+  width: 15%;
+  min-width: 110px;
   text-align: center;
-  padding-left: 15px;
-  padding-right: 15px;
+  padding-left: 10px;
+  padding-right: 10px;
 }
 
 .health-metrics-table th:nth-child(3),
 .health-metrics-table td:nth-child(3) {
-  min-width: 140px;
+  width: 15%;
+  min-width: 110px;
   text-align: center;
-  padding-left: 15px;
-  padding-right: 15px;
+  padding-left: 10px;
+  padding-right: 10px;
 }
 
 .health-metrics-table th:nth-child(4),
 .health-metrics-table td:nth-child(4) {
+  width: 12%;
+  min-width: 90px;
+  text-align: center;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.health-metrics-table th:nth-child(5),
+.health-metrics-table td:nth-child(5) {
+  width: 16%;
   min-width: 120px;
   text-align: center;
-  padding-left: 15px;
-  padding-right: 15px;
+  padding-left: 10px;
+  padding-right: 10px;
 }
 
 .health-metrics-table tbody tr:hover {
@@ -1161,6 +1312,40 @@ body {
 
 .health-metrics-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+/* Smaller Pagination for Health Metrics Table */
+.health-metrics-pagination .pagination-container {
+  margin-top: 10px;
+  padding: 10px 0;
+}
+
+.health-metrics-pagination .pagination-btn {
+  padding: 4px 8px;
+  min-width: 26px;
+  height: 26px;
+  font-size: 11px;
+}
+
+.health-metrics-pagination .pagination-btn.prev-btn,
+.health-metrics-pagination .pagination-btn.next-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+.health-metrics-pagination .pagination-icon {
+  width: 10px;
+  height: 10px;
+}
+
+.health-metrics-pagination .pagination-ellipsis {
+  padding: 4px 4px;
+  height: 26px;
+  font-size: 11px;
+}
+
+.health-metrics-pagination .page-info {
+  font-size: 11px;
 }
 
 /* Health metrics table container */
@@ -1603,6 +1788,7 @@ body {
 }
 
 /* Individual chart containers */
+.risk-score-chart-section,
 .blood-glucose-chart-container,
 .blood-pressure-chart-container,
 .risk-classification-chart-container {
@@ -1615,7 +1801,8 @@ body {
 
 .blood-glucose-chart-container h4,
 .blood-pressure-chart-container h4,
-.risk-classification-chart-container h4 {
+.risk-classification-chart-container h4,
+.risk-score-chart-section h4 {
   color: var(--text-medium);
   margin-top: 0;
   margin-bottom: 10px;
@@ -2372,6 +2559,76 @@ body {
   padding: 40px;
   color: #999;
   font-style: italic;
+}
+
+/* Treatment Plan Actions - Summary Page */
+.treatment-plan-actions3 {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 10px;
+  padding: 10px 0;
+}
+
+.send-button3,
+.print-button3 {
+  padding: 10px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.send-button3 {
+  background: linear-gradient(135deg, #1FAAED 0%, #1890d5 100%);
+  color: white;
+}
+
+.send-button3:hover {
+  background: linear-gradient(135deg, #1890d5 0%, #1678bc 100%);
+  box-shadow: 0 4px 8px rgba(31, 170, 237, 0.3);
+  transform: translateY(-2px);
+}
+
+.send-button3:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(31, 170, 237, 0.2);
+}
+
+.print-button3 {
+  background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+  color: white;
+}
+
+.print-button3:hover {
+  background: linear-gradient(135deg, #5a6268 0%, #4e555b 100%);
+  box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+  transform: translateY(-2px);
+}
+
+.print-button3:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(108, 117, 125, 0.2);
+}
+
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+  .treatment-plan-actions3 {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .send-button3,
+  .print-button3 {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 /* Photo Expansion Modal */
