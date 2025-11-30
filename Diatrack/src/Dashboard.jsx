@@ -115,11 +115,11 @@ const getClassificationDisplay = (patient) => {
   }
   
   // Otherwise, show color based on risk classification (for Submitted status)
-  if (riskClassification === 'low') {
+  if (riskClassification === 'low' || riskClassification === 'low risk') {
     return `🟢${phaseDisplay}`;
-  } else if (riskClassification === 'moderate') {
+  } else if (riskClassification === 'moderate' || riskClassification === 'moderate risk') {
     return `🟡${phaseDisplay}`;
-  } else if (riskClassification === 'high') {
+  } else if (riskClassification === 'high' || riskClassification === 'high risk') {
     return `🔴${phaseDisplay}`;
   } else if (riskClassification === 'ppd') {
     return `⚪${phaseDisplay}`;
@@ -828,18 +828,11 @@ const Dashboard = ({ user, onLogout }) => {
       // Fetch latest risk classification for each patient from health_metrics
       const patientsWithRisk = await Promise.all(
         allPatients.map(async (patient) => {
-          // Get current month date range
-          const now = new Date();
-          const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-          const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-          // Fetch ALL health metrics for current month
-          const { data: healthData, error: healthError } = await supabase
+          // Fetch ALL health metrics from ALL time (not just current month) for compliance checking
+          const { data: allHealthData, error: healthError } = await supabase
             .from('health_metrics')
             .select('risk_classification, blood_glucose, bp_systolic, bp_diastolic, wound_photo_url, submission_date')
             .eq('patient_id', patient.patient_id)
-            .gte('submission_date', currentMonthStart.toISOString())
-            .lt('submission_date', currentMonthEnd.toISOString())
             .order('submission_date', { ascending: false });
 
           let riskClassification = null;
@@ -847,14 +840,19 @@ const Dashboard = ({ user, onLogout }) => {
           let hasBloodPressure = false;
           let hasWoundPhoto = false;
 
+          // Check ALL health metrics from all time for compliance
           if (healthError) {
             console.error(`Error fetching health metrics for patient ${patient.patient_id}:`, healthError.message);
-          } else if (healthData && healthData.length > 0) {
-            // Check across ALL metrics in current month
-            healthData.forEach(metric => {
-              if (!riskClassification && metric.risk_classification) {
-                riskClassification = metric.risk_classification;
-              }
+          } else if (allHealthData && allHealthData.length > 0) {
+            // Get the latest risk classification
+            const latestRisk = allHealthData.find(metric => metric.risk_classification !== null && metric.risk_classification !== undefined);
+            if (latestRisk) {
+              riskClassification = latestRisk.risk_classification;
+              console.log(`Patient ${patient.patient_id} (${patient.first_name} ${patient.last_name}) - Latest risk classification: "${riskClassification}"`);
+            }
+            
+            // Check if patient has ever submitted each metric type (regardless of month)
+            allHealthData.forEach(metric => {
               if (!hasBloodGlucose && metric.blood_glucose !== null && metric.blood_glucose !== undefined && metric.blood_glucose !== '') {
                 hasBloodGlucose = true;
               }
@@ -917,12 +915,19 @@ const Dashboard = ({ user, onLogout }) => {
         
         // Risk Classification  
         const risk = (patient.risk_classification || '').toLowerCase();
-        if (risk === 'low') {
+        console.log(`Patient ${patient.patient_id} (${patient.first_name} ${patient.last_name}) - Risk: "${patient.risk_classification}" -> Lowercase: "${risk}"`);
+        
+        if (risk === 'low' || risk === 'low risk') {
           lowRisk++;
-        } else if (risk === 'moderate') {
+          console.log(`✓ Counted as LOW risk. Total low: ${lowRisk}`);
+        } else if (risk === 'moderate' || risk === 'moderate risk') {
           moderateRisk++;
-        } else if (risk === 'high') {
+          console.log(`✓ Counted as MODERATE risk. Total moderate: ${moderateRisk}`);
+        } else if (risk === 'high' || risk === 'high risk') {
           highRisk++;
+          console.log(`✓ Counted as HIGH risk. Total high: ${highRisk}`);
+        } else {
+          console.log(`✗ Not counted in any risk category (risk value: "${risk}")`);
         }
         
         // Pending Lab Results (patients with "Awaiting" lab status)
@@ -931,6 +936,13 @@ const Dashboard = ({ user, onLogout }) => {
           pendingLabs++;
         }
       });
+      
+      console.log('=== FINAL RISK COUNTS ===');
+      console.log(`Low Risk: ${lowRisk}`);
+      console.log(`Moderate Risk: ${moderateRisk}`);
+      console.log(`High Risk: ${highRisk}`);
+      console.log(`Total Risk Patients: ${lowRisk + moderateRisk + highRisk}`);
+      console.log('========================');
       
       setPreOpCount(preOp);
       setPostOpCount(postOp);
@@ -1042,45 +1054,45 @@ const Dashboard = ({ user, onLogout }) => {
         data: labData,
       });
 
-      // Calculate full compliance per month by checking health_metrics
+      // Calculate full compliance per month by checking health_metrics submitted DURING that month
       const fullComplianceData = await Promise.all(monthKeys.map(async (monthKey) => {
         const [year, month] = monthKey.split('-');
         const monthStart = new Date(`${year}-${month}-01`);
         const monthEnd = new Date(monthStart);
         monthEnd.setMonth(monthEnd.getMonth() + 1);
 
-        // Get all health metrics for this month
-        const { data: monthMetrics, error: metricsError } = await supabase
-          .from('health_metrics')
-          .select('patient_id, blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
-          .in('patient_id', allPatients.map(p => p.patient_id))
-          .gte('submission_date', monthStart.toISOString())
-          .lt('submission_date', monthEnd.toISOString());
+        // For each patient, check if they submitted all 3 metrics DURING this specific month
+        const fullComplianceCount = await Promise.all(allPatients.map(async (patient) => {
+          const { data: monthMetrics, error: metricsError } = await supabase
+            .from('health_metrics')
+            .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url, submission_date')
+            .eq('patient_id', patient.patient_id)
+            .gte('submission_date', monthStart.toISOString())
+            .lt('submission_date', monthEnd.toISOString());
 
-        if (metricsError) {
-          console.error('Error fetching metrics for month:', metricsError);
-          return 0;
-        }
-
-        // Group metrics by patient and check for full compliance
-        const patientMetricsMap = {};
-        monthMetrics.forEach(metric => {
-          if (!patientMetricsMap[metric.patient_id]) {
-            patientMetricsMap[metric.patient_id] = {
-              hasBloodGlucose: false,
-              hasBloodPressure: false,
-              hasWoundPhoto: false
-            };
+          if (metricsError) {
+            console.error('Error fetching metrics for patient:', metricsError);
+            return false;
           }
-          if (metric.blood_glucose) patientMetricsMap[metric.patient_id].hasBloodGlucose = true;
-          if (metric.bp_systolic || metric.bp_diastolic) patientMetricsMap[metric.patient_id].hasBloodPressure = true;
-          if (metric.wound_photo_url) patientMetricsMap[metric.patient_id].hasWoundPhoto = true;
-        });
 
-        // Count patients with full compliance
-        return Object.values(patientMetricsMap).filter(metrics => 
-          metrics.hasBloodGlucose && metrics.hasBloodPressure && metrics.hasWoundPhoto
-        ).length;
+          let hasBloodGlucose = false;
+          let hasBloodPressure = false;
+          let hasWoundPhoto = false;
+
+          if (monthMetrics && monthMetrics.length > 0) {
+            monthMetrics.forEach(metric => {
+              if (!hasBloodGlucose && metric.blood_glucose) hasBloodGlucose = true;
+              if (!hasBloodPressure && (metric.bp_systolic || metric.bp_diastolic)) hasBloodPressure = true;
+              if (!hasWoundPhoto && metric.wound_photo_url) hasWoundPhoto = true;
+            });
+          }
+
+          // Patient is fully compliant if they have all 3 metrics from this month
+          return hasBloodGlucose && hasBloodPressure && hasWoundPhoto;
+        }));
+
+        // Count how many patients are fully compliant
+        return fullComplianceCount.filter(Boolean).length;
       }));
 
       setFullComplianceChartData({
@@ -1088,60 +1100,47 @@ const Dashboard = ({ user, onLogout }) => {
         data: fullComplianceData,
       });
 
-      // Calculate missing logs per month (patients missing at least one metric)
+      // Calculate missing logs per month (patients missing at least one metric DURING that month)
       const missingLogsData = await Promise.all(monthKeys.map(async (monthKey) => {
         const [year, month] = monthKey.split('-');
         const monthStart = new Date(`${year}-${month}-01`);
         const monthEnd = new Date(monthStart);
         monthEnd.setMonth(monthEnd.getMonth() + 1);
 
-        const { data: monthMetrics, error: metricsError } = await supabase
-          .from('health_metrics')
-          .select('patient_id, blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
-          .in('patient_id', allPatients.map(p => p.patient_id))
-          .gte('submission_date', monthStart.toISOString())
-          .lt('submission_date', monthEnd.toISOString());
+        // For each patient, check if they are missing ANY metric from this specific month
+        const missingLogsCount = await Promise.all(allPatients.map(async (patient) => {
+          const { data: monthMetrics, error: metricsError } = await supabase
+            .from('health_metrics')
+            .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url, submission_date')
+            .eq('patient_id', patient.patient_id)
+            .gte('submission_date', monthStart.toISOString())
+            .lt('submission_date', monthEnd.toISOString());
 
-        if (metricsError) {
-          console.error('Error fetching metrics for month:', metricsError);
-          return 0;
-        }
+          if (metricsError) {
+            console.error('Error fetching metrics for patient:', metricsError);
+            return true; // If error, count as missing logs
+          }
 
-        // Check all patients registered to this doctor - not just those with metrics
-        const patientMetricsMap = {};
-        
-        // Initialize all patients with false flags
-        allPatients.forEach(patient => {
-          patientMetricsMap[patient.patient_id] = {
-            hasBloodGlucose: false,
-            hasBloodPressure: false,
-            hasWoundPhoto: false
-          };
-        });
-        
-        // Update flags based on submitted metrics (if any exist)
-        if (monthMetrics && monthMetrics.length > 0) {
-          monthMetrics.forEach(metric => {
-            if (patientMetricsMap[metric.patient_id]) {
-              if (metric.blood_glucose) patientMetricsMap[metric.patient_id].hasBloodGlucose = true;
-              if (metric.bp_systolic || metric.bp_diastolic) patientMetricsMap[metric.patient_id].hasBloodPressure = true;
-              if (metric.wound_photo_url) patientMetricsMap[metric.patient_id].hasWoundPhoto = true;
-            }
-          });
-        }
+          let hasBloodGlucose = false;
+          let hasBloodPressure = false;
+          let hasWoundPhoto = false;
 
-        // Count patients who are missing ANY of the three metrics
-        const missingLogsCount = Object.values(patientMetricsMap).filter(metrics => {
-          const submittedCount = (metrics.hasBloodGlucose ? 1 : 0) + 
-                                (metrics.hasBloodPressure ? 1 : 0) + 
-                                (metrics.hasWoundPhoto ? 1 : 0);
-          
+          if (monthMetrics && monthMetrics.length > 0) {
+            monthMetrics.forEach(metric => {
+              if (!hasBloodGlucose && metric.blood_glucose) hasBloodGlucose = true;
+              if (!hasBloodPressure && (metric.bp_systolic || metric.bp_diastolic)) hasBloodPressure = true;
+              if (!hasWoundPhoto && metric.wound_photo_url) hasWoundPhoto = true;
+            });
+          }
+
+          const submittedCount = (hasBloodGlucose ? 1 : 0) + (hasBloodPressure ? 1 : 0) + (hasWoundPhoto ? 1 : 0);
           // Patient has missing logs if they have less than 3 metrics (missing at least one)
           return submittedCount < 3;
-        }).length;
+        }));
 
-        console.log(`Missing logs for ${monthKey}:`, missingLogsCount);
-        return missingLogsCount;
+        const count = missingLogsCount.filter(Boolean).length;
+        console.log(`Missing logs for ${monthKey}:`, count);
+        return count;
       }));
 
       console.log('Missing Logs Chart Data:', { labels: months, data: missingLogsData });
@@ -1151,7 +1150,7 @@ const Dashboard = ({ user, onLogout }) => {
         data: missingLogsData,
       });
 
-      // Calculate non-compliant per month (high risk patients with all 3 metrics missing)
+      // Calculate non-compliant per month (high risk patients with all 3 metrics missing DURING that month)
       const nonCompliantData = await Promise.all(monthKeys.map(async (monthKey) => {
         const [year, month] = monthKey.split('-');
         const monthStart = new Date(`${year}-${month}-01`);
@@ -1160,7 +1159,7 @@ const Dashboard = ({ user, onLogout }) => {
 
         // Get high risk patients
         const highRiskPatients = allPatients.filter(p => {
-          const patient = patients.find(pat => pat.patient_id === p.patient_id);
+          const patient = patientsWithRiskData.find(pat => pat.patient_id === p.patient_id);
           return patient && (patient.risk_classification || '').toLowerCase() === 'high';
         });
 
@@ -1168,50 +1167,40 @@ const Dashboard = ({ user, onLogout }) => {
 
         if (highRiskPatients.length === 0) return 0;
 
-        const { data: monthMetrics, error: metricsError } = await supabase
-          .from('health_metrics')
-          .select('patient_id, blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
-          .in('patient_id', highRiskPatients.map(p => p.patient_id))
-          .gte('submission_date', monthStart.toISOString())
-          .lt('submission_date', monthEnd.toISOString());
+        // For each high-risk patient, check if they submitted NO metrics during this specific month
+        const nonCompliantCount = await Promise.all(highRiskPatients.map(async (patient) => {
+          const { data: monthMetrics, error: metricsError } = await supabase
+            .from('health_metrics')
+            .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url, submission_date')
+            .eq('patient_id', patient.patient_id)
+            .gte('submission_date', monthStart.toISOString())
+            .lt('submission_date', monthEnd.toISOString());
 
-        if (metricsError) {
-          console.error('Error fetching metrics for month:', metricsError);
-          return 0;
-        }
+          if (metricsError) {
+            console.error('Error fetching metrics for patient:', metricsError);
+            return true; // If error, count as non-compliant
+          }
 
-        // Initialize all high-risk patients with false flags
-        const patientMetricsMap = {};
-        highRiskPatients.forEach(patient => {
-          patientMetricsMap[patient.patient_id] = {
-            hasBloodGlucose: false,
-            hasBloodPressure: false,
-            hasWoundPhoto: false
-          };
-        });
+          let hasBloodGlucose = false;
+          let hasBloodPressure = false;
+          let hasWoundPhoto = false;
 
-        // Update flags based on submitted metrics (if any exist)
-        if (monthMetrics && monthMetrics.length > 0) {
-          monthMetrics.forEach(metric => {
-            if (patientMetricsMap[metric.patient_id]) {
-              if (metric.blood_glucose) patientMetricsMap[metric.patient_id].hasBloodGlucose = true;
-              if (metric.bp_systolic || metric.bp_diastolic) patientMetricsMap[metric.patient_id].hasBloodPressure = true;
-              if (metric.wound_photo_url) patientMetricsMap[metric.patient_id].hasWoundPhoto = true;
-            }
-          });
-        }
+          if (monthMetrics && monthMetrics.length > 0) {
+            monthMetrics.forEach(metric => {
+              if (!hasBloodGlucose && metric.blood_glucose) hasBloodGlucose = true;
+              if (!hasBloodPressure && (metric.bp_systolic || metric.bp_diastolic)) hasBloodPressure = true;
+              if (!hasWoundPhoto && metric.wound_photo_url) hasWoundPhoto = true;
+            });
+          }
 
-        // Count high risk patients with 0 metrics (all 3 missing - non-compliant)
-        const nonCompliantCount = Object.values(patientMetricsMap).filter(metrics => {
-          const submittedCount = (metrics.hasBloodGlucose ? 1 : 0) + 
-                                (metrics.hasBloodPressure ? 1 : 0) + 
-                                (metrics.hasWoundPhoto ? 1 : 0);
-          // Non-compliant = 0 metrics submitted (all 3 missing)
+          const submittedCount = (hasBloodGlucose ? 1 : 0) + (hasBloodPressure ? 1 : 0) + (hasWoundPhoto ? 1 : 0);
+          // Non-compliant = 0 metrics submitted (all 3 missing from this month)
           return submittedCount === 0;
-        }).length;
-        
-        console.log(`Non-compliant for ${monthKey}:`, nonCompliantCount);
-        return nonCompliantCount;
+        }));
+
+        const count = nonCompliantCount.filter(Boolean).length;
+        console.log(`Non-compliant for ${monthKey}:`, count);
+        return count;
       }));
 
       console.log('Non-Compliant Chart Data:', { labels: months, data: nonCompliantData });
@@ -2021,11 +2010,20 @@ const Dashboard = ({ user, onLogout }) => {
           return compliance.isNonCompliant && isHighRisk;
         });
       case 'low-risk':
-        return patients.filter(p => (p.risk_classification || '').toLowerCase() === 'low');
+        return patients.filter(p => {
+          const risk = (p.risk_classification || '').toLowerCase();
+          return risk === 'low' || risk === 'low risk';
+        });
       case 'moderate-risk':
-        return patients.filter(p => (p.risk_classification || '').toLowerCase() === 'moderate');
+        return patients.filter(p => {
+          const risk = (p.risk_classification || '').toLowerCase();
+          return risk === 'moderate' || risk === 'moderate risk';
+        });
       case 'high-risk':
-        return patients.filter(p => (p.risk_classification || '').toLowerCase() === 'high');
+        return patients.filter(p => {
+          const risk = (p.risk_classification || '').toLowerCase();
+          return risk === 'high' || risk === 'high risk';
+        });
       case 'pre-operative':
         return patients.filter(p => p.phase === 'Pre-Operative');
       case 'post-operative':
@@ -2144,8 +2142,15 @@ const Dashboard = ({ user, onLogout }) => {
 
     filtered.forEach(patient => {
       const risk = (patient.risk_classification || '').toLowerCase();
-      if (counts.hasOwnProperty(risk)) {
-        counts[risk]++;
+      // Handle both "moderate" and "moderate risk" variations
+      if (risk === 'low' || risk === 'low risk') {
+        counts.low++;
+      } else if (risk === 'moderate' || risk === 'moderate risk') {
+        counts.moderate++;
+      } else if (risk === 'high' || risk === 'high risk') {
+        counts.high++;
+      } else if (risk === 'ppd') {
+        counts.ppd++;
       }
     });
 
@@ -2284,11 +2289,14 @@ const Dashboard = ({ user, onLogout }) => {
                   <td>{patient.date_of_birth ? `${Math.floor((new Date() - new Date(patient.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${patient.gender}` : 'N/A'}</td>
                   <td className={`doctor-classification-cell ${
                     getLabStatus(patient.latest_lab_result) === 'Awaiting' ? 'doctor-classification-awaiting' :
-                    ((patient.risk_classification || '').toLowerCase() === 'low' ? 'doctor-classification-low' :
-                    (patient.risk_classification || '').toLowerCase() === 'moderate' ? 'doctor-classification-moderate' :
-                    (patient.risk_classification || '').toLowerCase() === 'high' ? 'doctor-classification-high' :
-                    (patient.risk_classification || '').toLowerCase() === 'ppd' ? 'doctor-classification-ppd' : 
-                    'doctor-classification-default')
+                    (() => {
+                      const risk = (patient.risk_classification || '').toLowerCase();
+                      if (risk === 'low' || risk === 'low risk') return 'doctor-classification-low';
+                      if (risk === 'moderate' || risk === 'moderate risk') return 'doctor-classification-moderate';
+                      if (risk === 'high' || risk === 'high risk') return 'doctor-classification-high';
+                      if (risk === 'ppd') return 'doctor-classification-ppd';
+                      return 'doctor-classification-default';
+                    })()
                   }`}>
                     {getClassificationDisplay(patient)}
                   </td>
@@ -3037,8 +3045,15 @@ const Dashboard = ({ user, onLogout }) => {
 
       filtered.forEach(patient => {
         const risk = (patient.risk_classification || '').toLowerCase();
-        if (counts.hasOwnProperty(risk)) {
-          counts[risk]++;
+        // Handle both "moderate" and "moderate risk" variations
+        if (risk === 'low' || risk === 'low risk') {
+          counts.low++;
+        } else if (risk === 'moderate' || risk === 'moderate risk') {
+          counts.moderate++;
+        } else if (risk === 'high' || risk === 'high risk') {
+          counts.high++;
+        } else if (risk === 'ppd') {
+          counts.ppd++;
         }
       });
 
@@ -3115,7 +3130,7 @@ const Dashboard = ({ user, onLogout }) => {
             className="back-button3" 
             onClick={() => setShowReportTable(false)}
           >
-            <i className="fas fa-arrow-left button-icon back-icon"></i>
+            <img src="/picture/back.png" alt="Back" className="button-icon back-icon" />
             Back to Reports
           </button>
         </div>
@@ -3177,11 +3192,14 @@ const Dashboard = ({ user, onLogout }) => {
                   <td>{patient.date_of_birth ? `${Math.floor((new Date() - new Date(patient.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${patient.gender}` : 'N/A'}</td>
                   <td className={`doctor-classification-cell ${
                     getLabStatus(patient.latest_lab_result) === 'Awaiting' ? 'doctor-classification-awaiting' :
-                    ((patient.risk_classification || '').toLowerCase() === 'low' ? 'doctor-classification-low' :
-                    (patient.risk_classification || '').toLowerCase() === 'moderate' ? 'doctor-classification-moderate' :
-                    (patient.risk_classification || '').toLowerCase() === 'high' ? 'doctor-classification-high' :
-                    (patient.risk_classification || '').toLowerCase() === 'ppd' ? 'doctor-classification-ppd' : 
-                    'doctor-classification-default')
+                    (() => {
+                      const risk = (patient.risk_classification || '').toLowerCase();
+                      if (risk === 'low' || risk === 'low risk') return 'doctor-classification-low';
+                      if (risk === 'moderate' || risk === 'moderate risk') return 'doctor-classification-moderate';
+                      if (risk === 'high' || risk === 'high risk') return 'doctor-classification-high';
+                      if (risk === 'ppd') return 'doctor-classification-ppd';
+                      return 'doctor-classification-default';
+                    })()
                   }`}>
                     {getClassificationDisplay(patient)}
                   </td>
@@ -3472,7 +3490,7 @@ const getPatientPhaseCounts = () => {
   // NEW: Render Reports Content
 const renderReportsContent = () => {
   const riskCounts = getPatientRiskCounts();
-  const maxRiskCount = Math.max(riskCounts.Low, riskCounts.Moderate, riskCounts.High); // Renamed from maxCount for clarity
+  const maxRiskCount = Math.max(riskCounts.low, riskCounts.moderate, riskCounts.high); // Fixed: use lowercase property names
 
   const phaseCounts = getPatientPhaseCounts(); // Get phase counts inside the function
   const maxPhaseCount = Math.max(phaseCounts['Pre-Operative'], phaseCounts['Post-Operative']); // Define maxPhaseCount here

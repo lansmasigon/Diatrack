@@ -464,7 +464,7 @@ body {
   color: #155724;
 }
 
-.risk-classification3.Medium {
+.risk-classification3.Moderate {
   background-color: #fff3cd;
   color: #85640c;
 }
@@ -1265,8 +1265,8 @@ body {
   background-color: green; /* Example green for Low */
 }
 
-.medium-risk-bar3 {
-  background-color: orange; /* Example orange for Medium */
+.moderate-risk-bar3 {
+  background-color: orange; /* Example orange for Moderate */
 }
 
 .high-risk-bar3 {
@@ -1858,8 +1858,8 @@ body {
   background-color: green; /* Example green for Low */
 }
 
-.medium-risk-bar3 {
-  background-color: orange; /* Example orange for Medium */
+.moderate-risk-bar3 {
+  background-color: orange; /* Example orange for Moderate */
 }
 
 .high-risk-bar3 {
@@ -2733,8 +2733,8 @@ body {
   background-color: green; /* Example green for Low */
 }
 
-.medium-risk-bar3 {
-  background-color: orange; /* Example orange for Medium */
+.moderate-risk-bar3 {
+  background-color: orange; /* Example orange for Moderate */
 }
 
 .high-risk-bar3 {

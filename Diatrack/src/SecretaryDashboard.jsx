@@ -1887,30 +1887,40 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     let missingLogs = 0;
     let nonCompliant = 0;
 
-    // For each patient, check their metrics
+    // For each patient, check ALL their metrics from all time
     for (const patient of patientsData) {
       try {
-        // Check Blood Glucose and Blood Pressure (from health_metrics)
+        // Get ALL health metrics from all time (not just latest)
         const { data: healthMetrics, error: healthError } = await supabase
           .from('health_metrics')
           .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url, risk_classification')
           .eq('patient_id', patient.patient_id)
-          .order('submission_date', { ascending: false })
-          .limit(1);
+          .order('submission_date', { ascending: false });
 
-        // Check if patient has submitted each metric
+        // Check if patient has EVER submitted each metric
         let hasBloodGlucose = false;
         let hasBloodPressure = false;
         let hasWoundPhoto = false;
         let riskClassification = '';
 
         if (!healthError && healthMetrics && healthMetrics.length > 0) {
-          const latest = healthMetrics[0];
-          hasBloodGlucose = latest.blood_glucose !== null && latest.blood_glucose !== undefined && latest.blood_glucose !== '';
-          hasBloodPressure = (latest.bp_systolic !== null && latest.bp_systolic !== undefined && latest.bp_systolic !== '') &&
-                            (latest.bp_diastolic !== null && latest.bp_diastolic !== undefined && latest.bp_diastolic !== '');
-          hasWoundPhoto = latest.wound_photo_url !== null && latest.wound_photo_url !== undefined && latest.wound_photo_url !== '';
-          riskClassification = latest.risk_classification || '';
+          // Get latest risk classification
+          const latestRisk = healthMetrics.find(m => m.risk_classification);
+          riskClassification = latestRisk?.risk_classification || '';
+          
+          // Check across ALL metrics if any have the required data
+          healthMetrics.forEach(metric => {
+            if (!hasBloodGlucose && metric.blood_glucose !== null && metric.blood_glucose !== undefined && metric.blood_glucose !== '') {
+              hasBloodGlucose = true;
+            }
+            if (!hasBloodPressure && ((metric.bp_systolic !== null && metric.bp_systolic !== undefined && metric.bp_systolic !== '') ||
+                                     (metric.bp_diastolic !== null && metric.bp_diastolic !== undefined && metric.bp_diastolic !== ''))) {
+              hasBloodPressure = true;
+            }
+            if (!hasWoundPhoto && metric.wound_photo_url !== null && metric.wound_photo_url !== undefined && metric.wound_photo_url !== '') {
+              hasWoundPhoto = true;
+            }
+          });
         }
 
         // Count submitted metrics
@@ -1961,25 +1971,32 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
     for (const patient of patients) {
       try {
-        // Get health metrics for compliance check
+        // Get ALL health metrics from all time for compliance check
         const { data: healthMetrics, error: healthError } = await supabase
           .from('health_metrics')
           .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
           .eq('patient_id', patient.patient_id)
-          .order('submission_date', { ascending: false })
-          .limit(1);
+          .order('submission_date', { ascending: false });
 
-        // Check if patient has submitted each metric
+        // Check if patient has EVER submitted each metric
         let hasBloodGlucose = false;
         let hasBloodPressure = false;
         let hasWoundPhoto = false;
 
         if (!healthError && healthMetrics && healthMetrics.length > 0) {
-          const latest = healthMetrics[0];
-          hasBloodGlucose = latest.blood_glucose !== null && latest.blood_glucose !== undefined && latest.blood_glucose !== '';
-          hasBloodPressure = (latest.bp_systolic !== null && latest.bp_systolic !== undefined && latest.bp_systolic !== '') &&
-                            (latest.bp_diastolic !== null && latest.bp_diastolic !== undefined && latest.bp_diastolic !== '');
-          hasWoundPhoto = latest.wound_photo_url !== null && latest.wound_photo_url !== undefined && latest.wound_photo_url !== '';
+          // Check across ALL metrics if any have the required data
+          healthMetrics.forEach(metric => {
+            if (!hasBloodGlucose && metric.blood_glucose !== null && metric.blood_glucose !== undefined && metric.blood_glucose !== '') {
+              hasBloodGlucose = true;
+            }
+            if (!hasBloodPressure && ((metric.bp_systolic !== null && metric.bp_systolic !== undefined && metric.bp_systolic !== '') ||
+                                     (metric.bp_diastolic !== null && metric.bp_diastolic !== undefined && metric.bp_diastolic !== ''))) {
+              hasBloodPressure = true;
+            }
+            if (!hasWoundPhoto && metric.wound_photo_url !== null && metric.wound_photo_url !== undefined && metric.wound_photo_url !== '') {
+              hasWoundPhoto = true;
+            }
+          });
         }
 
         // Count submitted metrics
@@ -1993,7 +2010,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             filteredPatients.push(patient);
             break;
           case 'full-compliance':
-            // Patients with all 3 metrics
+            // Patients with all 3 metrics ever submitted
             if (submittedMetrics === 3) {
               filteredPatients.push(patient);
             }
@@ -2008,7 +2025,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             }
             break;
           case 'non-compliant':
-            // High risk patients with 0 metrics
+            // High risk patients with 0 metrics ever submitted
             if (submittedMetrics === 0 && isHighRisk) {
               filteredPatients.push(patient);
             }
@@ -2084,13 +2101,12 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
         console.log(`Found ${monthPatientsData.length} patients for month ${monthYear}`);
 
-        // Get all health metrics for these patients up to end of month in one query
+        // Get ALL health metrics for these patients from ALL TIME (not limited by month)
         const patientIds = monthPatientsData.map(p => p.patient_id);
         const { data: allHealthMetrics, error: healthError } = await supabase
           .from('health_metrics')
           .select('patient_id, blood_glucose, bp_systolic, bp_diastolic, wound_photo_url, risk_classification, submission_date')
           .in('patient_id', patientIds)
-          .lte('submission_date', endOfMonth.toISOString())
           .order('submission_date', { ascending: false });
 
         if (healthError) {
@@ -2101,13 +2117,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
           continue;
         }
 
-        // Group health metrics by patient and get the latest one for each patient
-        const latestMetricsByPatient = {};
+        // Group ALL health metrics by patient (not just latest)
+        const metricsByPatient = {};
         if (allHealthMetrics) {
           allHealthMetrics.forEach(metric => {
-            if (!latestMetricsByPatient[metric.patient_id]) {
-              latestMetricsByPatient[metric.patient_id] = metric;
+            if (!metricsByPatient[metric.patient_id]) {
+              metricsByPatient[metric.patient_id] = [];
             }
+            metricsByPatient[metric.patient_id].push(metric);
           });
         }
 
@@ -2115,27 +2132,38 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         let monthMissingLogs = 0;
         let monthNonCompliant = 0;
 
-        // Check compliance for each patient as of the end of this month
+        // Check compliance for each patient based on ALL TIME data
         for (const patient of monthPatientsData) {
-          const latestMetric = latestMetricsByPatient[patient.patient_id];
+          const patientMetrics = metricsByPatient[patient.patient_id] || [];
           
-          // Check if patient has submitted each metric
+          // Check if patient has EVER submitted each metric
           let hasBloodGlucose = false;
           let hasBloodPressure = false;
           let hasWoundPhoto = false;
+          let riskClassification = '';
 
-          if (latestMetric) {
-            hasBloodGlucose = latestMetric.blood_glucose !== null && latestMetric.blood_glucose !== undefined && latestMetric.blood_glucose !== '';
-            hasBloodPressure = (latestMetric.bp_systolic !== null && latestMetric.bp_systolic !== undefined && latestMetric.bp_systolic !== '') &&
-                              (latestMetric.bp_diastolic !== null && latestMetric.bp_diastolic !== undefined && latestMetric.bp_diastolic !== '');
-            hasWoundPhoto = latestMetric.wound_photo_url !== null && latestMetric.wound_photo_url !== undefined && latestMetric.wound_photo_url !== '';
+          if (patientMetrics.length > 0) {
+            // Get latest risk classification
+            const latestRisk = patientMetrics.find(m => m.risk_classification);
+            riskClassification = latestRisk?.risk_classification || '';
+            
+            // Check across ALL metrics if any have the required data
+            patientMetrics.forEach(metric => {
+              if (!hasBloodGlucose && metric.blood_glucose !== null && metric.blood_glucose !== undefined && metric.blood_glucose !== '') {
+                hasBloodGlucose = true;
+              }
+              if (!hasBloodPressure && ((metric.bp_systolic !== null && metric.bp_systolic !== undefined && metric.bp_systolic !== '') ||
+                                       (metric.bp_diastolic !== null && metric.bp_diastolic !== undefined && metric.bp_diastolic !== ''))) {
+                hasBloodPressure = true;
+              }
+              if (!hasWoundPhoto && metric.wound_photo_url !== null && metric.wound_photo_url !== undefined && metric.wound_photo_url !== '') {
+                hasWoundPhoto = true;
+              }
+            });
           }
 
           // Count submitted metrics
           const submittedMetrics = [hasBloodGlucose, hasBloodPressure, hasWoundPhoto].filter(Boolean).length;
-
-          // Use risk classification from health metrics (patient record doesn't have this field)
-          const riskClassification = latestMetric?.risk_classification || '';
           const isHighRisk = riskClassification.toLowerCase() === 'high';
 
           // Categorize patient for this month using the same logic
