@@ -601,6 +601,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [reportTableType, setReportTableType] = useState(null);
   const [reportTableTitle, setReportTableTitle] = useState('');
   const [selectedProfileStatusFilter, setSelectedProfileStatusFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('desc'); // Sort by created_at: 'desc' = newest first, 'asc' = oldest first
   const [currentPagePatients, setCurrentPagePatients] = useState(1);
   const PATIENTS_PER_PAGE = 10;
 
@@ -621,10 +622,6 @@ const Dashboard = ({ user, onLogout }) => {
   const [appointmentsToday, setAppointmentsToday] = useState([]);
   const [currentPageAppointments, setCurrentPageAppointments] = useState(1);
   const APPOINTMENTS_PER_PAGE = 5;
-
-  const [showModal, setShowModal] = useState(false);
-  const [appointmentToConfirm, setAppointmentToConfirm] = useState(null);
-  const [actionType, setActionType] = useState(""); // "cancel" or "done"
 
   // New states for medication management (from previous iterations, for patient profile)
   const [patientMedications, setPatientMedications] = useState([]); // State for medications
@@ -1054,21 +1051,25 @@ const Dashboard = ({ user, onLogout }) => {
         data: labData,
       });
 
-      // Calculate full compliance per month by checking health_metrics submitted DURING that month
+      // Calculate full compliance per month (patients registered in THAT specific month with full compliance)
       const fullComplianceData = await Promise.all(monthKeys.map(async (monthKey) => {
         const [year, month] = monthKey.split('-');
-        const monthStart = new Date(`${year}-${month}-01`);
-        const monthEnd = new Date(monthStart);
-        monthEnd.setMonth(monthEnd.getMonth() + 1);
+        
+        // Filter patients who were created in this specific month only
+        const patientsInMonth = allPatients.filter(p => {
+          const createdDate = new Date(p.created_at);
+          return createdDate.getFullYear() === parseInt(year) && 
+                 (createdDate.getMonth() + 1) === parseInt(month);
+        });
 
-        // For each patient, check if they submitted all 3 metrics DURING this specific month
-        const fullComplianceCount = await Promise.all(allPatients.map(async (patient) => {
-          const { data: monthMetrics, error: metricsError } = await supabase
+        console.log(`Patients registered in ${monthKey}:`, patientsInMonth.length);
+
+        // For each patient registered in this month, check if they have full compliance
+        const fullComplianceCount = await Promise.all(patientsInMonth.map(async (patient) => {
+          const { data: allMetrics, error: metricsError } = await supabase
             .from('health_metrics')
-            .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url, submission_date')
-            .eq('patient_id', patient.patient_id)
-            .gte('submission_date', monthStart.toISOString())
-            .lt('submission_date', monthEnd.toISOString());
+            .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
+            .eq('patient_id', patient.patient_id);
 
           if (metricsError) {
             console.error('Error fetching metrics for patient:', metricsError);
@@ -1079,20 +1080,21 @@ const Dashboard = ({ user, onLogout }) => {
           let hasBloodPressure = false;
           let hasWoundPhoto = false;
 
-          if (monthMetrics && monthMetrics.length > 0) {
-            monthMetrics.forEach(metric => {
+          if (allMetrics && allMetrics.length > 0) {
+            allMetrics.forEach(metric => {
               if (!hasBloodGlucose && metric.blood_glucose) hasBloodGlucose = true;
               if (!hasBloodPressure && (metric.bp_systolic || metric.bp_diastolic)) hasBloodPressure = true;
               if (!hasWoundPhoto && metric.wound_photo_url) hasWoundPhoto = true;
             });
           }
 
-          // Patient is fully compliant if they have all 3 metrics from this month
+          // Patient is fully compliant if they have all 3 metrics from any time
           return hasBloodGlucose && hasBloodPressure && hasWoundPhoto;
         }));
 
-        // Count how many patients are fully compliant
-        return fullComplianceCount.filter(Boolean).length;
+        const count = fullComplianceCount.filter(Boolean).length;
+        console.log(`Full compliance for ${monthKey}:`, count);
+        return count;
       }));
 
       setFullComplianceChartData({
@@ -1100,21 +1102,25 @@ const Dashboard = ({ user, onLogout }) => {
         data: fullComplianceData,
       });
 
-      // Calculate missing logs per month (patients missing at least one metric DURING that month)
+      // Calculate missing logs per month (patients registered in THAT specific month with missing logs)
       const missingLogsData = await Promise.all(monthKeys.map(async (monthKey) => {
         const [year, month] = monthKey.split('-');
-        const monthStart = new Date(`${year}-${month}-01`);
-        const monthEnd = new Date(monthStart);
-        monthEnd.setMonth(monthEnd.getMonth() + 1);
+        
+        // Filter patients who were created in this specific month only
+        const patientsInMonth = allPatients.filter(p => {
+          const createdDate = new Date(p.created_at);
+          return createdDate.getFullYear() === parseInt(year) && 
+                 (createdDate.getMonth() + 1) === parseInt(month);
+        });
 
-        // For each patient, check if they are missing ANY metric from this specific month
-        const missingLogsCount = await Promise.all(allPatients.map(async (patient) => {
-          const { data: monthMetrics, error: metricsError } = await supabase
+        console.log(`Patients registered in ${monthKey}:`, patientsInMonth.length);
+
+        // For each patient registered in this month, check if they have missing logs
+        const missingLogsCount = await Promise.all(patientsInMonth.map(async (patient) => {
+          const { data: allMetrics, error: metricsError } = await supabase
             .from('health_metrics')
-            .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url, submission_date')
-            .eq('patient_id', patient.patient_id)
-            .gte('submission_date', monthStart.toISOString())
-            .lt('submission_date', monthEnd.toISOString());
+            .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
+            .eq('patient_id', patient.patient_id);
 
           if (metricsError) {
             console.error('Error fetching metrics for patient:', metricsError);
@@ -1125,8 +1131,8 @@ const Dashboard = ({ user, onLogout }) => {
           let hasBloodPressure = false;
           let hasWoundPhoto = false;
 
-          if (monthMetrics && monthMetrics.length > 0) {
-            monthMetrics.forEach(metric => {
+          if (allMetrics && allMetrics.length > 0) {
+            allMetrics.forEach(metric => {
               if (!hasBloodGlucose && metric.blood_glucose) hasBloodGlucose = true;
               if (!hasBloodPressure && (metric.bp_systolic || metric.bp_diastolic)) hasBloodPressure = true;
               if (!hasWoundPhoto && metric.wound_photo_url) hasWoundPhoto = true;
@@ -1150,13 +1156,8 @@ const Dashboard = ({ user, onLogout }) => {
         data: missingLogsData,
       });
 
-      // Calculate non-compliant per month (high risk patients with all 3 metrics missing DURING that month)
+      // Calculate non-compliant per month (high risk patients with all 3 metrics missing from ALL TIME)
       const nonCompliantData = await Promise.all(monthKeys.map(async (monthKey) => {
-        const [year, month] = monthKey.split('-');
-        const monthStart = new Date(`${year}-${month}-01`);
-        const monthEnd = new Date(monthStart);
-        monthEnd.setMonth(monthEnd.getMonth() + 1);
-
         // Get high risk patients
         const highRiskPatients = allPatients.filter(p => {
           const patient = patientsWithRiskData.find(pat => pat.patient_id === p.patient_id);
@@ -1167,14 +1168,12 @@ const Dashboard = ({ user, onLogout }) => {
 
         if (highRiskPatients.length === 0) return 0;
 
-        // For each high-risk patient, check if they submitted NO metrics during this specific month
+        // For each high-risk patient, check if they have NEVER submitted any of the 3 metrics
         const nonCompliantCount = await Promise.all(highRiskPatients.map(async (patient) => {
-          const { data: monthMetrics, error: metricsError } = await supabase
+          const { data: allMetrics, error: metricsError } = await supabase
             .from('health_metrics')
-            .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url, submission_date')
-            .eq('patient_id', patient.patient_id)
-            .gte('submission_date', monthStart.toISOString())
-            .lt('submission_date', monthEnd.toISOString());
+            .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
+            .eq('patient_id', patient.patient_id);
 
           if (metricsError) {
             console.error('Error fetching metrics for patient:', metricsError);
@@ -1185,8 +1184,8 @@ const Dashboard = ({ user, onLogout }) => {
           let hasBloodPressure = false;
           let hasWoundPhoto = false;
 
-          if (monthMetrics && monthMetrics.length > 0) {
-            monthMetrics.forEach(metric => {
+          if (allMetrics && allMetrics.length > 0) {
+            allMetrics.forEach(metric => {
               if (!hasBloodGlucose && metric.blood_glucose) hasBloodGlucose = true;
               if (!hasBloodPressure && (metric.bp_systolic || metric.bp_diastolic)) hasBloodPressure = true;
               if (!hasWoundPhoto && metric.wound_photo_url) hasWoundPhoto = true;
@@ -1194,7 +1193,7 @@ const Dashboard = ({ user, onLogout }) => {
           }
 
           const submittedCount = (hasBloodGlucose ? 1 : 0) + (hasBloodPressure ? 1 : 0) + (hasWoundPhoto ? 1 : 0);
-          // Non-compliant = 0 metrics submitted (all 3 missing from this month)
+          // Non-compliant = 0 metrics submitted (all 3 missing from entire history)
           return submittedCount === 0;
         }));
 
@@ -1930,6 +1929,11 @@ const Dashboard = ({ user, onLogout }) => {
     setCurrentPagePatients(1); // Reset to first page when filter changes
   };
 
+  const handleSortOrderChange = (order) => {
+    setSortOrder(order);
+    setCurrentPagePatients(1); // Reset to first page when sort changes
+  };
+
   // Handle report widget clicks
   const handleReportWidgetClick = (type, title) => {
     setReportTableType(type);
@@ -2115,6 +2119,13 @@ const Dashboard = ({ user, onLogout }) => {
       });
     }
 
+    // Apply sorting by created_at
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at || 0);
+      const dateB = new Date(b.created_at || 0);
+      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+
     return filtered;
   };
 
@@ -2252,6 +2263,8 @@ const Dashboard = ({ user, onLogout }) => {
             onLabStatusChange={handleLabStatusFilterChange}
             selectedProfileStatus={selectedProfileStatusFilter}
             onProfileStatusChange={handleProfileStatusFilterChange}
+            sortOrder={sortOrder}
+            onSortOrderChange={handleSortOrderChange}
             showCounts={true}
             counts={patientRiskCounts}
             labStatusCounts={patientLabStatusCounts}
@@ -3155,6 +3168,8 @@ const Dashboard = ({ user, onLogout }) => {
             onLabStatusChange={handleLabStatusFilterChange}
             selectedProfileStatus={selectedProfileStatusFilter}
             onProfileStatusChange={handleProfileStatusFilterChange}
+            sortOrder={sortOrder}
+            onSortOrderChange={handleSortOrderChange}
             showCounts={true}
             counts={patientRiskCounts}
             labStatusCounts={patientLabStatusCounts}
@@ -3248,27 +3263,13 @@ const Dashboard = ({ user, onLogout }) => {
   };
 
 
-const handleShowModal = (appointment, action) => {
-  setAppointmentToConfirm(appointment);
-  setActionType(action);
-  setShowModal(true);
-};
-
-const handleCancelModal = () => {
-  setShowModal(false);
-  setAppointmentToConfirm(null);
-  setActionType("");
-};
-
-const handleConfirmAction = async () => {
-  if (!appointmentToConfirm) return;
-
-  if (actionType === "cancel") {
+const handleCancelAppointmentClick = async (appointment) => {
+  if (window.confirm("Are you sure you want to cancel this appointment?")) {
     try {
       const { error } = await supabase
         .from("appointments")
         .update({ appointment_state: "cancelled" })
-        .eq("appointment_id", appointmentToConfirm.appointment_id);
+        .eq("appointment_id", appointment.appointment_id);
       if (error) throw error;
       alert("Appointment cancelled successfully!");
       fetchAppointments();
@@ -3276,18 +3277,22 @@ const handleConfirmAction = async () => {
       console.error("Error cancelling appointment:", error.message);
       alert("Failed to cancel appointment.");
     }
-  } else if (actionType === "done") {
+  }
+};
+
+const handleDoneAppointmentClick = async (appointment) => {
+  if (window.confirm("Are you sure you want to mark this appointment as done?")) {
     try {
       const { error: apptError } = await supabase
         .from("appointments")
         .update({ appointment_state: "Done" })
-        .eq("appointment_id", appointmentToConfirm.appointment_id);
+        .eq("appointment_id", appointment.appointment_id);
       if (apptError) throw apptError;
 
       const { data: patientData, error: patientFetchError } = await supabase
         .from("patients")
         .select("patient_visits")
-        .eq("patient_id", appointmentToConfirm.patient_id)
+        .eq("patient_id", appointment.patient_id)
         .single();
       if (patientFetchError) throw patientFetchError;
 
@@ -3295,7 +3300,7 @@ const handleConfirmAction = async () => {
       const { error: patientUpdateError } = await supabase
         .from("patients")
         .update({ patient_visits: newVisits })
-        .eq("patient_id", appointmentToConfirm.patient_id);
+        .eq("patient_id", appointment.patient_id);
       if (patientUpdateError) throw patientUpdateError;
 
       alert("Appointment completed successfully!");
@@ -3305,8 +3310,6 @@ const handleConfirmAction = async () => {
       alert("Failed to complete appointment.");
     }
   }
-
-  handleCancelModal();
 };
   const renderAppointments = () => (
     <div className="card3 appointments-card3">
@@ -3337,8 +3340,8 @@ const handleConfirmAction = async () => {
                       <td>{appt.notes || "N/A"}</td>
                       <td>{appt.appointment_state || "N/A"}</td> {/* NEW: Added appointment state data */}
                       <td>
-                        <button onClick={() => handleShowModal(appt, "cancel")}>Cancel</button>
-                        <button onClick={() => handleShowModal(appt, "done")}>Done</button>
+                        <button onClick={() => handleCancelAppointmentClick(appt)}>Cancel</button>
+                        <button onClick={() => handleDoneAppointmentClick(appt)}>Done</button>
                       </td>
                     </tr>
                   ))
@@ -3349,34 +3352,6 @@ const handleConfirmAction = async () => {
       </div>
   );
 
-  {showModal && (
-  <div className="modal-overlay3">
-    <div className="modal-content3">
-      <div className="modal-header3">
-        <h3>Confirm Action</h3>
-        <button className="close-button3" onClick={handleCancelModal}>
-          &times;
-        </button>
-      </div>
-      <div className="modal-body3">
-        <p>
-          Are you sure you want to{" "}
-          <strong>{actionType === "cancel" ? "cancel" : "mark as done"}</strong>{" "}
-          this appointment?
-        </p>
-        <div className="modal-button-group3">
-          <button className="modal-confirm-button3" onClick={handleConfirmAction}>
-            Confirm
-          </button>
-          <button className="modal-cancel-button3" onClick={handleCancelModal}>
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-
   const renderDashboardContent = () => {
     return (
       <div className="dashboard-columns-container">
@@ -3386,7 +3361,7 @@ const handleConfirmAction = async () => {
             <div className="quick-links-grid">
               <div className="quick-link-item" onClick={() => window.open('https://diasight.vercel.app/dashboard', '_blank', 'noopener,noreferrer')}>
                 <div className="quick-link-icon patient-list">
-                  <img src="../picture/diasight.svg" alt="DiaSight" className="quick-link-image" style={{ width: '55px', height: '55px' }} />
+                  <img src="../picture/diasight.svg" alt="DiaSight" className="quick-link-image" style={{ width: '70px', height: '70px' }} />
                 </div>
                 <span>DiaSight</span>
               </div>
@@ -3455,10 +3430,10 @@ const handleConfirmAction = async () => {
                             </span>
                           </td>
                           <td className="appointment-actions">
-                            <button onClick={() => handleShowModal(appt, "cancel")} className="action-btn5 cancel-btn5">
+                            <button onClick={() => handleCancelAppointmentClick(appt)} className="action-btn5 cancel-btn5">
                               Cancel
                             </button>
-                            <button onClick={() => handleShowModal(appt, "done")} className="action-btn5 done-btn5">
+                            <button onClick={() => handleDoneAppointmentClick(appt)} className="action-btn5 done-btn5">
                               Done
                             </button>
                           </td>
@@ -5489,35 +5464,6 @@ const renderReportsContent = () => {
         {activePage === "treatment-plan-next-step" && selectedPatient && renderNextStepForms()} {/* Render the next step of treatment plan */}
         {activePage === "treatment-plan-summary" && selectedPatient && renderTreatmentPlanSummary()} {/* NEW: Render the summary page */}
       </main>
-
-      
-        {showModal && (
-  <div className="modal-overlay3">
-    <div className="modal-content3">
-      <div className="modal-header3">
-        <h3>Confirm Action</h3>
-        <button className="close-button3" onClick={handleCancelModal}>
-          &times;
-        </button>
-      </div>
-      <div className="modal-body3">
-        <p>
-          Are you sure you want to{" "}
-          <strong>{actionType === "cancel" ? "cancel" : "mark as done"}</strong>{" "}
-          this appointment?
-        </p>
-        <div className="modal-button-group3">
-          <button className="modal-confirm-button3" onClick={handleConfirmAction}>
-            Confirm
-          </button>
-          <button className="modal-cancel-button3" onClick={handleCancelModal}>
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
 
         {showThreePhotoModal && (
   <div className="three-photo-modal-overlay" onClick={() => setShowThreePhotoModal(false)}>

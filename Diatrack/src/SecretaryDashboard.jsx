@@ -2070,17 +2070,20 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         const monthYear = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
         months.push(monthYear);
         
-        // Calculate end of month for filtering
+        // Calculate start and end of this specific month for filtering
+        const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        startOfMonth.setHours(0, 0, 0, 0);
         const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
         endOfMonth.setHours(23, 59, 59, 999);
 
-        console.log(`Processing month: ${monthYear} (end: ${endOfMonth.toISOString()})`);
+        console.log(`Processing month: ${monthYear} (${startOfMonth.toISOString()} to ${endOfMonth.toISOString()})`);
 
-        // Get patients that existed by the end of this month
+        // Get patients registered in this specific month only
         const { data: monthPatientsData, error: patientsError } = await supabase
           .from('patients')
           .select('patient_id')
           .in('preferred_doctor_id', doctorIds)
+          .gte('created_at', startOfMonth.toISOString())
           .lte('created_at', endOfMonth.toISOString());
 
         if (patientsError) {

@@ -8,6 +8,8 @@ const RiskFilter = ({
   onLabStatusChange,
   selectedProfileStatus,
   onProfileStatusChange,
+  sortOrder = 'desc',
+  onSortOrderChange,
   showCounts = false, 
   counts = { all: 0, low: 0, moderate: 0, high: 0, ppd: 0 },
   labStatusCounts = { all: 0, awaiting: 0, submitted: 0 },
@@ -41,6 +43,8 @@ const RiskFilter = ({
       onLabStatusChange(value);
     } else if (type === 'profileStatus' && onProfileStatusChange) {
       onProfileStatusChange(value);
+    } else if (type === 'sort' && onSortOrderChange) {
+      onSortOrderChange(value);
     }
     setIsDropdownOpen(false);
   };
@@ -82,6 +86,10 @@ const RiskFilter = ({
         default:
           return 'All Patients';
       }
+    }
+    
+    if (sortOrder && sortOrder !== 'desc') {
+      return sortOrder === 'asc' ? 'Oldest Created' : 'All Patients';
     }
     
     return 'All Patients';
@@ -138,7 +146,7 @@ const RiskFilter = ({
               className={`filter-dropdown-item ${selectedRisk === 'low' ? 'selected' : ''}`}
               onClick={() => handleOptionSelect('risk', 'low')}
             >
-              <i className="fas fa-circle low-risk-icon"></i>
+              <span className="status-icon low-risk-icon">🟢</span>
               <span className="filter-option-text">Low Risk</span>
               {showCounts && <span className="filter-count">({counts.low})</span>}
             </div>
@@ -148,7 +156,7 @@ const RiskFilter = ({
               className={`filter-dropdown-item ${selectedRisk === 'moderate' ? 'selected' : ''}`}
               onClick={() => handleOptionSelect('risk', 'moderate')}
             >
-              <i className="fas fa-circle moderate-risk-icon"></i>
+              <span className="status-icon moderate-risk-icon">🟡</span>
               <span className="filter-option-text">Moderate Risk</span>
               {showCounts && <span className="filter-count">({counts.moderate})</span>}
             </div>
@@ -158,7 +166,7 @@ const RiskFilter = ({
               className={`filter-dropdown-item ${selectedRisk === 'high' ? 'selected' : ''}`}
               onClick={() => handleOptionSelect('risk', 'high')}
             >
-              <i className="fas fa-circle high-risk-icon"></i>
+              <span className="status-icon high-risk-icon">🔴</span>
               <span className="filter-option-text">High Risk</span>
               {showCounts && <span className="filter-count">({counts.high})</span>}
             </div>
@@ -168,10 +176,32 @@ const RiskFilter = ({
               className={`filter-dropdown-item ${selectedRisk === 'ppd' ? 'selected' : ''}`}
               onClick={() => handleOptionSelect('risk', 'ppd')}
             >
-              <i className="fas fa-circle ppd-risk-icon"></i>
+              <span className="status-icon ppd-risk-icon">⚫</span>
               <span className="filter-option-text">PPD</span>
               {showCounts && <span className="filter-count">({counts.ppd})</span>}
             </div>
+
+            {/* Sort Order - Newest Created First */}
+            {onSortOrderChange && (
+              <div 
+                className={`filter-dropdown-item ${sortOrder === 'desc' ? 'selected' : ''}`}
+                onClick={() => handleOptionSelect('sort', 'desc')}
+              >
+                <span className="status-icon">🔽</span>
+                <span className="filter-option-text">Newest Created</span>
+              </div>
+            )}
+            
+            {/* Sort Order - Oldest Created First */}
+            {onSortOrderChange && (
+              <div 
+                className={`filter-dropdown-item ${sortOrder === 'asc' ? 'selected' : ''}`}
+                onClick={() => handleOptionSelect('sort', 'asc')}
+              >
+                <span className="status-icon">🔼</span>
+                <span className="filter-option-text">Oldest Created</span>
+              </div>
+            )}
 
             {/* Lab Status - Awaiting */}
             {onLabStatusChange && (
