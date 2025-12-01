@@ -3384,50 +3384,43 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     }
 
     try {
-      // Check if this specialist is already assigned to this patient
-      const { data: existingAssignment } = await supabase
-        .from("patient_specialists")
-        .select("id")
-        .eq("patient_id", patientForSpecialistAssignment.patient_id)
-        .eq("doctor_id", selectedSpecialistId)
-        .single();
+      // Get the selected doctor's information
+      const selectedDoctor = availableSpecialists.find(doc => doc.doctor_id === selectedSpecialistId);
 
-      if (existingAssignment) {
-        setMessage("This specialist is already assigned to this patient.");
-        return;
-      }
-
-      // Insert new specialist assignment
-      const { error } = await supabase
-        .from("patient_specialists")
+      // Send notification to the doctor for confirmation (don't add to database yet)
+      // Store necessary data in the message with special format: PATIENT_ID|PATIENT_NAME|SECRETARY_ID|SECRETARY_NAME
+      const notificationData = `${patientForSpecialistAssignment.patient_id}|${patientForSpecialistAssignment.first_name} ${patientForSpecialistAssignment.last_name}|${user.secretary_id}|${user.first_name} ${user.last_name}`;
+      
+      const { error: notifError } = await supabase
+        .from("notifications")
         .insert([
           {
-            patient_id: patientForSpecialistAssignment.patient_id,
-            doctor_id: selectedSpecialistId,
-            specialization: null // Will use doctor's specialization from doctors table
+            user_id: selectedSpecialistId,
+            user_role: 'doctor',
+            type: 'patient',
+            title: 'New Patient Assignment Request',
+            message: `ASSIGNMENT_REQUEST:${notificationData}`,
+            is_read: false
           }
         ]);
 
-      if (error) {
-        console.error("Error assigning specialist:", error);
-        setMessage(`Error assigning specialist: ${error.message}`);
+      if (notifError) {
+        console.error("Error sending notification:", notifError);
+        setMessage(`Error sending notification: ${notifError.message}`);
         return;
       }
 
-      setMessage("Specialist assigned successfully!");
+      setMessage(`Assignment request sent to ${selectedDoctor?.first_name} ${selectedDoctor?.last_name}. Waiting for confirmation.`);
       setSelectedSpecialistId("");
       
-      // Refresh the current patient specialists list
-      fetchPatientSpecialists(patientForSpecialistAssignment.patient_id);
-      
-      // Log the assignment
+      // Log the assignment request
       await logSystemAction(
         'secretary',
         user.secretary_id,
         `${user.first_name} ${user.last_name}`,
         'specialist_assignment',
-        'assign',
-        `Assigned specialist to patient: ${patientForSpecialistAssignment.first_name} ${patientForSpecialistAssignment.last_name}`,
+        'request',
+        `Requested specialist assignment for patient: ${patientForSpecialistAssignment.first_name} ${patientForSpecialistAssignment.last_name} to doctor: ${selectedDoctor?.first_name} ${selectedDoctor?.last_name}`,
         'Secretary Dashboard - Specialist Assignment'
       );
 
