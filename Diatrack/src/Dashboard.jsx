@@ -605,6 +605,9 @@ const Dashboard = ({ user, onLogout }) => {
   const [sortOrder, setSortOrder] = useState('desc'); // Sort by created_at: 'desc' = newest first, 'asc' = oldest first
   const [currentPagePatients, setCurrentPagePatients] = useState(1);
   const PATIENTS_PER_PAGE = 10;
+  
+  // Health metrics submission tracking
+  const [healthMetricsSubmissions, setHealthMetricsSubmissions] = useState({});
 
   // Health metrics pagination states
   const [currentPageHealthMetrics, setCurrentPageHealthMetrics] = useState(1);
@@ -740,6 +743,7 @@ const Dashboard = ({ user, onLogout }) => {
     if (activePage === "dashboard" || activePage === "appointments" || activePage === "reports") { // Added 'reports' here
         fetchAppointments();
         fetchAllDoctors(); // Fetch all doctors when viewing appointments
+        fetchHealthMetricsSubmissions(); // Fetch health metrics submissions for reports
     }
     if (activePage === "patient-profile" && selectedPatient?.patient_id) {
       console.log("Calling fetchPatientDetails for patient:", selectedPatient.patient_id);
@@ -1277,6 +1281,34 @@ const Dashboard = ({ user, onLogout }) => {
     } catch (err) {
       console.error("Error fetching all doctors:", err);
       setAllDoctors([]);
+    }
+  };
+
+  const fetchHealthMetricsSubmissions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("health_metrics")
+        .select("patient_id, updated_at")
+        .order("updated_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching health metrics submissions:", error);
+        return;
+      }
+
+      // Create a map to store the most recent updated_at timestamp for each patient
+      const lastSubmissions = new Map();
+      data.forEach((metric) => {
+        if (!lastSubmissions.has(metric.patient_id)) {
+          lastSubmissions.set(metric.patient_id, metric.updated_at);
+        }
+      });
+
+      // Convert the Map to an object for state
+      setHealthMetricsSubmissions(Object.fromEntries(lastSubmissions));
+    } catch (error) {
+      console.error("Error fetching health metrics submissions:", error);
+      setHealthMetricsSubmissions({});
     }
   };
 
@@ -2299,11 +2331,11 @@ const Dashboard = ({ user, onLogout }) => {
           <thead>
             <tr>
               <th>Patient Name</th>
-              <th>Age/Sex</th>
+              <th>Age</th>
+              <th>Sex</th>
               <th>Classification</th>
               <th>Lab Status</th>
               <th>Profile Status</th>
-              <th>Last Visit</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -2322,7 +2354,8 @@ const Dashboard = ({ user, onLogout }) => {
                       <span className="patient-name-text">{patient.first_name} {patient.last_name}</span>
                     </div>
                   </td>
-                  <td>{patient.date_of_birth ? `${Math.floor((new Date() - new Date(patient.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${patient.gender}` : 'N/A'}</td>
+                  <td>{patient.date_of_birth ? Math.floor((new Date() - new Date(patient.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
+                  <td>{patient.gender || 'N/A'}</td>
                   <td className={`doctor-classification-cell ${
                     getLabStatus(patient.latest_lab_result) === 'Awaiting' ? 'doctor-classification-awaiting' :
                     (() => {
@@ -2346,7 +2379,6 @@ const Dashboard = ({ user, onLogout }) => {
                   <td className={getProfileStatus(patient) === '🟢Finalized' ? 'status-complete' : 'status-incomplete'}>
                     {getProfileStatus(patient)}
                   </td>
-                  <td>{formatDateToReadable(patient.last_doctor_visit)}</td>
                   <td className="patient-actions-cell">
                     <button className="view-button" onClick={() => handleViewClick(patient)}>👁️ View</button>
                     <button className="toggle-phase-button" onClick={() => handlePhaseToggle(patient)} style={{ marginLeft: '8px' }}>
@@ -3210,11 +3242,12 @@ const Dashboard = ({ user, onLogout }) => {
           <thead>
             <tr>
               <th>Patient Name</th>
-              <th>Age/Sex</th>
+              <th>Age</th>
+              <th>Sex</th>
               <th>Classification</th>
               <th>Lab Status</th>
               <th>Profile Status</th>
-              <th>Last Visit</th>
+              {reportTableType === 'missing-logs' && <th>Days Since Last Submission</th>}
               <th>Actions</th>
             </tr>
           </thead>
@@ -3233,7 +3266,8 @@ const Dashboard = ({ user, onLogout }) => {
                       <span className="patient-name-text">{patient.first_name} {patient.last_name}</span>
                     </div>
                   </td>
-                  <td>{patient.date_of_birth ? `${Math.floor((new Date() - new Date(patient.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${patient.gender}` : 'N/A'}</td>
+                  <td>{patient.date_of_birth ? Math.floor((new Date() - new Date(patient.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
+                  <td>{patient.gender || 'N/A'}</td>
                   <td className={`doctor-classification-cell ${
                     getLabStatus(patient.latest_lab_result) === 'Awaiting' ? 'doctor-classification-awaiting' :
                     (() => {
@@ -3257,7 +3291,24 @@ const Dashboard = ({ user, onLogout }) => {
                   <td className={getProfileStatus(patient) === '🟢Finalized' ? 'status-complete' : 'status-incomplete'}>
                     {getProfileStatus(patient)}
                   </td>
-                  <td>{formatDateToReadable(patient.last_doctor_visit)}</td>
+                  {reportTableType === 'missing-logs' && (
+                    <td>{(() => {
+                      const lastSubmissionDate = healthMetricsSubmissions[patient.patient_id];
+                      const daysPassed = lastSubmissionDate
+                        ? Math.max(0, Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(lastSubmissionDate).setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24)))
+                        : "No Submission";
+                      
+                      return (
+                        <span className={`compliance-status ${
+                          daysPassed === "No Submission" ? "no-submission" : 
+                          daysPassed > 7 ? "overdue" : 
+                          daysPassed > 3 ? "warning" : "good"
+                        }`}>
+                          {daysPassed}
+                        </span>
+                      );
+                    })()}</td>
+                  )}
                   <td className="patient-actions-cell">
                     <button className="view-button" onClick={() => handleViewClick(patient)}>👁️ View</button>
                     <button className="toggle-phase-button" onClick={() => handlePhaseToggle(patient)} style={{ marginLeft: '8px' }}>
@@ -3268,7 +3319,7 @@ const Dashboard = ({ user, onLogout }) => {
               ))
             ) : (
               <tr>
-                <td colSpan="7">No patients found.</td>
+                <td colSpan={reportTableType === 'missing-logs' ? "8" : "7"}>No patients found.</td>
               </tr>
             )}
           </tbody>
@@ -3471,6 +3522,121 @@ const handleDoneAppointmentClick = async (appointment) => {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          {/* Calendar Section */}
+          <div className="dashboard-calendar-section" style={{ marginTop: '20px' }}>
+            <h3>Calendar</h3>
+            <div className="dashboard-appointment-schedule-container">
+              <div className="dashboard-appointment-calendar-container">
+                <Calendar
+                  value={calendarDate}
+                  onChange={setCalendarDate}
+                  tileDisabled={({ date, view }) => {
+                    // Disable weekends (Saturday = 6, Sunday = 0)
+                    if (view === 'month') {
+                      const day = date.getDay();
+                      return day === 0 || day === 6;
+                    }
+                    return false;
+                  }}
+                  tileClassName={({ date, view }) => {
+                    if (view === 'month') {
+                      // Check if this date has an appointment
+                      const hasAppointment = appointments.some(appointment => {
+                        // Parse the appointment date string (YYYY-MM-DD format from substring)
+                        const appointmentDateStr = appointment.appointment_datetime.substring(0, 10);
+                        const [year, month, day] = appointmentDateStr.split('-').map(Number);
+                        
+                        // Compare with calendar tile date
+                        const matches = (
+                          date.getDate() === day &&
+                          date.getMonth() === (month - 1) && // Month is 0-indexed in JS
+                          date.getFullYear() === year
+                        );
+                        return matches;
+                      });
+                      return hasAppointment ? 'dashboard-appointment-date' : null;
+                    }
+                  }}
+                  tileContent={({ date, view }) => {
+                    if (view === 'month') {
+                      const dayAppointments = appointments.filter(appointment => {
+                        // Parse the appointment date string (YYYY-MM-DD format from substring)
+                        const appointmentDateStr = appointment.appointment_datetime.substring(0, 10);
+                        const [year, month, day] = appointmentDateStr.split('-').map(Number);
+                        
+                        // Compare with calendar tile date
+                        return (
+                          date.getDate() === day &&
+                          date.getMonth() === (month - 1) && // Month is 0-indexed in JS
+                          date.getFullYear() === year
+                        );
+                      });
+                      if (dayAppointments.length > 0) {
+                        return (
+                          <div className="appointment-indicator">
+                            <span className="appointment-count">{dayAppointments.length}</span>
+                          </div>
+                        );
+                      }
+                    }
+                  }}
+                />
+              </div>
+              
+              {/* Appointment Details List */}
+              <div className="dashboard-appointment-details-list">
+                <h4>
+                  {(() => {
+                    const now = new Date();
+                    const futureAppointments = appointments.filter(appointment => 
+                      new Date(appointment.appointment_datetime) > now
+                    );
+                    return futureAppointments.length > 0 ? 'Upcoming Appointments' : 'Recent Appointments';
+                  })()}
+                </h4>
+                {(() => {
+                  const now = new Date();
+                  const futureAppointments = appointments.filter(appointment => 
+                    new Date(appointment.appointment_datetime) > now
+                  );
+                  
+                  let appointmentsToShow = [];
+                  if (futureAppointments.length > 0) {
+                    appointmentsToShow = futureAppointments.slice(0, 3);
+                  } else {
+                    // Show 3 most recent appointments
+                    appointmentsToShow = appointments
+                      .sort((a, b) => new Date(b.appointment_datetime) - new Date(a.appointment_datetime))
+                      .slice(0, 3);
+                  }
+                  
+                  if (appointmentsToShow.length > 0) {
+                    return (
+                      <ul className="dashboard-appointment-list">
+                        {appointmentsToShow.map((appointment, idx) => (
+                          <li key={idx} className="dashboard-appointment-item">
+                            <div className="dashboard-appointment-date-time">
+                              <strong>{formatDateToReadable(appointment.appointment_datetime.split('T')[0])}</strong>
+                              <span className="dashboard-appointment-time">{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</span>
+                            </div>
+                            <div className="dashboard-appointment-patient">
+                              <strong>Patient:</strong> {appointment.patients ? `${appointment.patients.first_name} ${appointment.patients.last_name}` : "Unknown"}
+                            </div>
+                            <div className="dashboard-appointment-notes">
+                              {appointment.notes || 'No notes'}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  } else {
+                    return <p className="no-appointments">No appointments scheduled.</p>;
+                  }
+                })()}
+              </div>
             </div>
           </div>
         </div>

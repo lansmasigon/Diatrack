@@ -612,6 +612,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [nonCompliantHistory, setNonCompliantHistory] = useState({ labels: [], data: [] });
 
   const [appointmentsToday, setAppointmentsToday] = useState([]);
+  const [allAppointments, setAllAppointments] = useState([]); // For calendar display
 
   const [appointmentForm, setAppointmentForm] = useState({
     doctorId: "",
@@ -929,6 +930,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
 
   // NEW STATE FOR HEALTH METRICS LAST SUBMISSIONS (FOR DAYS SINCE SUBMISSION COLUMN)
   const [healthMetricsSubmissions, setHealthMetricsSubmissions] = useState({});
+
+  // Calendar state for appointment scheduling
+  const [calendarDate, setCalendarDate] = useState(new Date());
 
   // Individual time period filters for each chart
   const [glucoseTimeFilter, setGlucoseTimeFilter] = useState('week'); // 'day', 'week', 'month'
@@ -2315,6 +2319,44 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
     console.log("Final processed appointments:", processedAppointments);
     setAppointmentsToday(processedAppointments);
+    
+    // Fetch ALL appointments for calendar (not limited by date range filter)
+    const { data: allApptsData, error: allApptsError } = await supabase
+      .from("appointments")
+      .select(`
+        appointment_id,
+        appointment_datetime,
+        appointment_state,
+        notes,
+        patient_id,
+        doctor_id,
+        patients (first_name, last_name),
+        doctors (first_name, last_name)
+      `)
+      .eq("secretary_id", user.secretary_id)
+      .order("appointment_datetime", { ascending: true });
+
+    if (!allApptsError && allApptsData) {
+      // Filter only by active status, not by date
+      const allActiveAppointments = allApptsData
+        .filter(app => {
+          const state = (app.appointment_state || '').toLowerCase();
+          return state !== 'finished' && state !== 'done' && state !== 'cancelled';
+        })
+        .map(app => {
+          const timeString = app.appointment_datetime.substring(11, 16);
+          const dateString = app.appointment_datetime.substring(0, 10);
+          return {
+            ...app,
+            patient_name: app.patients ? `${app.patients.first_name} ${app.patients.last_name}` : 'Unknown Patient',
+            doctor_name: app.doctors ? `${app.doctors.first_name} ${app.doctors.last_name}` : 'Unknown Doctor',
+            timeDisplay: formatTimeTo12Hour(timeString),
+            dateDisplay: formatDateToReadable(dateString),
+          };
+        });
+      setAllAppointments(allActiveAppointments);
+      console.log("Calendar appointments set (all active):", allActiveAppointments.length);
+    }
   }
 };
 
@@ -3596,7 +3638,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         {activePage === "dashboard" && ( // MODIFIED: Only show header actions on dashboard
           <div className="dashboard-header-section">
             <h2 className="welcome-message">Welcome Back, {user ? user.first_name : 'Maria'} 👋</h2>
-            <p className="reports-info">Patient reports here always update in real time</p>
             <div className="header-actions">
               <div className="search-bar">
                 <input type="text" placeholder="Search for patients here" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
@@ -3616,7 +3657,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                 setEditingPatientId(null);
                 setCurrentPatientStep(0); // Reset step
               }}>
-                <i className="fas fa-plus"></i> Create New Patient
+                <i className="fas fa-plus"></i> Add New Patient
               </button>
             </div>
           </div>
@@ -3769,6 +3810,121 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     )}
                   </div>
                 </div>
+
+                {/* Calendar Section */}
+                <div className="dashboard-calendar-section" style={{ marginTop: '20px' }}>
+                  <h3>Calendar</h3>
+                  <div className="dashboard-appointment-schedule-container">
+                    <div className="dashboard-appointment-calendar-container">
+                      <Calendar
+                        value={calendarDate}
+                        onChange={setCalendarDate}
+                        tileDisabled={({ date, view }) => {
+                          // Disable weekends (Saturday = 6, Sunday = 0)
+                          if (view === 'month') {
+                            const day = date.getDay();
+                            return day === 0 || day === 6;
+                          }
+                          return false;
+                        }}
+                        tileClassName={({ date, view }) => {
+                          if (view === 'month') {
+                            // Check if this date has an appointment - use allAppointments to show all
+                            const hasAppointment = allAppointments.some(appointment => {
+                              // Parse the appointment date string (YYYY-MM-DD format from substring)
+                              const appointmentDateStr = appointment.appointment_datetime.substring(0, 10);
+                              const [year, month, day] = appointmentDateStr.split('-').map(Number);
+                              
+                              // Compare with calendar tile date
+                              const matches = (
+                                date.getDate() === day &&
+                                date.getMonth() === (month - 1) && // Month is 0-indexed in JS
+                                date.getFullYear() === year
+                              );
+                              return matches;
+                            });
+                            return hasAppointment ? 'dashboard-appointment-date' : null;
+                          }
+                        }}
+                        tileContent={({ date, view }) => {
+                          if (view === 'month') {
+                            const dayAppointments = allAppointments.filter(appointment => {
+                              // Parse the appointment date string (YYYY-MM-DD format from substring)
+                              const appointmentDateStr = appointment.appointment_datetime.substring(0, 10);
+                              const [year, month, day] = appointmentDateStr.split('-').map(Number);
+                              
+                              // Compare with calendar tile date
+                              return (
+                                date.getDate() === day &&
+                                date.getMonth() === (month - 1) && // Month is 0-indexed in JS
+                                date.getFullYear() === year
+                              );
+                            });
+                            if (dayAppointments.length > 0) {
+                              return (
+                                <div className="appointment-indicator">
+                                  <span className="appointment-count">{dayAppointments.length}</span>
+                                </div>
+                              );
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Appointment Details List */}
+                    <div className="dashboard-appointment-details-list">
+                      <h4>
+                        {(() => {
+                          const now = new Date();
+                          const futureAppointments = allAppointments.filter(appointment => 
+                            new Date(appointment.appointment_datetime) > now
+                          );
+                          return futureAppointments.length > 0 ? 'Upcoming Appointments' : 'Recent Appointments';
+                        })()}
+                      </h4>
+                      {(() => {
+                        const now = new Date();
+                        const futureAppointments = allAppointments.filter(appointment => 
+                          new Date(appointment.appointment_datetime) > now
+                        );
+                        
+                        let appointmentsToShow = [];
+                        if (futureAppointments.length > 0) {
+                          appointmentsToShow = futureAppointments.slice(0, 3);
+                        } else {
+                          // Show 3 most recent appointments
+                          appointmentsToShow = allAppointments
+                            .sort((a, b) => new Date(b.appointment_datetime) - new Date(a.appointment_datetime))
+                            .slice(0, 3);
+                        }
+                        
+                        if (appointmentsToShow.length > 0) {
+                          return (
+                            <ul className="dashboard-appointment-list">
+                              {appointmentsToShow.map((appointment, idx) => (
+                                <li key={idx} className="dashboard-appointment-item">
+                                  <div className="dashboard-appointment-date-time">
+                                    <strong>{appointment.dateDisplay || formatDateToReadable(appointment.appointment_datetime.split('T')[0])}</strong>
+                                    <span className="dashboard-appointment-time">{appointment.timeDisplay || formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</span>
+                                  </div>
+                                  <div className="dashboard-appointment-patient">
+                                    <strong>Patient:</strong> {appointment.patient_name}
+                                  </div>
+                                  <div className="dashboard-appointment-notes">
+                                    {appointment.notes || 'No notes'}
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          );
+                        } else {
+                          return <p className="no-appointments">No appointments scheduled.</p>;
+                        }
+                      })()}
+                    </div>
+                  </div>
+                </div>
                   </div>
                 </div>
               )}
@@ -3851,7 +4007,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             <input className="patient-input" placeholder="Date of Birth" type="date" value={patientForm.dateOfBirth} onChange={(e) => handleInputChange("dateOfBirth", e.target.value)} />
                           </div>
                           <div className="form-group">
-                            <label>Contact Info:</label>
+                            <label>Contact Number:</label>
                             <input className="patient-input" placeholder="Contact Info" value={patientForm.contactInfo} onChange={(e) => handleInputChange("contactInfo", e.target.value)} />
                           </div>
                           <div className="form-group">
@@ -4159,11 +4315,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     <thead>
                       <tr>
                       <th>Patient Name</th>
-                      <th>Age/Sex</th>
+                      <th>Age</th>
+                      <th>Sex</th>
                       <th>Classification</th>
                       <th>Lab Status</th>
                       <th>Profile Status</th>
-                      <th>Last Visit</th>
                       <th>Actions</th>
                       </tr>
                     </thead>
@@ -4182,7 +4338,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
                               </div>
                             </td>
-                            <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                            <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
+                            <td>{pat.gender || 'N/A'}</td>
                             <td className={`classification-cell ${
                               pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                               ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
@@ -4202,7 +4359,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                             {pat.profile_status}
                           </td>
-                            <td>{formatDateToReadable(pat.last_doctor_visit)}</td> {/* Updated to use new date format */}
                             <td className="patient-actions-cell">
                               {/* Enter Labs button to go to lab result entry */}
                               <button className="enter-labs-button" onClick={() => {
@@ -5072,7 +5228,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 <table className="health-metrics-table">
                                     <thead>
                                         <tr>
-                                            <th>Date</th>
+                                            <th>Date and Time</th>
                                             <th>Blood Glucose</th>
                                             <th>Blood Pressure</th>
                                             <th>Risk Score</th>
@@ -5081,23 +5237,36 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                     </thead>
                                     <tbody>
                                         {paginatedHealthMetrics.length > 0 ? (
-                                            paginatedHealthMetrics.map((metric, index) => (
-                                                <tr key={index}>
-                                                    <td>{new Date(metric.submission_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                                                    <td>{metric.blood_glucose || 'N/A'}</td>
-                                                    <td>
-                                                        {metric.bp_systolic !== null && metric.bp_diastolic !== null
-                                                            ? `${metric.bp_systolic}/${metric.bp_diastolic}`
-                                                            : 'N/A'}
-                                                    </td>
-                                                    <td className="metric-value">
-                                                        {metric.risk_score ? `${metric.risk_score}/100` : 'N/A'}
-                                                    </td>
-                                                    <td className={`risk-classification-${(metric.risk_classification || 'N/A').toLowerCase()}`}>
-                                                        {metric.risk_classification || 'N/A'}
-                                                    </td>
-                                                </tr>
-                                            ))
+                                            paginatedHealthMetrics.map((metric, index) => {
+                                                const submissionDate = new Date(metric.submission_date);
+                                                const dateStr = submissionDate.toLocaleDateString('en-US', { 
+                                                    month: 'short', 
+                                                    day: 'numeric', 
+                                                    year: 'numeric' 
+                                                });
+                                                const timeStr = submissionDate.toLocaleTimeString('en-US', {
+                                                    hour: 'numeric',
+                                                    minute: '2-digit',
+                                                    hour12: true
+                                                });
+                                                return (
+                                                    <tr key={index}>
+                                                        <td>{`${dateStr}, ${timeStr}`}</td>
+                                                        <td>{metric.blood_glucose || 'N/A'}</td>
+                                                        <td>
+                                                            {metric.bp_systolic !== null && metric.bp_diastolic !== null
+                                                                ? `${metric.bp_systolic}/${metric.bp_diastolic}`
+                                                                : 'N/A'}
+                                                        </td>
+                                                        <td className="metric-value">
+                                                            {metric.risk_score || 'N/A'}
+                                                        </td>
+                                                        <td className={`risk-classification-${(metric.risk_classification || 'N/A').toLowerCase()}`}>
+                                                            {metric.risk_classification || 'N/A'}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
                                         ) : (
                                             <tr>
                                                 <td colSpan="5">No health metrics history available for this patient.</td>
@@ -5532,11 +5701,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           <thead>
                             <tr>
                               <th>Patient Name</th>
-                              <th>Age/Sex</th>
+                              <th>Age</th>
+                              <th>Sex</th>
                               <th>Classification</th>
                               <th>Lab Status</th>
                               <th>Profile Status</th>
-                              <th>Last Visit</th>
                               <th>Actions</th>
                             </tr>
                           </thead>
@@ -5556,7 +5725,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                       <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
                                     </div>
                                   </td>
-                                  <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                                  <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
+                                  <td>{pat.gender || 'N/A'}</td>
                                   <td className={`classification-cell ${
                                     pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                                     ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
@@ -5575,7 +5745,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   <td className={pat.profile_status === 'Finalized' ? 'status-finalized' : 'status-pending'}>
                                     {pat.profile_status}
                                   </td>
-                                  <td>{pat.last_doctor_visit || 'N/A'}</td>
                                   <td>
                                     <div className="lab-actions-buttons">
                                       <button className="enter-labs-button" onClick={() => handleSelectPatientForLab(pat)}>
@@ -6563,11 +6732,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     <thead>
                       <tr>
                         <th>Patient Name</th>
-                        <th>Age/Sex</th>
+                        <th>Age</th>
+                        <th>Sex</th>
                         <th>Classification</th>
                         <th>Lab Status</th>
                         <th>Profile Status</th>
-                        <th>Last Visit</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
@@ -6591,7 +6760,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
                                 </div>
                               </td>
-                              <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                              <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
+                              <td>{pat.gender || 'N/A'}</td>
                               <td className={`classification-cell ${
                                 pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                                 ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
@@ -6610,7 +6780,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                                 {pat.profile_status}
                               </td>
-                              <td>{formatDateToReadable(pat.last_doctor_visit)}</td>
                               <td className="patient-actions-cell">
                                 <button className="enter-labs-button" onClick={() => {
                                   setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
@@ -6662,11 +6831,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     <thead>
                       <tr>
                         <th>Patient Name</th>
-                        <th>Age/Sex</th>
+                        <th>Age</th>
+                        <th>Sex</th>
                         <th>Classification</th>
                         <th>Lab Status</th>
                         <th>Profile Status</th>
-                        <th>Last Visit</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
@@ -6690,7 +6859,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
                                 </div>
                               </td>
-                              <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                              <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
+                              <td>{pat.gender || 'N/A'}</td>
                               <td className={`classification-cell ${
                                 pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                                 ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
@@ -6709,7 +6879,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                                 {pat.profile_status}
                               </td>
-                              <td>{formatDateToReadable(pat.last_doctor_visit)}</td>
                               <td className="patient-actions-cell">
                                 <button className="enter-labs-button" onClick={() => {
                                   setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
@@ -6782,11 +6951,12 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     <thead>
                       <tr>
                         <th>Patient Name</th>
-                        <th>Age/Sex</th>
+                        <th>Age</th>
+                        <th>Sex</th>
                         <th>Classification</th>
                         <th>Lab Status</th>
                         <th>Profile Status</th>
-                        <th>Last day of Submission</th>
+                        <th>Days Since Last Submission</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
@@ -6810,7 +6980,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
                                 </div>
                               </td>
-                              <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                              <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
+                              <td>{pat.gender || 'N/A'}</td>
                               <td className={`classification-cell ${
                                 pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                                 ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
@@ -6858,7 +7029,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="7">No patients with missing logs found.</td>
+                            <td colSpan="8">No patients with missing logs found.</td>
                           </tr>
                         );
                       })()}
@@ -6893,11 +7064,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     <thead>
                       <tr>
                         <th>Patient Name</th>
-                        <th>Age/Sex</th>
+                        <th>Age</th>
+                        <th>Sex</th>
                         <th>Classification</th>
                         <th>Lab Status</th>
                         <th>Profile Status</th>
-                        <th>Last Visit</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
@@ -6921,7 +7092,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
                                 </div>
                               </td>
-                              <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                              <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
+                              <td>{pat.gender || 'N/A'}</td>
                               <td className={`classification-cell ${
                                 pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                                 ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
@@ -6940,7 +7112,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                                 {pat.profile_status}
                               </td>
-                              <td>{formatDateToReadable(pat.last_doctor_visit)}</td>
                               <td className="patient-actions-cell">
                                 <button className="enter-labs-button" onClick={() => {
                                   setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
