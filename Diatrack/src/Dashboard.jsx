@@ -69,8 +69,9 @@ const getLabStatus = (latestLabResult) => {
   }
 
   const requiredLabFields = [
-    'Hba1c', 'creatinine', 'got_ast', 'gpt_alt',
-    'cholesterol', 'triglycerides', 'hdl_cholesterol', 'ldl_cholesterol'
+    'Hba1c', 'ucr', 'got_ast', 'gpt_alt',
+    'cholesterol', 'triglycerides', 'hdl_cholesterol', 'ldl_cholesterol',
+    'urea', 'bun', 'uric', 'egfr'
   ];
 
   let allFieldsFilled = true;
@@ -114,11 +115,11 @@ const getClassificationDisplay = (patient) => {
   }
   
   // Otherwise, show color based on risk classification (for Submitted status)
-  if (riskClassification === 'low') {
+  if (riskClassification === 'low' || riskClassification === 'low risk') {
     return `🟢${phaseDisplay}`;
-  } else if (riskClassification === 'moderate') {
+  } else if (riskClassification === 'moderate' || riskClassification === 'moderate risk') {
     return `🟡${phaseDisplay}`;
-  } else if (riskClassification === 'high') {
+  } else if (riskClassification === 'high' || riskClassification === 'high risk') {
     return `🔴${phaseDisplay}`;
   } else if (riskClassification === 'ppd') {
     return `⚪${phaseDisplay}`;
@@ -542,6 +543,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState([]); // Doctor's appointments
   const [patientAppointments, setPatientAppointments] = useState([]); // Patient-specific appointments
+  const [allDoctors, setAllDoctors] = useState([]); // All registered doctors
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(""); // Corrected: Initialized with useState
@@ -553,6 +555,14 @@ const Dashboard = ({ user, onLogout }) => {
   // NEW: States for popup messages
   const [showUsersPopup, setShowUsersPopup] = useState(false);
   const [showMessagePopup, setShowMessagePopup] = useState(false);
+  const [showThreePhotoModal, setShowThreePhotoModal] = useState(false);
+  
+  // States for wound analysis API results
+  const [analysisResults, setAnalysisResults] = useState(null);
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
+  const [analysisError, setAnalysisError] = useState(null);
+  const [isSavingAnalysis, setIsSavingAnalysis] = useState(false);
+  const [analysisSaved, setAnalysisSaved] = useState(false);
 
   // Dashboard analytics states
   const [totalPatientsCount, setTotalPatientsCount] = useState(0);
@@ -588,9 +598,16 @@ const Dashboard = ({ user, onLogout }) => {
   // Patient list filtering and pagination states
   const [selectedRiskFilter, setSelectedRiskFilter] = useState('all');
   const [selectedLabStatusFilter, setSelectedLabStatusFilter] = useState('all');
+  const [showReportTable, setShowReportTable] = useState(false);
+  const [reportTableType, setReportTableType] = useState(null);
+  const [reportTableTitle, setReportTableTitle] = useState('');
   const [selectedProfileStatusFilter, setSelectedProfileStatusFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('desc'); // Sort by created_at: 'desc' = newest first, 'asc' = oldest first
   const [currentPagePatients, setCurrentPagePatients] = useState(1);
   const PATIENTS_PER_PAGE = 10;
+  
+  // Health metrics submission tracking
+  const [healthMetricsSubmissions, setHealthMetricsSubmissions] = useState({});
 
   // Health metrics pagination states
   const [currentPageHealthMetrics, setCurrentPageHealthMetrics] = useState(1);
@@ -609,10 +626,6 @@ const Dashboard = ({ user, onLogout }) => {
   const [appointmentsToday, setAppointmentsToday] = useState([]);
   const [currentPageAppointments, setCurrentPageAppointments] = useState(1);
   const APPOINTMENTS_PER_PAGE = 5;
-
-  const [showModal, setShowModal] = useState(false);
-  const [appointmentToConfirm, setAppointmentToConfirm] = useState(null);
-  const [actionType, setActionType] = useState(""); // "cancel" or "done"
 
   // New states for medication management (from previous iterations, for patient profile)
   const [patientMedications, setPatientMedications] = useState([]); // State for medications
@@ -650,6 +663,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [glucoseTimeFilter, setGlucoseTimeFilter] = useState('week'); // 'day', 'week', 'month'
   const [bpTimeFilter, setBpTimeFilter] = useState('week');
   const [riskTimeFilter, setRiskTimeFilter] = useState('week');
+  const [riskScoreTimeFilter, setRiskScoreTimeFilter] = useState('week');
 
 
   // Filter patient metrics based on selected risk filter
@@ -673,32 +687,36 @@ const Dashboard = ({ user, onLogout }) => {
     }
     
     const now = new Date();
-    const filtered = metrics.filter(metric => {
-      if (!metric.submission_date) {
-        console.log('[filterMetricsByTimePeriod] Metric missing submission_date:', metric);
-        return false;
-      }
-      
-      const metricDate = new Date(metric.submission_date);
-      const diffTime = Math.abs(now - metricDate);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      switch(timePeriod) {
-        case 'day':
-          return diffDays <= 1;
-        case 'week':
-          return diffDays <= 7;
-        case 'month':
-          return diffDays <= 30;
-        default:
-          return true;
-      }
-    });
+    let filtered = [];
     
-    console.log(`[filterMetricsByTimePeriod] Filtered to ${filtered.length} metrics`);
+    if (timePeriod === 'day') {
+      // For 'day' filter, show the 5 latest submitted dates regardless of actual date
+      filtered = metrics
+        .sort((a, b) => new Date(b.submission_date) - new Date(a.submission_date)) // Sort by newest first
+        .slice(0, 5) // Take the 5 latest submissions
+        .reverse(); // Reverse to show oldest to newest for chart display
+    } else {
+      // For week and month filters, use the existing time-based logic
+      filtered = metrics.filter(metric => {
+        const metricDate = new Date(metric.submission_date);
+        const diffTime = Math.abs(now - metricDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        switch(timePeriod) {
+          case 'week':
+            return diffDays <= 7;
+          case 'month':
+            return diffDays <= 30;
+          default:
+            return true;
+        }
+      });
+      
+      // Sort by date ascending (oldest first) for time-based filters
+      filtered = filtered.sort((a, b) => new Date(a.submission_date) - new Date(b.submission_date));
+    }
     
-    // Sort by date ascending (oldest first)
-    return filtered.sort((a, b) => new Date(a.submission_date) - new Date(b.submission_date));
+    return filtered;
   }, []);
 
   // Filtered metrics for each chart based on their individual time filters
@@ -724,6 +742,11 @@ const Dashboard = ({ user, onLogout }) => {
     return result;
   }, [filteredPatientMetrics, riskTimeFilter, filterMetricsByTimePeriod]);
 
+  const riskScoreFilteredMetrics = React.useMemo(() => 
+    filterMetricsByTimePeriod(filteredPatientMetrics, riskScoreTimeFilter),
+    [filteredPatientMetrics, riskScoreTimeFilter, filterMetricsByTimePeriod]
+  );
+
 
   useEffect(() => {
     console.log("useEffect triggered - activePage:", activePage, "selectedPatient?.patient_id:", selectedPatient?.patient_id);
@@ -733,6 +756,8 @@ const Dashboard = ({ user, onLogout }) => {
     }
     if (activePage === "dashboard" || activePage === "appointments" || activePage === "reports") { // Added 'reports' here
         fetchAppointments();
+        fetchAllDoctors(); // Fetch all doctors when viewing appointments
+        fetchHealthMetricsSubmissions(); // Fetch health metrics submissions for reports
     }
     if (activePage === "patient-profile" && selectedPatient?.patient_id) {
       console.log("Calling fetchPatientDetails for patient:", selectedPatient.patient_id);
@@ -740,33 +765,97 @@ const Dashboard = ({ user, onLogout }) => {
     }
   }, [activePage, user.doctor_id, selectedPatient?.patient_id]); // Only depend on patient_id, not the full object
 
+  // Reset report table when changing pages
+  useEffect(() => {
+    if (activePage !== 'reports') {
+      setShowReportTable(false);
+      setReportTableType(null);
+      setReportTableTitle('');
+    }
+  }, [activePage]);
+
+  // Clear analysis results when navigating away from treatment plan
+  useEffect(() => {
+    if (activePage !== "treatment-plan") {
+      setAnalysisResults(null);
+      setAnalysisError(null);
+      setAnalysisSaved(false);
+      setIsLoadingAnalysis(false);
+    }
+  }, [activePage]);
+
   const fetchPatients = async () => {
     setLoading(true);
     setError("");
     try {
-      const { data, error } = await supabase
+      // Fetch patients where this doctor is the preferred doctor
+      const { data: preferredPatients, error: preferredError } = await supabase
         .from("patients")
         .select("*")
         .eq("preferred_doctor_id", user.doctor_id)
         .order("patient_id", { ascending: true });
 
-      if (error) throw error;
+      if (preferredError) throw preferredError;
+
+      // Fetch patients where this doctor is assigned as a specialist
+      const { data: specialistAssignments, error: specialistError } = await supabase
+        .from("patient_specialists")
+        .select(`
+          patient_id,
+          patients!patient_id (*)
+        `)
+        .eq("doctor_id", user.doctor_id);
+
+      if (specialistError) {
+        console.error("Error fetching specialist assignments:", specialistError);
+        // Continue with just preferred patients if specialist fetch fails
+      }
+
+      // Combine both lists, avoiding duplicates and track relationship type
+      const allPatients = [];
+      const patientIds = new Set();
+
+      // Add preferred patients
+      if (preferredPatients) {
+        preferredPatients.forEach(patient => {
+          allPatients.push({ ...patient, relationship_type: 'preferred' });
+          patientIds.add(patient.patient_id);
+        });
+      }
+
+      // Add specialist-assigned patients
+      if (specialistAssignments) {
+        specialistAssignments.forEach(assignment => {
+          if (assignment.patients && !patientIds.has(assignment.patients.patient_id)) {
+            allPatients.push({ ...assignment.patients, relationship_type: 'specialist' });
+            patientIds.add(assignment.patients.patient_id);
+          }
+        });
+      }
+
+      // Sort the combined list
+      allPatients.sort((a, b) => a.patient_id - b.patient_id);
+
+      if (allPatients.length === 0) {
+        setPatients([]);
+        setTotalPatientsCount(0);
+        setPreOpCount(0);
+        setPostOpCount(0);
+        setLowRiskCount(0);
+        setModerateRiskCount(0);
+        setHighRiskCount(0);
+        setLoading(false);
+        return;
+      }
 
       // Fetch latest risk classification for each patient from health_metrics
       const patientsWithRisk = await Promise.all(
-        data.map(async (patient) => {
-          // Get current month date range
-          const now = new Date();
-          const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-          const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-          // Fetch ALL health metrics for current month
-          const { data: healthData, error: healthError } = await supabase
+        allPatients.map(async (patient) => {
+          // Fetch ALL health metrics from ALL time (not just current month) for compliance checking
+          const { data: allHealthData, error: healthError } = await supabase
             .from('health_metrics')
             .select('risk_classification, blood_glucose, bp_systolic, bp_diastolic, wound_photo_url, submission_date')
             .eq('patient_id', patient.patient_id)
-            .gte('submission_date', currentMonthStart.toISOString())
-            .lt('submission_date', currentMonthEnd.toISOString())
             .order('submission_date', { ascending: false });
 
           let riskClassification = null;
@@ -774,14 +863,19 @@ const Dashboard = ({ user, onLogout }) => {
           let hasBloodPressure = false;
           let hasWoundPhoto = false;
 
+          // Check ALL health metrics from all time for compliance
           if (healthError) {
             console.error(`Error fetching health metrics for patient ${patient.patient_id}:`, healthError.message);
-          } else if (healthData && healthData.length > 0) {
-            // Check across ALL metrics in current month
-            healthData.forEach(metric => {
-              if (!riskClassification && metric.risk_classification) {
-                riskClassification = metric.risk_classification;
-              }
+          } else if (allHealthData && allHealthData.length > 0) {
+            // Get the latest risk classification
+            const latestRisk = allHealthData.find(metric => metric.risk_classification !== null && metric.risk_classification !== undefined);
+            if (latestRisk) {
+              riskClassification = latestRisk.risk_classification;
+              console.log(`Patient ${patient.patient_id} (${patient.first_name} ${patient.last_name}) - Latest risk classification: "${riskClassification}"`);
+            }
+            
+            // Check if patient has ever submitted each metric type (regardless of month)
+            allHealthData.forEach(metric => {
               if (!hasBloodGlucose && metric.blood_glucose !== null && metric.blood_glucose !== undefined && metric.blood_glucose !== '') {
                 hasBloodGlucose = true;
               }
@@ -844,21 +938,34 @@ const Dashboard = ({ user, onLogout }) => {
         
         // Risk Classification  
         const risk = (patient.risk_classification || '').toLowerCase();
-        if (risk === 'low') {
+        console.log(`Patient ${patient.patient_id} (${patient.first_name} ${patient.last_name}) - Risk: "${patient.risk_classification}" -> Lowercase: "${risk}"`);
+        
+        if (risk === 'low' || risk === 'low risk') {
           lowRisk++;
-        } else if (risk === 'moderate') {
+          console.log(`✓ Counted as LOW risk. Total low: ${lowRisk}`);
+        } else if (risk === 'moderate' || risk === 'moderate risk') {
           moderateRisk++;
-        } else if (risk === 'high') {
+          console.log(`✓ Counted as MODERATE risk. Total moderate: ${moderateRisk}`);
+        } else if (risk === 'high' || risk === 'high risk') {
           highRisk++;
+          console.log(`✓ Counted as HIGH risk. Total high: ${highRisk}`);
+        } else {
+          console.log(`✗ Not counted in any risk category (risk value: "${risk}")`);
         }
         
-        // Pending Lab Results (patients who need lab work)
-        // This can be determined by checking if they have recent lab results
-        // For now, we'll use a simple check - you can modify this logic based on your needs
-        if (!patient.latest_lab_result || patient.lab_status === 'Awaiting' || patient.lab_status === 'N/A') {
+        // Pending Lab Results (patients with "Awaiting" lab status)
+        // Count patients whose lab status is specifically "Awaiting"
+        if (getLabStatus(patient.latest_lab_result) === 'Awaiting') {
           pendingLabs++;
         }
       });
+      
+      console.log('=== FINAL RISK COUNTS ===');
+      console.log(`Low Risk: ${lowRisk}`);
+      console.log(`Moderate Risk: ${moderateRisk}`);
+      console.log(`High Risk: ${highRisk}`);
+      console.log(`Total Risk Patients: ${lowRisk + moderateRisk + highRisk}`);
+      console.log('========================');
       
       setPreOpCount(preOp);
       setPostOpCount(postOp);
@@ -890,13 +997,47 @@ const Dashboard = ({ user, onLogout }) => {
     }
     
     try {
-      // Fetch all patients with their created_at dates
-      const { data: allPatients, error: patientsError } = await supabase
+      // Fetch all patients with their created_at dates (preferred patients)
+      const { data: preferredPatients, error: preferredError } = await supabase
         .from('patients')
         .select('patient_id, created_at')
         .eq('preferred_doctor_id', user.doctor_id);
 
-      if (patientsError) throw patientsError;
+      if (preferredError) throw preferredError;
+
+      // Fetch patients where this doctor is assigned as a specialist
+      const { data: specialistAssignments, error: specialistError } = await supabase
+        .from('patient_specialists')
+        .select(`
+          patient_id,
+          patients!patient_id (patient_id, created_at)
+        `)
+        .eq('doctor_id', user.doctor_id);
+
+      // Combine patient lists, avoiding duplicates
+      const allPatients = [];
+      const patientIds = new Set();
+
+      // Add preferred patients
+      if (preferredPatients) {
+        preferredPatients.forEach(patient => {
+          allPatients.push(patient);
+          patientIds.add(patient.patient_id);
+        });
+      }
+
+      // Add specialist-assigned patients
+      if (!specialistError && specialistAssignments) {
+        specialistAssignments.forEach(assignment => {
+          if (assignment.patients && !patientIds.has(assignment.patients.patient_id)) {
+            allPatients.push({
+              patient_id: assignment.patients.patient_id,
+              created_at: assignment.patients.created_at
+            });
+            patientIds.add(assignment.patients.patient_id);
+          }
+        });
+      }
 
       // Count patients registered per month (NOT cumulative)
       const patientData = monthKeys.map((monthKey) => {
@@ -936,45 +1077,50 @@ const Dashboard = ({ user, onLogout }) => {
         data: labData,
       });
 
-      // Calculate full compliance per month by checking health_metrics
+      // Calculate full compliance per month (patients registered in THAT specific month with full compliance)
       const fullComplianceData = await Promise.all(monthKeys.map(async (monthKey) => {
         const [year, month] = monthKey.split('-');
-        const monthStart = new Date(`${year}-${month}-01`);
-        const monthEnd = new Date(monthStart);
-        monthEnd.setMonth(monthEnd.getMonth() + 1);
-
-        // Get all health metrics for this month
-        const { data: monthMetrics, error: metricsError } = await supabase
-          .from('health_metrics')
-          .select('patient_id, blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
-          .in('patient_id', allPatients.map(p => p.patient_id))
-          .gte('submission_date', monthStart.toISOString())
-          .lt('submission_date', monthEnd.toISOString());
-
-        if (metricsError) {
-          console.error('Error fetching metrics for month:', metricsError);
-          return 0;
-        }
-
-        // Group metrics by patient and check for full compliance
-        const patientMetricsMap = {};
-        monthMetrics.forEach(metric => {
-          if (!patientMetricsMap[metric.patient_id]) {
-            patientMetricsMap[metric.patient_id] = {
-              hasBloodGlucose: false,
-              hasBloodPressure: false,
-              hasWoundPhoto: false
-            };
-          }
-          if (metric.blood_glucose) patientMetricsMap[metric.patient_id].hasBloodGlucose = true;
-          if (metric.bp_systolic || metric.bp_diastolic) patientMetricsMap[metric.patient_id].hasBloodPressure = true;
-          if (metric.wound_photo_url) patientMetricsMap[metric.patient_id].hasWoundPhoto = true;
+        
+        // Filter patients who were created in this specific month only
+        const patientsInMonth = allPatients.filter(p => {
+          const createdDate = new Date(p.created_at);
+          return createdDate.getFullYear() === parseInt(year) && 
+                 (createdDate.getMonth() + 1) === parseInt(month);
         });
 
-        // Count patients with full compliance
-        return Object.values(patientMetricsMap).filter(metrics => 
-          metrics.hasBloodGlucose && metrics.hasBloodPressure && metrics.hasWoundPhoto
-        ).length;
+        console.log(`Patients registered in ${monthKey}:`, patientsInMonth.length);
+
+        // For each patient registered in this month, check if they have full compliance
+        const fullComplianceCount = await Promise.all(patientsInMonth.map(async (patient) => {
+          const { data: allMetrics, error: metricsError } = await supabase
+            .from('health_metrics')
+            .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
+            .eq('patient_id', patient.patient_id);
+
+          if (metricsError) {
+            console.error('Error fetching metrics for patient:', metricsError);
+            return false;
+          }
+
+          let hasBloodGlucose = false;
+          let hasBloodPressure = false;
+          let hasWoundPhoto = false;
+
+          if (allMetrics && allMetrics.length > 0) {
+            allMetrics.forEach(metric => {
+              if (!hasBloodGlucose && metric.blood_glucose) hasBloodGlucose = true;
+              if (!hasBloodPressure && (metric.bp_systolic || metric.bp_diastolic)) hasBloodPressure = true;
+              if (!hasWoundPhoto && metric.wound_photo_url) hasWoundPhoto = true;
+            });
+          }
+
+          // Patient is fully compliant if they have all 3 metrics from any time
+          return hasBloodGlucose && hasBloodPressure && hasWoundPhoto;
+        }));
+
+        const count = fullComplianceCount.filter(Boolean).length;
+        console.log(`Full compliance for ${monthKey}:`, count);
+        return count;
       }));
 
       setFullComplianceChartData({
@@ -982,60 +1128,51 @@ const Dashboard = ({ user, onLogout }) => {
         data: fullComplianceData,
       });
 
-      // Calculate missing logs per month (patients missing at least one metric)
+      // Calculate missing logs per month (patients registered in THAT specific month with missing logs)
       const missingLogsData = await Promise.all(monthKeys.map(async (monthKey) => {
         const [year, month] = monthKey.split('-');
-        const monthStart = new Date(`${year}-${month}-01`);
-        const monthEnd = new Date(monthStart);
-        monthEnd.setMonth(monthEnd.getMonth() + 1);
-
-        const { data: monthMetrics, error: metricsError } = await supabase
-          .from('health_metrics')
-          .select('patient_id, blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
-          .in('patient_id', allPatients.map(p => p.patient_id))
-          .gte('submission_date', monthStart.toISOString())
-          .lt('submission_date', monthEnd.toISOString());
-
-        if (metricsError) {
-          console.error('Error fetching metrics for month:', metricsError);
-          return 0;
-        }
-
-        // Check all patients registered to this doctor - not just those with metrics
-        const patientMetricsMap = {};
         
-        // Initialize all patients with false flags
-        allPatients.forEach(patient => {
-          patientMetricsMap[patient.patient_id] = {
-            hasBloodGlucose: false,
-            hasBloodPressure: false,
-            hasWoundPhoto: false
-          };
+        // Filter patients who were created in this specific month only
+        const patientsInMonth = allPatients.filter(p => {
+          const createdDate = new Date(p.created_at);
+          return createdDate.getFullYear() === parseInt(year) && 
+                 (createdDate.getMonth() + 1) === parseInt(month);
         });
-        
-        // Update flags based on submitted metrics (if any exist)
-        if (monthMetrics && monthMetrics.length > 0) {
-          monthMetrics.forEach(metric => {
-            if (patientMetricsMap[metric.patient_id]) {
-              if (metric.blood_glucose) patientMetricsMap[metric.patient_id].hasBloodGlucose = true;
-              if (metric.bp_systolic || metric.bp_diastolic) patientMetricsMap[metric.patient_id].hasBloodPressure = true;
-              if (metric.wound_photo_url) patientMetricsMap[metric.patient_id].hasWoundPhoto = true;
-            }
-          });
-        }
 
-        // Count patients who are missing ANY of the three metrics
-        const missingLogsCount = Object.values(patientMetricsMap).filter(metrics => {
-          const submittedCount = (metrics.hasBloodGlucose ? 1 : 0) + 
-                                (metrics.hasBloodPressure ? 1 : 0) + 
-                                (metrics.hasWoundPhoto ? 1 : 0);
-          
+        console.log(`Patients registered in ${monthKey}:`, patientsInMonth.length);
+
+        // For each patient registered in this month, check if they have missing logs
+        const missingLogsCount = await Promise.all(patientsInMonth.map(async (patient) => {
+          const { data: allMetrics, error: metricsError } = await supabase
+            .from('health_metrics')
+            .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
+            .eq('patient_id', patient.patient_id);
+
+          if (metricsError) {
+            console.error('Error fetching metrics for patient:', metricsError);
+            return true; // If error, count as missing logs
+          }
+
+          let hasBloodGlucose = false;
+          let hasBloodPressure = false;
+          let hasWoundPhoto = false;
+
+          if (allMetrics && allMetrics.length > 0) {
+            allMetrics.forEach(metric => {
+              if (!hasBloodGlucose && metric.blood_glucose) hasBloodGlucose = true;
+              if (!hasBloodPressure && (metric.bp_systolic || metric.bp_diastolic)) hasBloodPressure = true;
+              if (!hasWoundPhoto && metric.wound_photo_url) hasWoundPhoto = true;
+            });
+          }
+
+          const submittedCount = (hasBloodGlucose ? 1 : 0) + (hasBloodPressure ? 1 : 0) + (hasWoundPhoto ? 1 : 0);
           // Patient has missing logs if they have less than 3 metrics (missing at least one)
           return submittedCount < 3;
-        }).length;
+        }));
 
-        console.log(`Missing logs for ${monthKey}:`, missingLogsCount);
-        return missingLogsCount;
+        const count = missingLogsCount.filter(Boolean).length;
+        console.log(`Missing logs for ${monthKey}:`, count);
+        return count;
       }));
 
       console.log('Missing Logs Chart Data:', { labels: months, data: missingLogsData });
@@ -1045,16 +1182,11 @@ const Dashboard = ({ user, onLogout }) => {
         data: missingLogsData,
       });
 
-      // Calculate non-compliant per month (high risk patients with all 3 metrics missing)
+      // Calculate non-compliant per month (high risk patients with all 3 metrics missing from ALL TIME)
       const nonCompliantData = await Promise.all(monthKeys.map(async (monthKey) => {
-        const [year, month] = monthKey.split('-');
-        const monthStart = new Date(`${year}-${month}-01`);
-        const monthEnd = new Date(monthStart);
-        monthEnd.setMonth(monthEnd.getMonth() + 1);
-
         // Get high risk patients
         const highRiskPatients = allPatients.filter(p => {
-          const patient = patients.find(pat => pat.patient_id === p.patient_id);
+          const patient = patientsWithRiskData.find(pat => pat.patient_id === p.patient_id);
           return patient && (patient.risk_classification || '').toLowerCase() === 'high';
         });
 
@@ -1062,50 +1194,38 @@ const Dashboard = ({ user, onLogout }) => {
 
         if (highRiskPatients.length === 0) return 0;
 
-        const { data: monthMetrics, error: metricsError } = await supabase
-          .from('health_metrics')
-          .select('patient_id, blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
-          .in('patient_id', highRiskPatients.map(p => p.patient_id))
-          .gte('submission_date', monthStart.toISOString())
-          .lt('submission_date', monthEnd.toISOString());
+        // For each high-risk patient, check if they have NEVER submitted any of the 3 metrics
+        const nonCompliantCount = await Promise.all(highRiskPatients.map(async (patient) => {
+          const { data: allMetrics, error: metricsError } = await supabase
+            .from('health_metrics')
+            .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
+            .eq('patient_id', patient.patient_id);
 
-        if (metricsError) {
-          console.error('Error fetching metrics for month:', metricsError);
-          return 0;
-        }
+          if (metricsError) {
+            console.error('Error fetching metrics for patient:', metricsError);
+            return true; // If error, count as non-compliant
+          }
 
-        // Initialize all high-risk patients with false flags
-        const patientMetricsMap = {};
-        highRiskPatients.forEach(patient => {
-          patientMetricsMap[patient.patient_id] = {
-            hasBloodGlucose: false,
-            hasBloodPressure: false,
-            hasWoundPhoto: false
-          };
-        });
+          let hasBloodGlucose = false;
+          let hasBloodPressure = false;
+          let hasWoundPhoto = false;
 
-        // Update flags based on submitted metrics (if any exist)
-        if (monthMetrics && monthMetrics.length > 0) {
-          monthMetrics.forEach(metric => {
-            if (patientMetricsMap[metric.patient_id]) {
-              if (metric.blood_glucose) patientMetricsMap[metric.patient_id].hasBloodGlucose = true;
-              if (metric.bp_systolic || metric.bp_diastolic) patientMetricsMap[metric.patient_id].hasBloodPressure = true;
-              if (metric.wound_photo_url) patientMetricsMap[metric.patient_id].hasWoundPhoto = true;
-            }
-          });
-        }
+          if (allMetrics && allMetrics.length > 0) {
+            allMetrics.forEach(metric => {
+              if (!hasBloodGlucose && metric.blood_glucose) hasBloodGlucose = true;
+              if (!hasBloodPressure && (metric.bp_systolic || metric.bp_diastolic)) hasBloodPressure = true;
+              if (!hasWoundPhoto && metric.wound_photo_url) hasWoundPhoto = true;
+            });
+          }
 
-        // Count high risk patients with 0 metrics (all 3 missing - non-compliant)
-        const nonCompliantCount = Object.values(patientMetricsMap).filter(metrics => {
-          const submittedCount = (metrics.hasBloodGlucose ? 1 : 0) + 
-                                (metrics.hasBloodPressure ? 1 : 0) + 
-                                (metrics.hasWoundPhoto ? 1 : 0);
-          // Non-compliant = 0 metrics submitted (all 3 missing)
+          const submittedCount = (hasBloodGlucose ? 1 : 0) + (hasBloodPressure ? 1 : 0) + (hasWoundPhoto ? 1 : 0);
+          // Non-compliant = 0 metrics submitted (all 3 missing from entire history)
           return submittedCount === 0;
-        }).length;
-        
-        console.log(`Non-compliant for ${monthKey}:`, nonCompliantCount);
-        return nonCompliantCount;
+        }));
+
+        const count = nonCompliantCount.filter(Boolean).length;
+        console.log(`Non-compliant for ${monthKey}:`, count);
+        return count;
       }));
 
       console.log('Non-Compliant Chart Data:', { labels: months, data: nonCompliantData });
@@ -1160,6 +1280,49 @@ const Dashboard = ({ user, onLogout }) => {
       setAppointments(data);
     } catch (err) {
       console.error("Error fetching appointments:", err);
+    }
+  };
+
+  const fetchAllDoctors = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("doctors")
+        .select("doctor_id, first_name, last_name, specialization")
+        .order("first_name", { ascending: true });
+
+      if (error) throw error;
+      setAllDoctors(data || []);
+    } catch (err) {
+      console.error("Error fetching all doctors:", err);
+      setAllDoctors([]);
+    }
+  };
+
+  const fetchHealthMetricsSubmissions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("health_metrics")
+        .select("patient_id, updated_at")
+        .order("updated_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching health metrics submissions:", error);
+        return;
+      }
+
+      // Create a map to store the most recent updated_at timestamp for each patient
+      const lastSubmissions = new Map();
+      data.forEach((metric) => {
+        if (!lastSubmissions.has(metric.patient_id)) {
+          lastSubmissions.set(metric.patient_id, metric.updated_at);
+        }
+      });
+
+      // Convert the Map to an object for state
+      setHealthMetricsSubmissions(Object.fromEntries(lastSubmissions));
+    } catch (error) {
+      console.error("Error fetching health metrics submissions:", error);
+      setHealthMetricsSubmissions({});
     }
   };
 
@@ -1226,12 +1389,24 @@ const Dashboard = ({ user, onLogout }) => {
       setAllPatientHealthMetrics(metrics || []); // Store all metrics for charts
 
       // Filter for wound photos and set the state
-      const photos = metrics.filter(metric => metric.wound_photo_url).map(metric => ({
-        metric_id: metric.metric_id, // Include metric_id to identify the row
-        url: metric.wound_photo_url,
-        date: metric.submission_date,
-        notes: metric.notes,
-      }));
+      const photos = metrics.filter(metric => metric.wound_photo_url).map(metric => {
+        let photoUrl = metric.wound_photo_url;
+        
+        // If the URL is not a complete URL, construct the Supabase storage URL
+        if (photoUrl && !photoUrl.startsWith('http')) {
+          const { data } = supabase.storage
+            .from('wound-photos')
+            .getPublicUrl(photoUrl);
+          photoUrl = data.publicUrl;
+        }
+        
+        return {
+          metric_id: metric.metric_id, // Include metric_id to identify the row
+          url: photoUrl,
+          date: metric.submission_date,
+          notes: metric.notes,
+        };
+      });
       setWoundPhotos(photos);
       setAllWoundPhotos(photos); // Store all wound photos for gallery
 
@@ -1823,14 +1998,164 @@ const Dashboard = ({ user, onLogout }) => {
     setCurrentPagePatients(1); // Reset to first page when filter changes
   };
 
+  const handleSortOrderChange = (order) => {
+    setSortOrder(order);
+    setCurrentPagePatients(1); // Reset to first page when sort changes
+  };
+
+  // Handle report widget clicks
+  const handleReportWidgetClick = (type, title) => {
+    setReportTableType(type);
+    setReportTableTitle(title);
+    setShowReportTable(true);
+    
+    // Reset pagination when opening report table
+    setCurrentPagePatients(1);
+    
+    // Clear existing filters first
+    setSelectedRiskFilter('all');
+    setSelectedLabStatusFilter('all');
+    setSelectedProfileStatusFilter('all');
+    setSearchTerm('');
+    
+    // Set appropriate filters based on report type
+    switch (type) {
+      case 'low-risk':
+        setSelectedRiskFilter('low');
+        break;
+      case 'moderate-risk':
+        setSelectedRiskFilter('moderate');
+        break;
+      case 'high-risk':
+        setSelectedRiskFilter('high');
+        break;
+      case 'full-compliance':
+        // Will be handled by getFilteredPatients with custom logic
+        break;
+      case 'missing-logs':
+        // Will be handled by getFilteredPatients with custom logic
+        break;
+      case 'non-compliant':
+        // Will be handled by getFilteredPatients with custom logic
+        setSelectedRiskFilter('high');
+        break;
+      case 'pre-operative':
+        // Will be handled by getFilteredPatients with custom logic
+        break;
+      case 'post-operative':
+        // Will be handled by getFilteredPatients with custom logic
+        break;
+      case 'total':
+      default:
+        // Show all patients
+        break;
+    }
+  };
+
+  // Handle view patient from report table
+  const handleViewPatient = (patientId) => {
+    const patient = patients.find(p => p.patient_id === patientId);
+    if (patient) {
+      setSelectedPatient(patient);
+      setActivePage("patient-profile");
+    }
+  };
+
+  // Get filtered patients for report table
+  const getReportFilteredPatients = () => {
+    switch (reportTableType) {
+      case 'total':
+        return patients;
+      case 'full-compliance':
+        return patients.filter(pat => {
+          const compliance = getPatientComplianceStatus(pat);
+          return compliance.isFullCompliance;
+        });
+      case 'missing-logs':
+        return patients.filter(pat => {
+          const compliance = getPatientComplianceStatus(pat);
+          return compliance.isMissingLogs;
+        });
+      case 'non-compliant':
+        return patients.filter(pat => {
+          const compliance = getPatientComplianceStatus(pat);
+          const isHighRisk = (pat.risk_classification || '').toLowerCase() === 'high';
+          return compliance.isNonCompliant && isHighRisk;
+        });
+      case 'low-risk':
+        return patients.filter(p => {
+          const risk = (p.risk_classification || '').toLowerCase();
+          return risk === 'low' || risk === 'low risk';
+        });
+      case 'moderate-risk':
+        return patients.filter(p => {
+          const risk = (p.risk_classification || '').toLowerCase();
+          return risk === 'moderate' || risk === 'moderate risk';
+        });
+      case 'high-risk':
+        return patients.filter(p => {
+          const risk = (p.risk_classification || '').toLowerCase();
+          return risk === 'high' || risk === 'high risk';
+        });
+      case 'pre-operative':
+        return patients.filter(p => p.phase === 'Pre-Operative');
+      case 'post-operative':
+        return patients.filter(p => p.phase === 'Post-Operative');
+      default:
+        return patients;
+    }
+  };
+
   // Filter patients based on search term and risk filter
   const getFilteredPatients = () => {
     let filtered = patients.filter((patient) =>
       `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Apply risk filter
-    if (selectedRiskFilter !== 'all') {
+    // Apply specific report table filtering when report table is shown
+    if (showReportTable) {
+      switch (reportTableType) {
+        case 'full-compliance':
+          // Patients with complete lab results and finalized profile
+          filtered = filtered.filter(patient => 
+            getLabStatus(patient.latest_lab_result) === 'Submitted' && 
+            getProfileStatus(patient) === '🟢Finalized'
+          );
+          break;
+        case 'missing-logs':
+          // Patients with pending profile compliance
+          filtered = filtered.filter(patient => 
+            getProfileStatus(patient) === '🟡Pending'
+          );
+          break;
+        case 'non-compliant':
+          // High risk patients with lab or profile issues
+          filtered = filtered.filter(patient => {
+            const risk = (patient.risk_classification || '').toLowerCase();
+            return risk === 'high' &&
+              (getLabStatus(patient.latest_lab_result) === 'Awaiting' || getProfileStatus(patient) === '🟡Pending');
+          });
+          break;
+        case 'pre-operative':
+          // Patients in Pre-Operative phase
+          filtered = filtered.filter(patient => 
+            (patient.phase || 'Pre-Operative') === 'Pre-Operative'
+          );
+          break;
+        case 'post-operative':
+          // Patients in Post-Operative phase
+          filtered = filtered.filter(patient => 
+            patient.phase === 'Post-Operative'
+          );
+          break;
+        default:
+          // For risk-based filters and total, let the existing logic handle it
+          break;
+      }
+    }
+
+    // Apply risk filter (only if not in specific report mode or for risk-based reports)
+    if (selectedRiskFilter !== 'all' && (!showReportTable || ['low-risk', 'moderate-risk', 'high-risk', 'non-compliant'].includes(reportTableType))) {
       filtered = filtered.filter(patient => {
         const risk = (patient.risk_classification || '').toLowerCase();
         return risk === selectedRiskFilter;
@@ -1863,6 +2188,13 @@ const Dashboard = ({ user, onLogout }) => {
       });
     }
 
+    // Apply sorting by created_at
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at || 0);
+      const dateB = new Date(b.created_at || 0);
+      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+
     return filtered;
   };
 
@@ -1890,8 +2222,15 @@ const Dashboard = ({ user, onLogout }) => {
 
     filtered.forEach(patient => {
       const risk = (patient.risk_classification || '').toLowerCase();
-      if (counts.hasOwnProperty(risk)) {
-        counts[risk]++;
+      // Handle both "moderate" and "moderate risk" variations
+      if (risk === 'low' || risk === 'low risk') {
+        counts.low++;
+      } else if (risk === 'moderate' || risk === 'moderate risk') {
+        counts.moderate++;
+      } else if (risk === 'high' || risk === 'high risk') {
+        counts.high++;
+      } else if (risk === 'ppd') {
+        counts.ppd++;
       }
     });
 
@@ -1993,6 +2332,8 @@ const Dashboard = ({ user, onLogout }) => {
             onLabStatusChange={handleLabStatusFilterChange}
             selectedProfileStatus={selectedProfileStatusFilter}
             onProfileStatusChange={handleProfileStatusFilterChange}
+            sortOrder={sortOrder}
+            onSortOrderChange={handleSortOrderChange}
             showCounts={true}
             counts={patientRiskCounts}
             labStatusCounts={patientLabStatusCounts}
@@ -2000,15 +2341,15 @@ const Dashboard = ({ user, onLogout }) => {
           />
         </div>
         
-        <table className="patient-table">
+        <table className="patient-table3">
           <thead>
             <tr>
               <th>Patient Name</th>
-              <th>Age/Sex</th>
+              <th>Age</th>
+              <th>Sex</th>
               <th>Classification</th>
               <th>Lab Status</th>
               <th>Profile Status</th>
-              <th>Last Visit</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -2027,14 +2368,18 @@ const Dashboard = ({ user, onLogout }) => {
                       <span className="patient-name-text">{patient.first_name} {patient.last_name}</span>
                     </div>
                   </td>
-                  <td>{patient.date_of_birth ? `${Math.floor((new Date() - new Date(patient.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${patient.gender}` : 'N/A'}</td>
+                  <td>{patient.date_of_birth ? Math.floor((new Date() - new Date(patient.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
+                  <td>{patient.gender || 'N/A'}</td>
                   <td className={`doctor-classification-cell ${
                     getLabStatus(patient.latest_lab_result) === 'Awaiting' ? 'doctor-classification-awaiting' :
-                    ((patient.risk_classification || '').toLowerCase() === 'low' ? 'doctor-classification-low' :
-                    (patient.risk_classification || '').toLowerCase() === 'moderate' ? 'doctor-classification-moderate' :
-                    (patient.risk_classification || '').toLowerCase() === 'high' ? 'doctor-classification-high' :
-                    (patient.risk_classification || '').toLowerCase() === 'ppd' ? 'doctor-classification-ppd' : 
-                    'doctor-classification-default')
+                    (() => {
+                      const risk = (patient.risk_classification || '').toLowerCase();
+                      if (risk === 'low' || risk === 'low risk') return 'doctor-classification-low';
+                      if (risk === 'moderate' || risk === 'moderate risk') return 'doctor-classification-moderate';
+                      if (risk === 'high' || risk === 'high risk') return 'doctor-classification-high';
+                      if (risk === 'ppd') return 'doctor-classification-ppd';
+                      return 'doctor-classification-default';
+                    })()
                   }`}>
                     {getClassificationDisplay(patient)}
                   </td>
@@ -2048,10 +2393,11 @@ const Dashboard = ({ user, onLogout }) => {
                   <td className={getProfileStatus(patient) === '🟢Finalized' ? 'status-complete' : 'status-incomplete'}>
                     {getProfileStatus(patient)}
                   </td>
-                  <td>{formatDateToReadable(patient.last_doctor_visit)}</td>
                   <td className="patient-actions-cell">
                     <button className="view-button" onClick={() => handleViewClick(patient)}>👁️ View</button>
-                    <button className="delete-button" onClick={() => handleDeleteClick(patient)}>🗑️ Delete</button>
+                    <button className="toggle-phase-button" onClick={() => handlePhaseToggle(patient)} style={{ marginLeft: '8px' }}>
+                      {patient.phase === 'Pre-Operative' ? '🔄 Post-Op' : '🔄 Pre-Op'}
+                    </button>
                   </td>
                 </tr>
               ))
@@ -2087,7 +2433,11 @@ const Dashboard = ({ user, onLogout }) => {
           <label>Select Doctor:</label>
           <select value={appointmentForm.doctorId} onChange={(e) => handleAppointmentChange("doctorId", e.target.value)}>
             <option value="">Select Doctor</option>
-            <option value={user.doctor_id}>{user.first_name} {user.last_name}</option>
+            {allDoctors.map(doctor => (
+              <option key={doctor.doctor_id} value={doctor.doctor_id}>
+                {doctor.first_name} {doctor.last_name} {doctor.specialization ? `(${doctor.specialization})` : ''}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -2148,6 +2498,7 @@ const Dashboard = ({ user, onLogout }) => {
           <div className="report-widget-header">
             <img src="../picture/total.png" alt="Total Patients" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=👥"; }}/>
             <h4>Total Patients</h4>
+            <button className="report-widget-view-button" onClick={() => handleReportWidgetClick('total', 'Total Patients')}>View</button>
           </div>
           <div className="report-widget-content">
             <div className="report-widget-left">
@@ -2238,6 +2589,7 @@ const Dashboard = ({ user, onLogout }) => {
           <div className="report-widget-header">
             <img src="../picture/full.svg" alt="Full Compliance" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/28a745/ffffff?text=✓"; }}/>
             <h4>Full Compliance</h4>
+            <button className="report-widget-view-button" onClick={() => handleReportWidgetClick('full-compliance', 'Full Compliance Patients')}>View</button>
           </div>
           <div className="report-widget-content">
             <div className="report-widget-left">
@@ -2326,6 +2678,7 @@ const Dashboard = ({ user, onLogout }) => {
           <div className="report-widget-header">
             <img src="../picture/missinglogs.svg" alt="Missing Logs" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ffc107/ffffff?text=⚠"; }}/>
             <h4>Missing Logs</h4>
+            <button className="report-widget-view-button" onClick={() => handleReportWidgetClick('missing-logs', 'Missing Logs Patients')}>View</button>
           </div>
           <div className="report-widget-content">
             <div className="report-widget-left">
@@ -2414,6 +2767,7 @@ const Dashboard = ({ user, onLogout }) => {
           <div className="report-widget-header">
             <img src="../picture/noncompliant.svg" alt="Non-Compliant" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/dc3545/ffffff?text=✗"; }}/>
             <h4>Non-Compliant</h4>
+            <button className="report-widget-view-button" onClick={() => handleReportWidgetClick('non-compliant', 'Non-Compliant Patients')}>View</button>
           </div>
           <div className="report-widget-content">
             <div className="report-widget-left">
@@ -2511,9 +2865,18 @@ const Dashboard = ({ user, onLogout }) => {
                 {
                   label: 'Number of Patients',
                   data: [
-                    patients.filter(p => (p.risk_classification || '').toLowerCase() === 'low').length,
-                    patients.filter(p => (p.risk_classification || '').toLowerCase() === 'moderate').length,
-                    patients.filter(p => (p.risk_classification || '').toLowerCase() === 'high').length,
+                    patients.filter(p => {
+                      const risk = (p.risk_classification || '').toLowerCase();
+                      return risk === 'low' || risk === 'low risk';
+                    }).length,
+                    patients.filter(p => {
+                      const risk = (p.risk_classification || '').toLowerCase();
+                      return risk === 'moderate' || risk === 'moderate risk';
+                    }).length,
+                    patients.filter(p => {
+                      const risk = (p.risk_classification || '').toLowerCase();
+                      return risk === 'high' || risk === 'high risk';
+                    }).length,
                   ],
                   backgroundColor: [
                     'rgba(40, 167, 69, 0.7)',   // Green for Low
@@ -2534,6 +2897,22 @@ const Dashboard = ({ user, onLogout }) => {
             options={{
               responsive: true,
               maintainAspectRatio: false,
+              layout: {
+                padding: {
+                  top: 10,
+                  bottom: 30,
+                  left: 10,
+                  right: 10
+                }
+              },
+              onClick: (event, elements) => {
+                if (elements.length > 0) {
+                  const index = elements[0].index;
+                  const riskLevels = ['low-risk', 'moderate-risk', 'high-risk'];
+                  const titles = ['Low Risk Patients', 'Moderate Risk Patients', 'High Risk Patients'];
+                  handleReportWidgetClick(riskLevels[index], titles[index]);
+                }
+              },
               plugins: {
                 legend: {
                   display: false,
@@ -2598,8 +2977,8 @@ const Dashboard = ({ user, onLogout }) => {
                 {
                   label: 'Number of Patients',
                   data: [
-                    preOpCount,
-                    postOpCount,
+                    patients.filter(p => p.phase === 'Pre-Operative').length,
+                    patients.filter(p => p.phase === 'Post-Operative').length,
                   ],
                   backgroundColor: [
                     'rgba(141, 73, 247, 0.7)',  // Purple for Pre-Op
@@ -2618,6 +2997,22 @@ const Dashboard = ({ user, onLogout }) => {
             options={{
               responsive: true,
               maintainAspectRatio: false,
+              layout: {
+                padding: {
+                  top: 10,
+                  bottom: 30,
+                  left: 10,
+                  right: 10
+                }
+              },
+              onClick: (event, elements) => {
+                if (elements.length > 0) {
+                  const index = elements[0].index;
+                  const phase = index === 0 ? 'pre-operative' : 'post-operative';
+                  const title = index === 0 ? 'Pre-Operative Patients' : 'Post-Operative Patients';
+                  handleReportWidgetClick(phase, title);
+                }
+              },
               plugins: {
                 legend: {
                   display: false,
@@ -2675,28 +3070,300 @@ const Dashboard = ({ user, onLogout }) => {
     </div>
   );
 
+  // Report Table View Component
+  const renderReportTable = () => {
+    const filteredPatients = getReportFilteredPatients();
+    
+    // Get paginated patients for the filtered category
+    const getPaginatedReportPatients = () => {
+      const filtered = filteredPatients.filter((patient) =>
+        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+      );
 
-const handleShowModal = (appointment, action) => {
-  setAppointmentToConfirm(appointment);
-  setActionType(action);
-  setShowModal(true);
-};
+      // Apply additional filters (same as patient list)
+      let finalFiltered = filtered;
+      
+      if (selectedRiskFilter !== 'all') {
+        finalFiltered = finalFiltered.filter(patient => {
+          const risk = (patient.risk_classification || '').toLowerCase();
+          return risk === selectedRiskFilter;
+        });
+      }
 
-const handleCancelModal = () => {
-  setShowModal(false);
-  setAppointmentToConfirm(null);
-  setActionType("");
-};
+      if (selectedLabStatusFilter !== 'all') {
+        finalFiltered = finalFiltered.filter(patient => {
+          const labStatus = getLabStatus(patient.latest_lab_result);
+          if (selectedLabStatusFilter === 'awaiting') {
+            return labStatus === 'Awaiting';
+          } else if (selectedLabStatusFilter === 'submitted') {
+            return labStatus === 'Submitted';
+          }
+          return true;
+        });
+      }
 
-const handleConfirmAction = async () => {
-  if (!appointmentToConfirm) return;
+      if (selectedProfileStatusFilter !== 'all') {
+        finalFiltered = finalFiltered.filter(patient => {
+          const profileStatus = getProfileStatus(patient);
+          if (selectedProfileStatusFilter === 'pending') {
+            return profileStatus === '🟡Pending';
+          } else if (selectedProfileStatusFilter === 'finalized') {
+            return profileStatus === '🟢Finalized';
+          }
+          return true;
+        });
+      }
 
-  if (actionType === "cancel") {
+      const startIndex = (currentPagePatients - 1) * PATIENTS_PER_PAGE;
+      const endIndex = startIndex + PATIENTS_PER_PAGE;
+      return finalFiltered.slice(startIndex, endIndex);
+    };
+
+    // Get counts for the filtered category
+    const getFilteredPatientCounts = () => {
+      const filtered = filteredPatients.filter((patient) =>
+        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      const counts = {
+        all: filtered.length,
+        low: 0,
+        moderate: 0,
+        high: 0,
+        ppd: 0
+      };
+
+      filtered.forEach(patient => {
+        const risk = (patient.risk_classification || '').toLowerCase();
+        // Handle both "moderate" and "moderate risk" variations
+        if (risk === 'low' || risk === 'low risk') {
+          counts.low++;
+        } else if (risk === 'moderate' || risk === 'moderate risk') {
+          counts.moderate++;
+        } else if (risk === 'high' || risk === 'high risk') {
+          counts.high++;
+        } else if (risk === 'ppd') {
+          counts.ppd++;
+        }
+      });
+
+      return counts;
+    };
+
+    // Get lab status counts for the filtered category
+    const getFilteredLabStatusCounts = () => {
+      const filtered = filteredPatients.filter((patient) =>
+        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      const counts = {
+        all: filtered.length,
+        awaiting: 0,
+        submitted: 0
+      };
+
+      filtered.forEach(patient => {
+        const labStatus = getLabStatus(patient.latest_lab_result);
+        if (labStatus === 'Awaiting') {
+          counts.awaiting++;
+        } else if (labStatus === 'Submitted') {
+          counts.submitted++;
+        }
+      });
+
+      return counts;
+    };
+
+    // Get profile status counts for the filtered category
+    const getFilteredProfileStatusCounts = () => {
+      const filtered = filteredPatients.filter((patient) =>
+        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      const counts = {
+        all: filtered.length,
+        pending: 0,
+        finalized: 0
+      };
+
+      filtered.forEach(patient => {
+        const profileStatus = getProfileStatus(patient);
+        if (profileStatus === '🟡Pending') {
+          counts.pending++;
+        } else if (profileStatus === '🟢Finalized') {
+          counts.finalized++;
+        }
+      });
+
+      return counts;
+    };
+
+    // Calculate total pages for filtered category
+    const getTotalReportPages = () => {
+      const filtered = filteredPatients.filter((patient) =>
+        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      return Math.ceil(filtered.length / PATIENTS_PER_PAGE);
+    };
+
+    const paginatedReportPatients = getPaginatedReportPatients();
+    const patientRiskCounts = getFilteredPatientCounts();
+    const patientLabStatusCounts = getFilteredLabStatusCounts();
+    const patientProfileStatusCounts = getFilteredProfileStatusCounts();
+    const totalReportPages = getTotalReportPages();
+    
+    return (
+      <div className="patient-list-section">
+        <button 
+          className="back-button3" 
+          onClick={() => setShowReportTable(false)}
+        >
+          <img src="/picture/back.png" alt="Back" className="button-icon back-icon" />
+          Back to Reports
+        </button>
+        <h2>{reportTableTitle}</h2>
+
+        <div className="search-and-filter-row">
+          <div className="search-bar">
+            <input
+              type="text"
+              placeholder="Search patients by name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="patient-search-input"
+            />
+            <img src="../picture/search.svg" alt="Search" className="search-icon" />
+          </div>
+          
+          {/* Risk Classification Filter */}
+          <RiskFilter
+            selectedRisk={selectedRiskFilter}
+            onRiskChange={handleRiskFilterChange}
+            selectedLabStatus={selectedLabStatusFilter}
+            onLabStatusChange={handleLabStatusFilterChange}
+            selectedProfileStatus={selectedProfileStatusFilter}
+            onProfileStatusChange={handleProfileStatusFilterChange}
+            sortOrder={sortOrder}
+            onSortOrderChange={handleSortOrderChange}
+            showCounts={true}
+            counts={patientRiskCounts}
+            labStatusCounts={patientLabStatusCounts}
+            profileStatusCounts={patientProfileStatusCounts}
+          />
+        </div>
+        
+        <table className="patient-table3">
+          <thead>
+            <tr>
+              <th>Patient Name</th>
+              <th>Age</th>
+              <th>Sex</th>
+              <th>Classification</th>
+              <th>Lab Status</th>
+              <th>Profile Status</th>
+              {reportTableType === 'missing-logs' && <th>Days Since Last Submission</th>}
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedReportPatients.length > 0 ? (
+              paginatedReportPatients.map((patient) => (
+                <tr key={patient.patient_id}>
+                  <td className="patient-name-cell">
+                    <div className="patient-name-container">
+                      <img 
+                        src={patient.patient_picture || "../picture/secretary.png"} 
+                        alt="Patient Avatar" 
+                        className="patient-avatar-table"
+                        onError={(e) => e.target.src = "../picture/secretary.png"}
+                      />
+                      <span className="patient-name-text">{patient.first_name} {patient.last_name}</span>
+                    </div>
+                  </td>
+                  <td>{patient.date_of_birth ? Math.floor((new Date() - new Date(patient.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
+                  <td>{patient.gender || 'N/A'}</td>
+                  <td className={`doctor-classification-cell ${
+                    getLabStatus(patient.latest_lab_result) === 'Awaiting' ? 'doctor-classification-awaiting' :
+                    (() => {
+                      const risk = (patient.risk_classification || '').toLowerCase();
+                      if (risk === 'low' || risk === 'low risk') return 'doctor-classification-low';
+                      if (risk === 'moderate' || risk === 'moderate risk') return 'doctor-classification-moderate';
+                      if (risk === 'high' || risk === 'high risk') return 'doctor-classification-high';
+                      if (risk === 'ppd') return 'doctor-classification-ppd';
+                      return 'doctor-classification-default';
+                    })()
+                  }`}>
+                    {getClassificationDisplay(patient)}
+                  </td>
+                  <td className={
+                    getLabStatus(patient.latest_lab_result) === 'Submitted' ? 'lab-status-complete' :
+                    getLabStatus(patient.latest_lab_result) === 'Awaiting' ? 'lab-status-awaiting' : 
+                    'lab-status-awaiting'
+                  }>
+                    {getLabStatus(patient.latest_lab_result) === 'Awaiting' ? '❌Awaiting' : getLabStatus(patient.latest_lab_result) === 'Submitted' ? '✅Submitted' : getLabStatus(patient.latest_lab_result)}
+                  </td>
+                  <td className={getProfileStatus(patient) === '🟢Finalized' ? 'status-complete' : 'status-incomplete'}>
+                    {getProfileStatus(patient)}
+                  </td>
+                  {reportTableType === 'missing-logs' && (
+                    <td>{(() => {
+                      const lastSubmissionDate = healthMetricsSubmissions[patient.patient_id];
+                      const daysPassed = lastSubmissionDate
+                        ? Math.max(0, Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(lastSubmissionDate).setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24)))
+                        : "No Submission";
+                      
+                      return (
+                        <span className={`compliance-status ${
+                          daysPassed === "No Submission" ? "no-submission" : 
+                          daysPassed > 7 ? "overdue" : 
+                          daysPassed > 3 ? "warning" : "good"
+                        }`}>
+                          {daysPassed}
+                        </span>
+                      );
+                    })()}</td>
+                  )}
+                  <td className="patient-actions-cell">
+                    <button className="view-button" onClick={() => handleViewClick(patient)}>👁️ View</button>
+                    <button className="toggle-phase-button" onClick={() => handlePhaseToggle(patient)} style={{ marginLeft: '8px' }}>
+                      {patient.phase === 'Pre-Operative' ? '🔄 Post-Op' : '🔄 Pre-Op'}
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={reportTableType === 'missing-logs' ? "8" : "7"}>No patients found.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        {/* Pagination */}
+        {totalReportPages > 1 && (
+          <Pagination
+            currentPage={currentPagePatients}
+            totalPages={totalReportPages}
+            onPageChange={setCurrentPagePatients}
+            itemsPerPage={PATIENTS_PER_PAGE}
+            totalItems={filteredPatients.filter((patient) =>
+              `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+            ).length}
+            showPageInfo={true}
+          />
+        )}
+      </div>
+    );
+  };
+
+
+const handleCancelAppointmentClick = async (appointment) => {
+  if (window.confirm("Are you sure you want to cancel this appointment?")) {
     try {
       const { error } = await supabase
         .from("appointments")
         .update({ appointment_state: "cancelled" })
-        .eq("appointment_id", appointmentToConfirm.appointment_id);
+        .eq("appointment_id", appointment.appointment_id);
       if (error) throw error;
       alert("Appointment cancelled successfully!");
       fetchAppointments();
@@ -2704,18 +3371,22 @@ const handleConfirmAction = async () => {
       console.error("Error cancelling appointment:", error.message);
       alert("Failed to cancel appointment.");
     }
-  } else if (actionType === "done") {
+  }
+};
+
+const handleDoneAppointmentClick = async (appointment) => {
+  if (window.confirm("Are you sure you want to mark this appointment as done?")) {
     try {
       const { error: apptError } = await supabase
         .from("appointments")
         .update({ appointment_state: "Done" })
-        .eq("appointment_id", appointmentToConfirm.appointment_id);
+        .eq("appointment_id", appointment.appointment_id);
       if (apptError) throw apptError;
 
       const { data: patientData, error: patientFetchError } = await supabase
         .from("patients")
         .select("patient_visits")
-        .eq("patient_id", appointmentToConfirm.patient_id)
+        .eq("patient_id", appointment.patient_id)
         .single();
       if (patientFetchError) throw patientFetchError;
 
@@ -2723,7 +3394,7 @@ const handleConfirmAction = async () => {
       const { error: patientUpdateError } = await supabase
         .from("patients")
         .update({ patient_visits: newVisits })
-        .eq("patient_id", appointmentToConfirm.patient_id);
+        .eq("patient_id", appointment.patient_id);
       if (patientUpdateError) throw patientUpdateError;
 
       alert("Appointment completed successfully!");
@@ -2733,8 +3404,6 @@ const handleConfirmAction = async () => {
       alert("Failed to complete appointment.");
     }
   }
-
-  handleCancelModal();
 };
   const renderAppointments = () => (
     <div className="card3 appointments-card3">
@@ -2765,8 +3434,8 @@ const handleConfirmAction = async () => {
                       <td>{appt.notes || "N/A"}</td>
                       <td>{appt.appointment_state || "N/A"}</td> {/* NEW: Added appointment state data */}
                       <td>
-                        <button onClick={() => handleShowModal(appt, "cancel")}>Cancel</button>
-                        <button onClick={() => handleShowModal(appt, "done")}>Done</button>
+                        <button onClick={() => handleCancelAppointmentClick(appt)}>Cancel</button>
+                        <button onClick={() => handleDoneAppointmentClick(appt)}>Done</button>
                       </td>
                     </tr>
                   ))
@@ -2777,34 +3446,6 @@ const handleConfirmAction = async () => {
       </div>
   );
 
-  {showModal && (
-  <div className="modal-overlay3">
-    <div className="modal-content3">
-      <div className="modal-header3">
-        <h3>Confirm Action</h3>
-        <button className="close-button3" onClick={handleCancelModal}>
-          &times;
-        </button>
-      </div>
-      <div className="modal-body3">
-        <p>
-          Are you sure you want to{" "}
-          <strong>{actionType === "cancel" ? "cancel" : "mark as done"}</strong>{" "}
-          this appointment?
-        </p>
-        <div className="modal-button-group3">
-          <button className="modal-confirm-button3" onClick={handleConfirmAction}>
-            Confirm
-          </button>
-          <button className="modal-cancel-button3" onClick={handleCancelModal}>
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-
   const renderDashboardContent = () => {
     return (
       <div className="dashboard-columns-container">
@@ -2812,11 +3453,11 @@ const handleConfirmAction = async () => {
           <div className="quick-links">
             <h3>Quick links</h3>
             <div className="quick-links-grid">
-              <div className="quick-link-item" onClick={() => setActivePage("patient-list")}>
+              <div className="quick-link-item" onClick={() => window.open('https://diasight.vercel.app/dashboard', '_blank', 'noopener,noreferrer')}>
                 <div className="quick-link-icon patient-list">
-                  <img src="../picture/secretary.png" alt="Patient List" className="quick-link-image" />
+                  <img src="../picture/diasight.svg" alt="DiaSight" className="quick-link-image" style={{ width: '70px', height: '70px' }} />
                 </div>
-                <span>Patient List</span>
+                <span>DiaSight</span>
               </div>
               <div className="quick-link-item" onClick={() => setActivePage("appointments")}>
                 <div className="quick-link-icon set-appointment">
@@ -2883,10 +3524,10 @@ const handleConfirmAction = async () => {
                             </span>
                           </td>
                           <td className="appointment-actions">
-                            <button onClick={() => handleShowModal(appt, "cancel")} className="action-btn5 cancel-btn5">
+                            <button onClick={() => handleCancelAppointmentClick(appt)} className="action-btn5 cancel-btn5">
                               Cancel
                             </button>
-                            <button onClick={() => handleShowModal(appt, "done")} className="action-btn5 done-btn5">
+                            <button onClick={() => handleDoneAppointmentClick(appt)} className="action-btn5 done-btn5">
                               Done
                             </button>
                           </td>
@@ -2895,6 +3536,121 @@ const handleConfirmAction = async () => {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          {/* Calendar Section */}
+          <div className="dashboard-calendar-section" style={{ marginTop: '20px' }}>
+            <h3>Calendar</h3>
+            <div className="dashboard-appointment-schedule-container">
+              <div className="dashboard-appointment-calendar-container">
+                <Calendar
+                  value={calendarDate}
+                  onChange={setCalendarDate}
+                  tileDisabled={({ date, view }) => {
+                    // Disable weekends (Saturday = 6, Sunday = 0)
+                    if (view === 'month') {
+                      const day = date.getDay();
+                      return day === 0 || day === 6;
+                    }
+                    return false;
+                  }}
+                  tileClassName={({ date, view }) => {
+                    if (view === 'month') {
+                      // Check if this date has an appointment
+                      const hasAppointment = appointments.some(appointment => {
+                        // Parse the appointment date string (YYYY-MM-DD format from substring)
+                        const appointmentDateStr = appointment.appointment_datetime.substring(0, 10);
+                        const [year, month, day] = appointmentDateStr.split('-').map(Number);
+                        
+                        // Compare with calendar tile date
+                        const matches = (
+                          date.getDate() === day &&
+                          date.getMonth() === (month - 1) && // Month is 0-indexed in JS
+                          date.getFullYear() === year
+                        );
+                        return matches;
+                      });
+                      return hasAppointment ? 'dashboard-appointment-date' : null;
+                    }
+                  }}
+                  tileContent={({ date, view }) => {
+                    if (view === 'month') {
+                      const dayAppointments = appointments.filter(appointment => {
+                        // Parse the appointment date string (YYYY-MM-DD format from substring)
+                        const appointmentDateStr = appointment.appointment_datetime.substring(0, 10);
+                        const [year, month, day] = appointmentDateStr.split('-').map(Number);
+                        
+                        // Compare with calendar tile date
+                        return (
+                          date.getDate() === day &&
+                          date.getMonth() === (month - 1) && // Month is 0-indexed in JS
+                          date.getFullYear() === year
+                        );
+                      });
+                      if (dayAppointments.length > 0) {
+                        return (
+                          <div className="appointment-indicator">
+                            <span className="appointment-count">{dayAppointments.length}</span>
+                          </div>
+                        );
+                      }
+                    }
+                  }}
+                />
+              </div>
+              
+              {/* Appointment Details List */}
+              <div className="dashboard-appointment-details-list">
+                <h4>
+                  {(() => {
+                    const now = new Date();
+                    const futureAppointments = appointments.filter(appointment => 
+                      new Date(appointment.appointment_datetime) > now
+                    );
+                    return futureAppointments.length > 0 ? 'Upcoming Appointments' : 'Recent Appointments';
+                  })()}
+                </h4>
+                {(() => {
+                  const now = new Date();
+                  const futureAppointments = appointments.filter(appointment => 
+                    new Date(appointment.appointment_datetime) > now
+                  );
+                  
+                  let appointmentsToShow = [];
+                  if (futureAppointments.length > 0) {
+                    appointmentsToShow = futureAppointments.slice(0, 3);
+                  } else {
+                    // Show 3 most recent appointments
+                    appointmentsToShow = appointments
+                      .sort((a, b) => new Date(b.appointment_datetime) - new Date(a.appointment_datetime))
+                      .slice(0, 3);
+                  }
+                  
+                  if (appointmentsToShow.length > 0) {
+                    return (
+                      <ul className="dashboard-appointment-list">
+                        {appointmentsToShow.map((appointment, idx) => (
+                          <li key={idx} className="dashboard-appointment-item">
+                            <div className="dashboard-appointment-date-time">
+                              <strong>{formatDateToReadable(appointment.appointment_datetime.split('T')[0])}</strong>
+                              <span className="dashboard-appointment-time">{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</span>
+                            </div>
+                            <div className="dashboard-appointment-patient">
+                              <strong>Patient:</strong> {appointment.patients ? `${appointment.patients.first_name} ${appointment.patients.last_name}` : "Unknown"}
+                            </div>
+                            <div className="dashboard-appointment-notes">
+                              {appointment.notes || 'No notes'}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  } else {
+                    return <p className="no-appointments">No appointments scheduled.</p>;
+                  }
+                })()}
+              </div>
             </div>
           </div>
         </div>
@@ -2918,7 +3674,7 @@ const getPatientPhaseCounts = () => {
   // NEW: Render Reports Content
 const renderReportsContent = () => {
   const riskCounts = getPatientRiskCounts();
-  const maxRiskCount = Math.max(riskCounts.Low, riskCounts.Moderate, riskCounts.High); // Renamed from maxCount for clarity
+  const maxRiskCount = Math.max(riskCounts.low, riskCounts.moderate, riskCounts.high); // Fixed: use lowercase property names
 
   const phaseCounts = getPatientPhaseCounts(); // Get phase counts inside the function
   const maxPhaseCount = Math.max(phaseCounts['Pre-Operative'], phaseCounts['Post-Operative']); // Define maxPhaseCount here
@@ -3022,6 +3778,190 @@ const renderReportsContent = () => {
         }
     };
 
+    // NEW: Function to handle wound analysis API call
+    const handleViewAnalysis = async () => {
+        // Get the wound photo - use selected or latest from woundPhotos
+        const woundPhotoToAnalyze = selectedWoundPhoto || (woundPhotos.length > 0 ? woundPhotos[0] : null);
+        
+        if (!woundPhotoToAnalyze || !woundPhotoToAnalyze.url) {
+            setAnalysisError("No wound photo available for analysis");
+            return;
+        }
+
+        setIsLoadingAnalysis(true);
+        setAnalysisError(null);
+        setAnalysisResults(null);
+
+        try {
+            let imageUrl = woundPhotoToAnalyze.url;
+            
+            // If the URL is not a complete URL (doesn't start with http), construct the Supabase storage URL
+            if (!imageUrl.startsWith('http')) {
+                const { data } = supabase.storage
+                    .from('wound-photos')
+                    .getPublicUrl(imageUrl);
+                imageUrl = data.publicUrl;
+            }
+
+            // Validate the URL
+            if (!imageUrl || imageUrl === 'undefined' || imageUrl === 'null') {
+                throw new Error('Invalid wound photo URL');
+            }
+
+            // Fetch the image as a blob
+            const imageResponse = await fetch(imageUrl);
+            
+            if (!imageResponse.ok) {
+                throw new Error(`Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
+            }
+            
+            const imageBlob = await imageResponse.blob();
+
+            // Create FormData to send the image
+            const formData = new FormData();
+            formData.append('file', imageBlob, 'wound_image.jpg');
+
+            // Call the API
+            const response = await fetch('https://faultily-flighty-joellen.ngrok-free.dev/predict', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status} ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            // Store the results from API response
+            setAnalysisResults({
+                gradcam: data.gradcam_overlay || null,
+                segmentation: data.segmentation_mask || null,
+                className: data.class_name || 'Unknown',
+                probability: data.probability || 0,
+                ulcerArea: data.ulcer_area_percentage || 0,
+                prediction: data.prediction
+            });
+
+            // Don't show modal - results will display inline
+        } catch (error) {
+            console.error('Error calling analysis API:', error);
+            setAnalysisError(error.message || 'Failed to analyze image. Please ensure the API is running.');
+        } finally {
+            setIsLoadingAnalysis(false);
+        }
+    };
+
+    // NEW: Function to handle retry analysis
+    const handleRetryAnalysis = () => {
+        setAnalysisResults(null);
+        setAnalysisError(null);
+        setAnalysisSaved(false);
+        handleViewAnalysis();
+    };
+
+    // NEW: Function to save analysis images to database
+    const handleSaveAnalysis = async () => {
+        // Get the wound photo - use selected or latest from woundPhotos
+        const woundPhotoToSave = selectedWoundPhoto || (woundPhotos.length > 0 ? woundPhotos[0] : null);
+        
+        if (!analysisResults || !selectedPatient || !woundPhotoToSave) {
+            alert('No analysis results to save');
+            return;
+        }
+
+        setIsSavingAnalysis(true);
+
+        try {
+            // Helper function to convert base64 to blob
+            const base64ToBlob = (base64String) => {
+                // Remove data URL prefix if present
+                const base64Data = base64String.includes('base64,') 
+                    ? base64String.split('base64,')[1] 
+                    : base64String;
+                
+                const byteCharacters = atob(base64Data);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                return new Blob([byteArray], { type: 'image/jpeg' });
+            };
+
+            // Generate unique filenames
+            const timestamp = Date.now();
+            const patientId = selectedPatient.patient_id;
+            const gradcamFilename = `${patientId}_gradcam_${timestamp}.jpg`;
+            const maskFilename = `${patientId}_mask_${timestamp}.jpg`;
+
+            // Upload Grad-CAM image
+            const gradcamBlob = base64ToBlob(analysisResults.gradcam);
+            const { data: gradcamData, error: gradcamError } = await supabase.storage
+                .from('dfu')
+                .upload(gradcamFilename, gradcamBlob, {
+                    contentType: 'image/jpeg',
+                    upsert: false
+                });
+
+            if (gradcamError) throw new Error(`Failed to upload Grad-CAM: ${gradcamError.message}`);
+
+            // Upload Segmentation Mask image
+            const maskBlob = base64ToBlob(analysisResults.segmentation);
+            const { data: maskData, error: maskError } = await supabase.storage
+                .from('dfu')
+                .upload(maskFilename, maskBlob, {
+                    contentType: 'image/jpeg',
+                    upsert: false
+                });
+
+            if (maskError) throw new Error(`Failed to upload Segmentation Mask: ${maskError.message}`);
+
+            // Get public URLs
+            const { data: gradcamUrlData } = supabase.storage
+                .from('dfu')
+                .getPublicUrl(gradcamFilename);
+            
+            const { data: maskUrlData } = supabase.storage
+                .from('dfu')
+                .getPublicUrl(maskFilename);
+
+            // Update the health_metrics table with the URLs
+            // Find the metric_id associated with this wound photo
+            const metricId = woundPhotoToSave.metric_id;
+
+            if (!metricId) {
+                throw new Error('No metric ID found for this wound photo');
+            }
+
+            const { error: updateError } = await supabase
+                .from('health_metrics')
+                .update({
+                    wound_photo_grad_url: gradcamUrlData.publicUrl,
+                    wound_photo_mask_url: maskUrlData.publicUrl
+                })
+                .eq('metric_id', metricId);
+
+            if (updateError) throw new Error(`Failed to update database: ${updateError.message}`);
+
+            // Log the action
+            await logSystemAction(
+                selectedPatient.patient_id,
+                'Analysis Saved',
+                `Saved Grad-CAM and Segmentation Mask for patient ${selectedPatient.first_name} ${selectedPatient.last_name}`
+            );
+
+            setAnalysisSaved(true);
+            alert('Analysis images saved successfully!');
+
+        } catch (error) {
+            console.error('Error saving analysis:', error);
+            alert(`Failed to save analysis: ${error.message}`);
+        } finally {
+            setIsSavingAnalysis(false);
+        }
+    };
+
     // NEW: Handlers for dynamic Diagnosis fields
     const handleAddDiagnosis = () => {
       setDiagnosisDetails([...diagnosisDetails, { id: Date.now(), text: '' }]);
@@ -3121,9 +4061,11 @@ const renderReportsContent = () => {
                         <p><strong>Date of Birth:</strong> {selectedPatient.date_of_birth}</p>
                         <p><strong>Contact Info:</strong> {selectedPatient.contact_info}</p>
                         <p><strong>Gender:</strong> {selectedPatient.gender}</p>
+                         <p><strong>Phase:</strong> <span className={`phase3 ${selectedPatient.phase}`}>{selectedPatient.phase}</span></p>
                       </div>
                       <div className="patient-details-col-2"> {/* Second sub-column for patient details */}
                         <p><strong>Diabetes Type:</strong> {selectedPatient.diabetes_type}</p>
+                        <p><strong>Duration of Diabetes:</strong> {selectedPatient.diabetes_duration ? `${selectedPatient.diabetes_duration} years` : 'N/A'}</p>
                         <p><strong>Smoking Status:</strong> {selectedPatient.smoking_status}</p>
                         <p><strong>Last Doctor Visit:</strong> {selectedPatient.last_doctor_visit}</p>
                         <p><strong>Risk Classification:</strong> 
@@ -3131,7 +4073,6 @@ const renderReportsContent = () => {
                             {latestMetric?.risk_classification || selectedPatient.risk_classification || 'N/A'}
                           </span>
                         </p>
-                        <p><strong>Phase:</strong> <span className={`phase3 ${selectedPatient.phase}`}>{selectedPatient.phase}</span></p>
                       </div>
                     </div>
                   </div>
@@ -3142,6 +4083,18 @@ const renderReportsContent = () => {
                           <img src={latestWoundPhoto.url} alt="Latest Wound" className="latest-wound-image3" />
                           <p><strong>Date:</strong> {new Date(latestWoundPhoto.date).toLocaleDateString()}</p>
                           <p><strong>Notes:</strong> {latestWoundPhoto.notes || 'N/A'}</p>
+                          <button 
+                            className="view-analysis-button3" 
+                            onClick={handleViewAnalysis}
+                            disabled={isLoadingAnalysis}
+                          >
+                            {isLoadingAnalysis ? 'Analyzing...' : 'View Analysis'}
+                          </button>
+                          {analysisError && (
+                            <p style={{ color: 'red', fontSize: '12px', marginTop: '5px' }}>
+                              {analysisError}
+                            </p>
+                          )}
                       </div>
                   ) : (
                       <div className="wound-photo-column" style={{ maxWidth: '300px', marginLeft: '20px', flexShrink: 0 }}>
@@ -3149,6 +4102,109 @@ const renderReportsContent = () => {
                       </div>
                   )}
                 </div>
+
+              {/* Analysis Results Section - Shows above diagnosis when available */}
+              {analysisResults && (
+                <div className="card3" style={{ marginBottom: '20px' }}>
+                  <h3>Wound Analysis Results</h3>
+                  <div style={{ display: 'flex', gap: '20px', marginTop: '15px', flexWrap: 'wrap' }}>
+                    {/* Original Image */}
+                    <div style={{ flex: '1', minWidth: '200px' }}>
+                      <h4 style={{ fontSize: '16px', marginBottom: '10px' }}>Original Image</h4>
+                      {latestWoundPhoto && (
+                        <img 
+                          src={latestWoundPhoto.url} 
+                          alt="Original" 
+                          style={{ width: '100%', maxWidth: '300px', borderRadius: '8px', border: '1px solid #ddd' }}
+                        />
+                      )}
+                    </div>
+                    
+                    {/* Grad-CAM Heatmap */}
+                    <div style={{ flex: '1', minWidth: '200px' }}>
+                      <h4 style={{ fontSize: '16px', marginBottom: '10px' }}>Grad-CAM Heatmap</h4>
+                      {analysisResults.gradcam ? (
+                        <img 
+                          src={analysisResults.gradcam.startsWith('data:') ? analysisResults.gradcam : `data:image/png;base64,${analysisResults.gradcam}`}
+                          alt="Grad-CAM Heatmap" 
+                          style={{ width: '100%', maxWidth: '300px', borderRadius: '8px', border: '1px solid #ddd' }}
+                        />
+                      ) : (
+                        <div style={{ padding: '20px', backgroundColor: '#f5f5f5', borderRadius: '8px', textAlign: 'center' }}>
+                          Not available
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Segmentation Mask */}
+                    <div style={{ flex: '1', minWidth: '200px' }}>
+                      <h4 style={{ fontSize: '16px', marginBottom: '10px' }}>Segmentation Mask</h4>
+                      {analysisResults.segmentation ? (
+                        <img 
+                          src={analysisResults.segmentation.startsWith('data:') ? analysisResults.segmentation : `data:image/png;base64,${analysisResults.segmentation}`}
+                          alt="Segmentation Mask" 
+                          style={{ width: '100%', maxWidth: '300px', borderRadius: '8px', border: '1px solid #ddd' }}
+                        />
+                      ) : (
+                        <div style={{ padding: '20px', backgroundColor: '#f5f5f5', borderRadius: '8px', textAlign: 'center' }}>
+                          Not available
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Diagnosis Results */}
+                  <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
+                    <h4 style={{ fontSize: '16px', marginBottom: '10px' }}>AI Diagnosis</h4>
+                    <p><strong>Classification:</strong> {analysisResults.className}</p>
+                    <p><strong>Confidence:</strong> {(analysisResults.probability * 100).toFixed(2)}%</p>
+                    {analysisResults.prediction === 0 && (
+                      <p><strong>Ulcer Area:</strong> {analysisResults.ulcerArea.toFixed(2)}% of total area</p>
+                    )}
+                    <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
+                      {analysisResults.prediction === 0 
+                        ? 'Diabetic foot ulcer detected. The green overlay shows the affected region.'
+                        : 'No ulcer detected. The skin appears healthy.'}
+                    </p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div style={{ marginTop: '15px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                    <button 
+                      className="retry-analysis-button"
+                      onClick={handleRetryAnalysis}
+                      disabled={isLoadingAnalysis || isSavingAnalysis}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: '#6c757d',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '5px',
+                        cursor: isLoadingAnalysis || isSavingAnalysis ? 'not-allowed' : 'pointer',
+                        opacity: isLoadingAnalysis || isSavingAnalysis ? 0.6 : 1
+                      }}
+                    >
+                      {isLoadingAnalysis ? 'Analyzing...' : 'Retry Analysis'}
+                    </button>
+                    <button 
+                      className="save-analysis-button"
+                      onClick={handleSaveAnalysis}
+                      disabled={isSavingAnalysis || analysisSaved || isLoadingAnalysis}
+                      style={{
+                        padding: '10px 20px',
+                        backgroundColor: analysisSaved ? '#28a745' : '#007bff',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '5px',
+                        cursor: isSavingAnalysis || analysisSaved || isLoadingAnalysis ? 'not-allowed' : 'pointer',
+                        opacity: isSavingAnalysis || analysisSaved || isLoadingAnalysis ? 0.6 : 1
+                      }}
+                    >
+                      {isSavingAnalysis ? 'Saving...' : analysisSaved ? '✓ Saved' : 'Save Analysis'}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="forms-container3"> {/* New container for two-column forms */}
                   <div className="card3 diagnosis-form3"> {/* NEW: Diagnosis Form */}
@@ -3457,8 +4513,8 @@ const renderReportsContent = () => {
                 </div>
 
                 <div className="treatment-plan-actions3">
-                    <button className="send-button3" onClick={handleSend}>Send</button>
-                    <button className="print-button3" onClick={handlePrint}>Print</button>
+                    <button className="send-button3" onClick={handleSend}>📤 Send</button>
+                    <button className="print-button3" onClick={handlePrint}>🖨️ Print</button>
                 </div>
             </div>
         );
@@ -3479,7 +4535,7 @@ const renderReportsContent = () => {
       <div key={selectedPatient.patient_id} className="patient-detail-view-section">
         <div className="detail-view-header">
           <button className="back-to-list-button" onClick={() => setActivePage("dashboard")}>
-            <img src="/picture/back.png" alt="Back" /> Back to Dashboard
+            <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Dashboard
           </button>
           <div className="patient-details-header-row">
             <h2>Patient Details</h2>
@@ -3519,6 +4575,10 @@ const renderReportsContent = () => {
                       <span className="detail-value">{selectedPatient.diabetes_type || 'N/A'}</span>
                     </div>
                     <div className="patient-detail-item">
+                      <span className="detail-label">Duration of Diabetes:</span>
+                      <span className="detail-value">{selectedPatient.diabetes_duration ? `${selectedPatient.diabetes_duration} years` : 'N/A'}</span>
+                    </div>
+                    <div className="patient-detail-item">
                       <span className="detail-label">Phone:</span>
                       <span className="detail-value">{selectedPatient.contact_info || 'N/A'}</span>
                     </div>
@@ -3550,14 +4610,14 @@ const renderReportsContent = () => {
                       <span className="detail-label">Hypertensive:</span>
                       <span className="detail-value">{selectedPatient.complication_history?.includes("Hypertensive") ? "Yes" : "No"}</span>
                     </div>
-                    <div className="patient-detail-item">
+                    <div className="patient-detail-item full-width">
                       <span className="detail-label">Heart Disease:</span>
                       <span className="detail-value">{selectedPatient.complication_history?.includes("Heart Attack") ? "Yes" : "None"}</span>
                     </div>
-                  </div>
-                  <div className="patient-detail-item">
-                    <span className="detail-label">Smoking History:</span>
-                    <span className="detail-value">{selectedPatient.smoking_status || 'N/A'}</span>
+                    <div className="patient-detail-item full-width">
+                      <span className="detail-label">Smoking History:</span>
+                      <span className="detail-value">{selectedPatient.smoking_status || 'N/A'}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3569,14 +4629,18 @@ const renderReportsContent = () => {
               {latestLab ? (
                 <>
                   <p><strong>Date Submitted:</strong> {new Date(latestLab.date_submitted).toLocaleDateString()}</p>
-                  <p><strong>HbA1c:</strong> {latestLab.Hba1c || 'N/A'}</p>
-                  <p><strong>Creatinine:</strong> {latestLab.creatinine || 'N/A'}</p>
+                  <p><strong>Hba1c:</strong> {latestLab.Hba1c || 'N/A'}</p>
+                  <p><strong>UCR:</strong> {latestLab.ucr || 'N/A'}</p>
                   <p><strong>GOT (AST):</strong> {latestLab.got_ast || 'N/A'}</p>
                   <p><strong>GPT (ALT):</strong> {latestLab.gpt_alt || 'N/A'}</p>
                   <p><strong>Cholesterol:</strong> {latestLab.cholesterol || 'N/A'}</p>
                   <p><strong>Triglycerides:</strong> {latestLab.triglycerides || 'N/A'}</p>
                   <p><strong>HDL Cholesterol:</strong> {latestLab.hdl_cholesterol || 'N/A'}</p>
                   <p><strong>LDL Cholesterol:</strong> {latestLab.ldl_cholesterol || 'N/A'}</p>
+                  <p><strong>UREA:</strong> {latestLab.urea || 'N/A'}</p>
+                  <p><strong>BUN:</strong> {latestLab.bun || 'N/A'}</p>
+                  <p><strong>URIC:</strong> {latestLab.uric || 'N/A'}</p>
+                  <p><strong>EGFR:</strong> {latestLab.egfr || 'N/A'}</p>
                 </>
               ) : (
                 <p>No lab results available for this patient.</p>
@@ -3615,14 +4679,14 @@ const renderReportsContent = () => {
 
             {/* History Charts Section */}
             <div className="history-charts-section">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0px' }}>
-                <h3 style={{ margin: 0 }}>History Charts</h3>
+              <div className="history-charts-section-header">
+                <h3>History Charts</h3>
               </div>
               
               {/* Blood Glucose Chart */}
               <div className="blood-glucose-chart-container">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <h4 style={{ margin: 0 }}>Blood Glucose Level History</h4>
+                <div className="chart-header">
+                  <h4>Blood Glucose Level History</h4>
                   <div className="time-filter-buttons">
                     <button 
                       className={`time-filter-btn ${glucoseTimeFilter === 'day' ? 'active' : ''}`}
@@ -3750,8 +4814,8 @@ const renderReportsContent = () => {
 
               {/* Blood Pressure Chart */}
               <div className="blood-pressure-chart-container">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <h4 style={{ margin: 0 }}>Blood Pressure History</h4>
+                <div className="chart-header">
+                  <h4>Blood Pressure History</h4>
                   <div className="time-filter-buttons">
                     <button 
                       className={`time-filter-btn ${bpTimeFilter === 'day' ? 'active' : ''}`}
@@ -3891,8 +4955,8 @@ const renderReportsContent = () => {
 
               {/* Risk Classification History Chart */}
               <div className="risk-classification-chart-container">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <h4 style={{ margin: 0 }}>Risk Classification History</h4>
+                <div className="chart-header">
+                  <h4>Risk Classification History</h4>
                   <div className="time-filter-buttons">
                     <button 
                       className={`time-filter-btn ${riskTimeFilter === 'day' ? 'active' : ''}`}
@@ -3944,25 +5008,25 @@ const renderReportsContent = () => {
                           label: 'Risk Classification',
                           data: riskFilteredMetrics.map(entry => {
                             const risk = entry.risk_classification?.toLowerCase();
-                            if (risk === 'low') return 2;
-                            if (risk === 'moderate') return 3;
-                            if (risk === 'high') return 4;
+                            if (risk === 'low' || risk === 'low risk') return 2;
+                            if (risk === 'moderate' || risk === 'moderate risk') return 3;
+                            if (risk === 'high' || risk === 'high risk') return 4;
                             if (risk === 'ppd') return 1;
                             return 0;
                           }),
                           backgroundColor: riskFilteredMetrics.map(entry => {
                             const risk = entry.risk_classification?.toLowerCase();
-                            if (risk === 'low') return 'rgba(34, 197, 94, 0.8)';
-                            if (risk === 'moderate') return 'rgba(255, 193, 7, 0.8)';
-                            if (risk === 'high') return 'rgba(244, 67, 54, 0.8)';
+                            if (risk === 'low' || risk === 'low risk') return 'rgba(34, 197, 94, 0.8)';
+                            if (risk === 'moderate' || risk === 'moderate risk') return 'rgba(255, 193, 7, 0.8)';
+                            if (risk === 'high' || risk === 'high risk') return 'rgba(244, 67, 54, 0.8)';
                             if (risk === 'ppd') return 'rgba(103, 101, 105, 0.8)';
                             return 'rgba(156, 163, 175, 0.8)';
                           }),
                           borderColor: riskFilteredMetrics.map(entry => {
                             const risk = entry.risk_classification?.toLowerCase();
-                            if (risk === 'low') return 'rgba(34, 197, 94, 1)';
-                            if (risk === 'moderate') return 'rgba(255, 193, 7, 1)';
-                            if (risk === 'high') return 'rgba(244, 67, 54, 1)';
+                            if (risk === 'low' || risk === 'low risk') return 'rgba(34, 197, 94, 1)';
+                            if (risk === 'moderate' || risk === 'moderate risk') return 'rgba(255, 193, 7, 1)';
+                            if (risk === 'high' || risk === 'high risk') return 'rgba(244, 67, 54, 1)';
                             if (risk === 'ppd') return 'rgba(103, 101, 105, 1)';
                             return 'rgba(156, 163, 175, 1)';
                           }),
@@ -4050,6 +5114,126 @@ const renderReportsContent = () => {
                   ) : (
                     <div className="no-chart-data">
                       <p>No risk classification data available for selected time period</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Risk Score Over Time Chart */}
+              <div className="blood-glucose-chart-container">
+                <div className="chart-header">
+                  <h4>Risk Score Over Time</h4>
+                  <div className="time-filter-buttons">
+                    <button 
+                      className={`time-filter-btn ${riskScoreTimeFilter === 'day' ? 'active' : ''}`}
+                      onClick={() => setRiskScoreTimeFilter('day')}
+                    >
+                      Day
+                    </button>
+                    <button 
+                      className={`time-filter-btn ${riskScoreTimeFilter === 'week' ? 'active' : ''}`}
+                      onClick={() => setRiskScoreTimeFilter('week')}
+                    >
+                      Week
+                    </button>
+                    <button 
+                      className={`time-filter-btn ${riskScoreTimeFilter === 'month' ? 'active' : ''}`}
+                      onClick={() => setRiskScoreTimeFilter('month')}
+                    >
+                      Month
+                    </button>
+                  </div>
+                </div>
+                <div className="chart-wrapper">
+                  {riskScoreFilteredMetrics.length > 0 ? (
+                    <Line
+                      data={{
+                        labels: riskScoreFilteredMetrics.map(entry => formatDateForChart(entry.submission_date)),
+                        datasets: [{
+                          label: 'Risk Score',
+                          data: riskScoreFilteredMetrics.map(entry => parseFloat(entry.risk_score) || 0),
+                          fill: true,
+                          backgroundColor: (context) => {
+                            const chart = context.chart;
+                            const {ctx, chartArea} = chart;
+                            if (!chartArea) {
+                              return null;
+                            }
+                            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                            gradient.addColorStop(0, 'rgba(34, 197, 94, 0.8)');
+                            gradient.addColorStop(1, 'rgba(34, 197, 94, 0.1)');
+                            return gradient;
+                          },
+                          borderColor: '#22c55e',
+                          borderWidth: 2,
+                          pointBackgroundColor: '#22c55e',
+                          pointBorderColor: '#fff',
+                          pointBorderWidth: 2,
+                          pointRadius: 4,
+                          pointHoverRadius: 6,
+                          tension: 0.4,
+                        }],
+                      }}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: {
+                            display: false,
+                          },
+                          tooltip: {
+                            callbacks: {
+                              label: function(context) {
+                                return `Risk Score: ${context.raw}/100`;
+                              }
+                            }
+                          }
+                        },
+                        scales: {
+                          y: {
+                            beginAtZero: true,
+                            title: {
+                              display: true,
+                              text: 'Risk Score',
+                              font: {
+                                size: 12,
+                                weight: 'bold'
+                              }
+                            },
+                            min: 0,
+                            max: 100,
+                            ticks: {
+                              display: true,
+                            },
+                            grid: {
+                              display: true,
+                              color: 'rgba(0, 0, 0, 0.1)',
+                            }
+                          },
+                          x: {
+                            grid: {
+                              display: false
+                            },
+                            title: {
+                              display: true,
+                              text: 'Date',
+                              font: {
+                                size: 12,
+                                weight: 'bold'
+                              }
+                            },
+                            ticks: {
+                              display: true,
+                              maxRotation: 45,
+                              minRotation: 45
+                            }
+                          }
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="no-chart-data">
+                      <p>No risk score data available for selected time period</p>
                     </div>
                   )}
                 </div>
@@ -4245,7 +5429,7 @@ const renderReportsContent = () => {
                                   onClick={() => handleEditClick(med)}
                                   title="Edit medication"
                                 >
-                                  <i className="fas fa-edit"></i>
+                                  <img src="../picture/edit.png" alt="Edit" className="button-icon" />
                                 </button>
                                 <button
                                   type="button"
@@ -4253,7 +5437,7 @@ const renderReportsContent = () => {
                                   onClick={() => handleRemoveMedication(med.id)}
                                   title="Remove medication"
                                 >
-                                  <img src="/picture/minus.svg" alt="Remove" />
+                                  <img src="../picture/minus.svg" alt="Remove" className="button-icon" />
                                 </button>
                               </td>
                             </>
@@ -4347,13 +5531,14 @@ const renderReportsContent = () => {
                           <th>Date</th>
                           <th>Blood Glucose (mg/dL)</th>
                           <th>Blood Pressure (mmHg)</th>
+                          <th>Risk Score</th>
                           <th>Risk Classification</th>
                         </tr>
                       </thead>
                       <tbody>
                         {getPaginatedHealthMetrics().map((metric, index) => (
                           <tr key={index}>
-                            <td>{formatDateToReadable(metric.submission_date)}</td>
+                            <td>{new Date(metric.submission_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                             <td className="metric-value">
                               {metric.blood_glucose || 'N/A'}
                             </td>
@@ -4361,6 +5546,9 @@ const renderReportsContent = () => {
                               {(metric.bp_systolic && metric.bp_diastolic) 
                                 ? `${metric.bp_systolic}/${metric.bp_diastolic}` 
                                 : metric.blood_pressure || 'N/A'}
+                            </td>
+                            <td className="metric-value">
+                              {metric.risk_score ? `${metric.risk_score}/100` : 'N/A'}
                             </td>
                             <td className={`risk-classification-${(metric.risk_classification || 'N/A').toLowerCase()}`}>
                               {metric.risk_classification || 'N/A'}
@@ -4372,14 +5560,16 @@ const renderReportsContent = () => {
 
                     {/* Health Metrics Pagination */}
                     {getTotalHealthMetricsPages() > 1 && (
-                      <Pagination
-                        currentPage={currentPageHealthMetrics}
-                        totalPages={getTotalHealthMetricsPages()}
-                        onPageChange={setCurrentPageHealthMetrics}
-                        itemsPerPage={HEALTH_METRICS_PER_PAGE}
-                        totalItems={allPatientHealthMetrics.length}
-                        showPageInfo={true}
-                      />
+                      <div className="health-metrics-pagination">
+                        <Pagination
+                          currentPage={currentPageHealthMetrics}
+                          totalPages={getTotalHealthMetricsPages()}
+                          onPageChange={setCurrentPageHealthMetrics}
+                          itemsPerPage={HEALTH_METRICS_PER_PAGE}
+                          totalItems={allPatientHealthMetrics.length}
+                          showPageInfo={true}
+                        />
+                      </div>
                     )}
                   </>
                 ) : (
@@ -4506,7 +5696,7 @@ const renderReportsContent = () => {
                       className="photo-expand-btn"
                       onClick={() => handleExpandPhoto(photo)}
                     >
-                      <img src="/picture/expand.svg" alt="Expand" />
+                      <img src="../picture/expand.svg" alt="Expand" className="button-icon" />
                     </button>
                   </div>
                   
@@ -4606,41 +5796,83 @@ const renderReportsContent = () => {
 
       <main className="content-area-full-width3">
         {activePage === "dashboard" && (
-          <h1>Welcome, Dr. {user.first_name} 👋</h1>
+          <h1 className="welcomeh1">Welcome, Dr. {user.first_name} 👋</h1>
         )}
         {activePage === "dashboard" && renderDashboardContent()}
         {activePage === "patient-profile" && selectedPatient?.patient_id && renderPatientProfile()}
         {activePage === "patient-list" && renderPatientList()}
         {activePage === "appointments" && renderAppointmentsSection()}
-        {activePage === "reports" && renderReportsSection()}
+        {activePage === "reports" && !showReportTable && renderReportsSection()}
+        {activePage === "reports" && showReportTable && renderReportTable()}
         {activePage === "treatment-plan" && selectedPatient && renderTreatmentPlan()} {/* Render the first step of treatment plan */}
         {activePage === "treatment-plan-next-step" && selectedPatient && renderNextStepForms()} {/* Render the next step of treatment plan */}
         {activePage === "treatment-plan-summary" && selectedPatient && renderTreatmentPlanSummary()} {/* NEW: Render the summary page */}
       </main>
 
-      
-        {showModal && (
-  <div className="modal-overlay3">
-    <div className="modal-content3">
-      <div className="modal-header3">
-        <h3>Confirm Action</h3>
-        <button className="close-button3" onClick={handleCancelModal}>
+        {showThreePhotoModal && (
+  <div className="three-photo-modal-overlay" onClick={() => setShowThreePhotoModal(false)}>
+    <div className="three-photo-modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="three-photo-modal-header">
+        <h3>Wound Analysis</h3>
+        <button className="close-button3" onClick={() => setShowThreePhotoModal(false)}>
           &times;
         </button>
       </div>
-      <div className="modal-body3">
-        <p>
-          Are you sure you want to{" "}
-          <strong>{actionType === "cancel" ? "cancel" : "mark as done"}</strong>{" "}
-          this appointment?
-        </p>
-        <div className="modal-button-group3">
-          <button className="modal-confirm-button3" onClick={handleConfirmAction}>
-            Confirm
-          </button>
-          <button className="modal-cancel-button3" onClick={handleCancelModal}>
-            Cancel
-          </button>
+      <div className="three-photo-container">
+        <div className="photo-analysis-item">
+          <h4>Original Image</h4>
+          <div className="photo-placeholder">
+            {(selectedWoundPhoto || woundPhotos[0]) ? (
+              <img src={(selectedWoundPhoto || woundPhotos[0]).url} alt="Original" />
+            ) : (
+              <div className="no-photo">No image available</div>
+            )}
+          </div>
+        </div>
+        <div className="photo-analysis-item">
+          <h4>Grad-Cam Heatmap</h4>
+          <div className="photo-placeholder">
+            {analysisResults && analysisResults.gradcam ? (
+              <img src={analysisResults.gradcam.startsWith('data:') ? analysisResults.gradcam : `data:image/png;base64,${analysisResults.gradcam}`} alt="Grad-Cam Heatmap" />
+            ) : (
+              <div className="analysis-placeholder">
+                {isLoadingAnalysis ? 'Loading...' : 'Analysis not available'}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="photo-analysis-item">
+          <h4>Segmentation Mask</h4>
+          <div className="photo-placeholder">
+            {analysisResults && analysisResults.segmentation ? (
+              <img src={analysisResults.segmentation.startsWith('data:') ? analysisResults.segmentation : `data:image/png;base64,${analysisResults.segmentation}`} alt="Segmentation Mask" />
+            ) : (
+              <div className="analysis-placeholder">
+                {isLoadingAnalysis ? 'Loading...' : 'Analysis not available'}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="diagnosis-section">
+        <h4>Diagnosis Results</h4>
+        <div className="diagnosis-placeholder">
+          {analysisResults ? (
+            <div>
+              <p><strong>Classification:</strong> {analysisResults.className}</p>
+              <p><strong>Confidence:</strong> {(analysisResults.probability * 100).toFixed(2)}%</p>
+              {analysisResults.prediction === 0 && (
+                <p><strong>Ulcer Area:</strong> {analysisResults.ulcerArea.toFixed(2)}% of total area</p>
+              )}
+              <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
+                {analysisResults.prediction === 0 
+                  ? 'Diabetic foot ulcer detected. The green overlay shows the affected region.'
+                  : 'No ulcer detected. The skin appears healthy.'}
+              </p>
+            </div>
+          ) : (
+            <p>{isLoadingAnalysis ? 'Analyzing...' : 'Diagnosis results will be displayed here...'}</p>
+          )}
         </div>
       </div>
     </div>

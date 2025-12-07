@@ -71,7 +71,7 @@ const Pagination = ({
           disabled={currentPage === 1}
           aria-label="Go to previous page"
         >
-          <i className="fas fa-chevron-left"></i>
+          <img src="/picture/left-arrow.png" alt="" className="pagination-icon" />
           Previous
         </button>
 
@@ -125,7 +125,7 @@ const Pagination = ({
           aria-label="Go to next page"
         >
           Next
-          <i className="fas fa-chevron-right"></i>
+          <img src="/picture/right-arrow.png" alt="" className="pagination-icon" />
         </button>
       </div>
       

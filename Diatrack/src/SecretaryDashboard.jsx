@@ -51,7 +51,7 @@ const formatDateForChart = (dateString) => {
     if (isNaN(date.getTime())) return 'N/A';
     
     return date.toLocaleDateString('en-US', {
-      month: 'long',
+      month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
@@ -63,13 +63,14 @@ const formatDateForChart = (dateString) => {
 // Helper function to determine lab status
 const getLabStatus = (latestLabResult) => {
   if (!latestLabResult) {
-    console.log("getLabStatus: No lab result provided, returning Awaiting");
-    return 'Awaiting';
+    console.log("getLabStatus: No lab result provided, returning ❌Awaiting");
+    return '❌Awaiting';
   }
 
   const requiredLabFields = [
-    'Hba1c', 'creatinine', 'got_ast', 'gpt_alt',
-    'cholesterol', 'triglycerides', 'hdl_cholesterol', 'ldl_cholesterol'
+    'Hba1c', 'ucr', 'got_ast', 'gpt_alt',
+    'cholesterol', 'triglycerides', 'hdl_cholesterol', 'ldl_cholesterol',
+    'urea', 'bun', 'uric', 'egfr'
   ];
 
   let missingFields = false;
@@ -84,12 +85,10 @@ const getLabStatus = (latestLabResult) => {
   }
 
   let status;
-  if (!hasAnyField && !missingFields) {
-      status = 'Awaiting';
-  } else if (missingFields) {
-      status = 'Submitted'; // Patient has some lab data, even if incomplete
+  if (!hasAnyField || missingFields) {
+      status = '❌Awaiting'; // Missing any field or no data = Awaiting
   } else {
-      status = '✅Submitted'; // Patient has complete lab data
+      status = '✅Submitted'; // All fields complete = Submitted
   }
 
   console.log("getLabStatus: Result for lab data", latestLabResult, "is:", status);
@@ -120,14 +119,14 @@ const getProfileStatus = (patient) => {
 // Helper function to get classification display with colored circle and phase
 const getClassificationDisplay = (patient) => {
   const phase = patient.phase || 'Pre-Operative';
-  const labStatus = patient.lab_status || 'Awaiting';
+  const labStatus = patient.lab_status || '❌Awaiting';
   const riskClassification = (patient.risk_classification || '').toLowerCase();
   
   // Shorten phase names
   const phaseDisplay = phase === 'Pre-Operative' ? 'Pre-Op' : phase === 'Post-Operative' ? 'Post-Op' : phase;
   
   // If lab status is Awaiting, show ⛔ with phase
-  if (labStatus === 'Awaiting') {
+  if (labStatus === '❌Awaiting') {
     return `⛔${phaseDisplay}`;
   }
   
@@ -206,11 +205,11 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
   // Prepare data for the submitted lab results area chart
   // This chart displays how many patients submitted their lab results each month
   const pendingLabChartData = {
-    labels: pendingLabHistory?.labels?.length > 0 ? pendingLabHistory.labels : ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
+    labels: pendingLabHistory?.labels || [],
     datasets: [
       {
         label: 'Submitted Lab Results',
-        data: pendingLabHistory?.data?.length > 0 ? pendingLabHistory.data : [0, 0, 0, 0, 0, 0],
+        data: pendingLabHistory?.data || [],
         fill: true,
         backgroundColor: (context) => {
           const chart = context.chart;
@@ -504,6 +503,34 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
   );
 };
 
+// Helper function to send notifications
+const sendNotification = async (userId, userRole, title, message, type = 'general') => {
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .insert([
+        {
+          user_id: userId,
+          user_role: userRole,
+          title: title,
+          message: message,
+          type: type,
+          is_read: false,
+          created_at: new Date().toISOString()
+        }
+      ]);
+
+    if (error) {
+      console.error('Error sending notification:', error.message);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Error in sendNotification function:', error);
+    return false;
+  }
+};
+
 // ... (rest of the SecretaryDashboard component remains unchanged) ...
 const SecretaryDashboard = ({ user, onLogout }) => {
   const [activePage, setActivePage] = useState("dashboard");
@@ -524,12 +551,16 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     emergencyContactNumber: "",
     diabetesType: "",
     allergies: "",
+    diabetes_duration: "",
     footUlcersAmputation: "",
     eyeIssues: "",
     kidneyIssues: "",
     stroke: "",
     heartAttack: "",
     hypertensive: "",
+    family_diabetes: "",
+    family_hypertension: "",
+    cardiovascular: "",
     smokingStatus: "",
     monitoringFrequencyGlucose: "",
     lastDoctorVisit: "",
@@ -558,6 +589,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [currentPageReportDetail, setCurrentPageReportDetail] = useState(1);
   const REPORT_DETAIL_PER_PAGE = 10;
 
+  // State for filtered patients in report detail view
+  const [reportDetailPatients, setReportDetailPatients] = useState([]);
+
   // State for chart data (dynamically fetched)
   const [totalPatientsCount, setTotalPatientsCount] = useState(0);
   const [pendingLabResultsCount, setPendingLabResultsCount] = useState(0);
@@ -567,7 +601,18 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [moderateRiskCount, setModerateRiskCount] = useState(0);
   const [highRiskCount, setHighRiskCount] = useState(0);
 
+  // State for report widgets (real data)
+  const [fullComplianceCount, setFullComplianceCount] = useState(0);
+  const [missingLogsCount, setMissingLogsCount] = useState(0);
+  const [nonCompliantCount, setNonCompliantCount] = useState(0);
+
+  // State for compliance history charts
+  const [fullComplianceHistory, setFullComplianceHistory] = useState({ labels: [], data: [] });
+  const [missingLogsHistory, setMissingLogsHistory] = useState({ labels: [], data: [] });
+  const [nonCompliantHistory, setNonCompliantHistory] = useState({ labels: [], data: [] });
+
   const [appointmentsToday, setAppointmentsToday] = useState([]);
+  const [allAppointments, setAllAppointments] = useState([]); // For calendar display
 
   const [appointmentForm, setAppointmentForm] = useState({
     doctorId: "",
@@ -588,6 +633,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const APPOINTMENTS_PER_PAGE = 6; // Define how many appointments per page
 
   const [upcomingAppointmentsCount, setUpcomingAppointmentsCount] = useState(0);
+  
+  // Filter state for appointments table (today vs upcoming)
+  const [appointmentFilter, setAppointmentFilter] = useState('today'); // 'today' or 'upcoming'
 
   const [currentPagePatients, setCurrentPagePatients] = useState(1);
   const PATIENTS_PER_PAGE = 10;
@@ -610,11 +658,38 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [selectedProfileStatusFilter, setSelectedProfileStatusFilter] = useState('all'); // For patient list
   const [selectedLabEntryProfileStatusFilter, setSelectedLabEntryProfileStatusFilter] = useState('all'); // For lab entry search
   
+  // Sort order filter states
+  const [sortOrder, setSortOrder] = useState('desc'); // For patient list (newest first by default)
+  const [labEntrySortOrder, setLabEntrySortOrder] = useState('desc'); // For lab entry search (newest first by default)
+  
   // State for patient count over the past 6 months
   const [patientCountHistory, setPatientCountHistory] = useState([]);
   
   // State for pending lab results count over the past 6 months
   const [pendingLabHistory, setPendingLabHistory] = useState([]);
+  
+  // Analysis states for wound photo analysis
+  const [analysisResults, setAnalysisResults] = useState(null);
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
+  const [analysisError, setAnalysisError] = useState(null);
+  const [selectedWoundPhotoForAnalysis, setSelectedWoundPhotoForAnalysis] = useState(null);
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  
+  // State for demographics edit modal
+  const [showDemographicsEditModal, setShowDemographicsEditModal] = useState(false);
+  const [demographicsForm, setDemographicsForm] = useState({
+    firstName: "",
+    lastName: "",
+    dateOfBirth: "",
+    gender: "",
+    contactInfo: "",
+    address: "",
+    emergencyContactNumber: "",
+    password: "",
+    patientHeight: "",
+    patientWeight: "",
+    bmi: ""
+  });
   
   useEffect(() => {
     const fetchUpcomingAppointments = async () => {
@@ -826,14 +901,18 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [labResults, setLabResults] = useState({
     selectedPatientForLab: null, // To store the patient object selected for lab entry
     dateSubmitted: "",
-    hba1c: "", // Keep this lowercase for the state variable
-    creatinine: "",
+    Hba1c: "", // Keep this lowercase for the state variable
+    UCR: "",
     gotAst: "",
     gptAlt: "",
     cholesterol: "",
     triglycerides: "",
     hdlCholesterol: "",
     ldlCholesterol: "",
+    UREA: "",
+    BUN: "",
+    URIC: "",
+    EGFR: "",
   });
 
   // NEW STATE FOR LAST LAB DATE AND HEALTH METRICS
@@ -849,10 +928,17 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   // NEW STATE FOR ALL PATIENT HEALTH METRICS HISTORY (FOR CHARTS)
   const [allPatientHealthMetrics, setAllPatientHealthMetrics] = useState([]);
 
+  // NEW STATE FOR HEALTH METRICS LAST SUBMISSIONS (FOR DAYS SINCE SUBMISSION COLUMN)
+  const [healthMetricsSubmissions, setHealthMetricsSubmissions] = useState({});
+
+  // Calendar state for appointment scheduling
+  const [calendarDate, setCalendarDate] = useState(new Date());
+
   // Individual time period filters for each chart
   const [glucoseTimeFilter, setGlucoseTimeFilter] = useState('week'); // 'day', 'week', 'month'
   const [bpTimeFilter, setBpTimeFilter] = useState('week');
   const [riskTimeFilter, setRiskTimeFilter] = useState('week');
+  const [riskScoreTimeFilter, setRiskScoreTimeFilter] = useState('week');
 
   // Helper function to filter metrics by time period
   const filterMetricsByTimePeriod = React.useCallback((metrics, timePeriod) => {
@@ -919,14 +1005,20 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     [allPatientHealthMetrics, riskTimeFilter, filterMetricsByTimePeriod]
   );
 
+  const riskScoreFilteredMetrics = React.useMemo(() => 
+    filterMetricsByTimePeriod(allPatientHealthMetrics, riskScoreTimeFilter),
+    [allPatientHealthMetrics, riskScoreTimeFilter, filterMetricsByTimePeriod]
+  );
+
   // NEW STATE FOR PATIENT-SPECIFIC LAB RESULTS (ALL HISTORY)
   const [allPatientLabResultsHistory, setAllPatientLabResultsHistory] = useState([]);
 
 
   // NEW STATE FOR PATIENT-SPECIFIC LAB RESULTS AND APPOINTMENTS
   const [patientLabResults, setPatientLabResults] = useState({
-    hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
+    Hba1c: 'N/A', UCR: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
     cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
+    UREA: 'N/A', BUN: 'N/A', URIC: 'N/A', EGFR: 'N/A',
   });
   const [patientAppointments, setPatientAppointments] = useState([]);
 
@@ -1057,6 +1149,13 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     }
   }, [user]);
 
+  // Re-fetch appointments when the filter changes
+  useEffect(() => {
+    if (user && user.secretary_id) {
+      fetchAllAppointments();
+    }
+  }, [appointmentFilter]);
+
   // This useEffect will run when linkedDoctors changes, and then fetch patients and update counts
   useEffect(() => {
     if (linkedDoctors.length > 0 && user && user.secretary_id) {
@@ -1071,6 +1170,14 @@ const SecretaryDashboard = ({ user, onLogout }) => {
       setModerateRiskCount(0);
       setHighRiskCount(0);
       setPendingLabResultsCount(0);
+      // Reset compliance metrics
+      setFullComplianceCount(0);
+      setMissingLogsCount(0);
+      setNonCompliantCount(0);
+      // Reset compliance history
+      setFullComplianceHistory({ labels: [], data: [] });
+      setMissingLogsHistory({ labels: [], data: [] });
+      setNonCompliantHistory({ labels: [], data: [] });
     }
   }, [linkedDoctors, user]); // Dependencies ensure it runs when doctors are fetched
 
@@ -1425,7 +1532,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         // --- Fetch Latest Lab Results for text display ---
         const { data: labData, error: labError } = await supabase
           .from('patient_labs')
-          .select('date_submitted, Hba1c, creatinine, got_ast, gpt_alt, cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol')
+          .select('date_submitted, Hba1c, ucr, got_ast, gpt_alt, cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol, urea, bun, uric, egfr')
           .eq('patient_id', selectedPatientForDetail.patient_id)
           .order('date_submitted', { ascending: false })
           .limit(1);
@@ -1434,8 +1541,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
           console.error("Error fetching latest lab results:", labError);
           setLastLabDate('Error');
           setPatientLabResults({
-            hba1c: 'Error', creatinine: 'Error', gotAst: 'Error', gptAlt: 'Error',
+            Hba1c: 'Error', UCR: 'Error', gotAst: 'Error', gptAlt: 'Error',
             cholesterol: 'Error', triglycerides: 'Error', hdlCholesterol: 'Error', ldlCholesterol: 'Error',
+            UREA: 'Error', BUN: 'Error', URIC: 'Error', EGFR: 'Error',
           });
         } else if (labData && labData.length > 0) {
           const latestLab = labData[0];
@@ -1445,20 +1553,25 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
           const day = String(dateObj.getUTCDate()).padStart(2, '0');
           setLastLabDate(`${year}-${month}-${day}`);
           setPatientLabResults({
-            hba1c: latestLab.Hba1c || 'N/A',
-            creatinine: latestLab.creatinine || 'N/A',
+            Hba1c: latestLab.Hba1c || 'N/A',
+            UCR: latestLab.ucr || 'N/A',
             gotAst: latestLab.got_ast || 'N/A',
             gptAlt: latestLab.gpt_alt || 'N/A',
             cholesterol: latestLab.cholesterol || 'N/A',
             triglycerides: latestLab.triglycerides || 'N/A',
             hdlCholesterol: latestLab.hdl_cholesterol || 'N/A',
             ldlCholesterol: latestLab.ldl_cholesterol || 'N/A',
+            UREA: latestLab.urea || 'N/A',
+            BUN: latestLab.bun || 'N/A',
+            URIC: latestLab.uric || 'N/A',
+            EGFR: latestLab.egfr || 'N/A',
           });
         } else {
           setLastLabDate('N/A');
           setPatientLabResults({
-            hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
+            Hba1c: 'N/A', UCR: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
             cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
+            UREA: 'N/A', BUN: 'N/A', URIC: 'N/A', EGFR: 'N/A',
           });
         }
 
@@ -1508,7 +1621,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         // --- Fetch ALL Health Metrics for Charts and Table ---
         const { data: historyHealthData, error: historyHealthError } = await supabase
           .from('health_metrics')
-          .select('blood_glucose, bp_systolic, bp_diastolic, submission_date, risk_classification')
+          .select('blood_glucose, bp_systolic, bp_diastolic, submission_date, risk_classification, risk_score')
           .eq('patient_id', selectedPatientForDetail.patient_id)
           .order('submission_date', { ascending: true });
 
@@ -1570,8 +1683,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         // Reset all states if no patient selected
         setLastLabDate('N/A');
         setPatientLabResults({
-          hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
+          Hba1c: 'N/A', UCR: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
           cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
+          UREA: 'N/A', BUN: 'N/A', URIC: 'N/A', EGFR: 'N/A',
         });
         setAllPatientLabResultsHistory([]); // Reset all lab results history
         setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' });
@@ -1618,6 +1732,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       setModerateRiskCount(0);
       setHighRiskCount(0);
       setPendingLabResultsCount(0);
+      // Reset compliance metrics
+      setFullComplianceCount(0);
+      setMissingLogsCount(0);
+      setNonCompliantCount(0);
+      // Reset compliance history
+      setFullComplianceHistory({ labels: [], data: [] });
+      setMissingLogsHistory({ labels: [], data: [] });
+      setNonCompliantHistory({ labels: [], data: [] });
       return;
     }
   
@@ -1638,12 +1760,12 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
           // Fetch the latest lab results for each patient, including only date_submitted
           const { data: latestLabData, error: labError } = await supabase
             .from('patient_labs')
-            .select('Hba1c, creatinine, got_ast, gpt_alt, cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol, date_submitted')
+            .select('Hba1c, ucr, got_ast, gpt_alt, cholesterol, triglycerides, hdl_cholesterol, ldl_cholesterol, urea, bun, uric, egfr, date_submitted')
             .eq('patient_id', patient.patient_id)
             .order('date_submitted', { ascending: false })
             .limit(1);
 
-          let labStatus = 'Awaiting';
+          let labStatus = '❌Awaiting';
           let latestLabDate = null;
 
           if (labError) {
@@ -1714,7 +1836,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       }
   
       // Pending Lab Results (including N/A)
-      if (patient.lab_status === 'Awaiting' || patient.lab_status === 'N/A') {
+      if (patient.lab_status === '❌Awaiting' || patient.lab_status === 'N/A') {
         pendingLabs++;
       }
     });
@@ -1725,6 +1847,382 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setModerateRiskCount(moderateRisk);
     setHighRiskCount(highRisk);
     setPendingLabResultsCount(pendingLabs);
+
+    // Calculate compliance metrics with real data
+    calculateComplianceMetrics(filteredAndProcessedPatients);
+
+    // Calculate compliance history for charts
+    calculateComplianceHistory();
+
+    // Fetch health metrics last submissions for days since submission column
+    fetchHealthMetricsSubmissions();
+  };
+
+  // Function to fetch last health metrics submissions for each patient
+  const fetchHealthMetricsSubmissions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("health_metrics")
+        .select("patient_id, updated_at")
+        .order("updated_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching health metrics submissions:", error);
+        setMessage(`Error fetching health metrics: ${error.message}`);
+        return;
+      }
+
+      // Create a map to store the most recent updated_at timestamp for each patient
+      const lastSubmissions = new Map();
+      data.forEach((metric) => {
+        if (!lastSubmissions.has(metric.patient_id)) {
+          lastSubmissions.set(metric.patient_id, metric.updated_at);
+        }
+      });
+
+      // Convert the Map to an object for state
+      setHealthMetricsSubmissions(Object.fromEntries(lastSubmissions));
+    } catch (error) {
+      console.error("Error fetching health metrics submissions:", error);
+      setHealthMetricsSubmissions({});
+    }
+  };
+
+  // Function to calculate real compliance metrics
+  const calculateComplianceMetrics = async (patientsData) => {
+    if (!patientsData || patientsData.length === 0) {
+      setFullComplianceCount(0);
+      setMissingLogsCount(0);
+      setNonCompliantCount(0);
+      return;
+    }
+
+    let fullCompliance = 0;
+    let missingLogs = 0;
+    let nonCompliant = 0;
+
+    // For each patient, check ALL their metrics from all time
+    for (const patient of patientsData) {
+      try {
+        // Get ALL health metrics from all time (not just latest)
+        const { data: healthMetrics, error: healthError } = await supabase
+          .from('health_metrics')
+          .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url, risk_classification')
+          .eq('patient_id', patient.patient_id)
+          .order('submission_date', { ascending: false });
+
+        // Check if patient has EVER submitted each metric
+        let hasBloodGlucose = false;
+        let hasBloodPressure = false;
+        let hasWoundPhoto = false;
+        let riskClassification = '';
+
+        if (!healthError && healthMetrics && healthMetrics.length > 0) {
+          // Get latest risk classification
+          const latestRisk = healthMetrics.find(m => m.risk_classification);
+          riskClassification = latestRisk?.risk_classification || '';
+          
+          // Check across ALL metrics if any have the required data
+          healthMetrics.forEach(metric => {
+            if (!hasBloodGlucose && metric.blood_glucose !== null && metric.blood_glucose !== undefined && metric.blood_glucose !== '') {
+              hasBloodGlucose = true;
+            }
+            if (!hasBloodPressure && ((metric.bp_systolic !== null && metric.bp_systolic !== undefined && metric.bp_systolic !== '') ||
+                                     (metric.bp_diastolic !== null && metric.bp_diastolic !== undefined && metric.bp_diastolic !== ''))) {
+              hasBloodPressure = true;
+            }
+            if (!hasWoundPhoto && metric.wound_photo_url !== null && metric.wound_photo_url !== undefined && metric.wound_photo_url !== '') {
+              hasWoundPhoto = true;
+            }
+          });
+        }
+
+        // Count submitted metrics
+        const submittedMetrics = [hasBloodGlucose, hasBloodPressure, hasWoundPhoto].filter(Boolean).length;
+        const isHighRisk = riskClassification.toLowerCase() === 'high';
+        
+        // Categorize patient based on logic:
+        if (submittedMetrics === 3) {
+          // All 3 metrics submitted = Full Compliance
+          fullCompliance++;
+        } else if (submittedMetrics < 3) {
+          // Less than 3 metrics submitted = at least 1 missing
+          if (submittedMetrics > 0 || !isHighRisk) {
+            // Has some metrics OR not high risk = Missing Logs
+            missingLogs++;
+          } else if (submittedMetrics === 0 && isHighRisk) {
+            // High risk + all 3 missing = Non-Compliant
+            nonCompliant++;
+          }
+        }
+
+      } catch (error) {
+        console.error(`Error checking metrics for patient ${patient.patient_id}:`, error);
+        // On error, count as missing logs
+        missingLogs++;
+      }
+    }
+
+    console.log('Compliance Metrics Calculated:', {
+      totalPatients: patientsData.length,
+      fullCompliance,
+      missingLogs,
+      nonCompliant
+    });
+
+    setFullComplianceCount(fullCompliance);
+    setMissingLogsCount(missingLogs);
+    setNonCompliantCount(nonCompliant);
+  };
+
+  // Function to get filtered patients for each report widget category
+  const getFilteredPatientsForWidget = async (widgetType) => {
+    if (!patients || patients.length === 0) {
+      return [];
+    }
+
+    let filteredPatients = [];
+
+    for (const patient of patients) {
+      try {
+        // Get ALL health metrics from all time for compliance check
+        const { data: healthMetrics, error: healthError } = await supabase
+          .from('health_metrics')
+          .select('blood_glucose, bp_systolic, bp_diastolic, wound_photo_url')
+          .eq('patient_id', patient.patient_id)
+          .order('submission_date', { ascending: false });
+
+        // Check if patient has EVER submitted each metric
+        let hasBloodGlucose = false;
+        let hasBloodPressure = false;
+        let hasWoundPhoto = false;
+
+        if (!healthError && healthMetrics && healthMetrics.length > 0) {
+          // Check across ALL metrics if any have the required data
+          healthMetrics.forEach(metric => {
+            if (!hasBloodGlucose && metric.blood_glucose !== null && metric.blood_glucose !== undefined && metric.blood_glucose !== '') {
+              hasBloodGlucose = true;
+            }
+            if (!hasBloodPressure && ((metric.bp_systolic !== null && metric.bp_systolic !== undefined && metric.bp_systolic !== '') ||
+                                     (metric.bp_diastolic !== null && metric.bp_diastolic !== undefined && metric.bp_diastolic !== ''))) {
+              hasBloodPressure = true;
+            }
+            if (!hasWoundPhoto && metric.wound_photo_url !== null && metric.wound_photo_url !== undefined && metric.wound_photo_url !== '') {
+              hasWoundPhoto = true;
+            }
+          });
+        }
+
+        // Count submitted metrics
+        const submittedMetrics = [hasBloodGlucose, hasBloodPressure, hasWoundPhoto].filter(Boolean).length;
+        const isHighRisk = (patient.risk_classification || '').toLowerCase() === 'high';
+
+        // Filter based on widget type
+        switch (widgetType) {
+          case 'total-patients':
+            // All patients
+            filteredPatients.push(patient);
+            break;
+          case 'full-compliance':
+            // Patients with all 3 metrics ever submitted
+            if (submittedMetrics === 3) {
+              filteredPatients.push(patient);
+            }
+            break;
+          case 'missing-logs':
+            // Patients with at least 1 missing metric (not full compliance)
+            // This includes: patients with 1-2 metrics submitted, OR non-high-risk patients with 0 metrics
+            if (submittedMetrics < 3) {
+              if (submittedMetrics > 0 || !isHighRisk) {
+                filteredPatients.push(patient);
+              }
+            }
+            break;
+          case 'non-compliant':
+            // High risk patients with 0 metrics ever submitted
+            if (submittedMetrics === 0 && isHighRisk) {
+              filteredPatients.push(patient);
+            }
+            break;
+        }
+
+      } catch (error) {
+        console.error(`Error filtering patient ${patient.patient_id}:`, error);
+        // On error, include in missing logs for safety
+        if (widgetType === 'missing-logs' || widgetType === 'total-patients') {
+          filteredPatients.push(patient);
+        }
+      }
+    }
+
+    return filteredPatients;
+  };
+
+  // Function to calculate compliance history over the past 6 months
+  const calculateComplianceHistory = async () => {
+    const doctorIds = linkedDoctors.map(d => d.doctor_id);
+    if (doctorIds.length === 0) {
+      setFullComplianceHistory({ labels: [], data: [] });
+      setMissingLogsHistory({ labels: [], data: [] });
+      setNonCompliantHistory({ labels: [], data: [] });
+      return;
+    }
+
+    try {
+      const now = new Date();
+      const months = [];
+      const fullComplianceData = [];
+      const missingLogsData = [];
+      const nonCompliantData = [];
+      
+      console.log('Starting compliance history calculation...');
+
+      // Calculate for the past 6 months
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date();
+        date.setMonth(now.getMonth() - i);
+        const monthYear = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        months.push(monthYear);
+        
+        // Calculate start and end of this specific month for filtering
+        const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        endOfMonth.setHours(23, 59, 59, 999);
+
+        console.log(`Processing month: ${monthYear} (${startOfMonth.toISOString()} to ${endOfMonth.toISOString()})`);
+
+        // Get patients registered in this specific month only
+        const { data: monthPatientsData, error: patientsError } = await supabase
+          .from('patients')
+          .select('patient_id')
+          .in('preferred_doctor_id', doctorIds)
+          .gte('created_at', startOfMonth.toISOString())
+          .lte('created_at', endOfMonth.toISOString());
+
+        if (patientsError) {
+          console.error(`Error fetching patients for month ${monthYear}:`, patientsError);
+          fullComplianceData.push(0);
+          missingLogsData.push(0);
+          nonCompliantData.push(0);
+          continue;
+        }
+
+        if (!monthPatientsData || monthPatientsData.length === 0) {
+          console.log(`No patients found for month ${monthYear}`);
+          fullComplianceData.push(0);
+          missingLogsData.push(0);
+          nonCompliantData.push(0);
+          continue;
+        }
+
+        console.log(`Found ${monthPatientsData.length} patients for month ${monthYear}`);
+
+        // Get ALL health metrics for these patients from ALL TIME (not limited by month)
+        const patientIds = monthPatientsData.map(p => p.patient_id);
+        const { data: allHealthMetrics, error: healthError } = await supabase
+          .from('health_metrics')
+          .select('patient_id, blood_glucose, bp_systolic, bp_diastolic, wound_photo_url, risk_classification, submission_date')
+          .in('patient_id', patientIds)
+          .order('submission_date', { ascending: false });
+
+        if (healthError) {
+          console.error(`Error fetching health metrics for month ${monthYear}:`, healthError);
+          fullComplianceData.push(0);
+          missingLogsData.push(0);
+          nonCompliantData.push(0);
+          continue;
+        }
+
+        // Group ALL health metrics by patient (not just latest)
+        const metricsByPatient = {};
+        if (allHealthMetrics) {
+          allHealthMetrics.forEach(metric => {
+            if (!metricsByPatient[metric.patient_id]) {
+              metricsByPatient[metric.patient_id] = [];
+            }
+            metricsByPatient[metric.patient_id].push(metric);
+          });
+        }
+
+        let monthFullCompliance = 0;
+        let monthMissingLogs = 0;
+        let monthNonCompliant = 0;
+
+        // Check compliance for each patient based on ALL TIME data
+        for (const patient of monthPatientsData) {
+          const patientMetrics = metricsByPatient[patient.patient_id] || [];
+          
+          // Check if patient has EVER submitted each metric
+          let hasBloodGlucose = false;
+          let hasBloodPressure = false;
+          let hasWoundPhoto = false;
+          let riskClassification = '';
+
+          if (patientMetrics.length > 0) {
+            // Get latest risk classification
+            const latestRisk = patientMetrics.find(m => m.risk_classification);
+            riskClassification = latestRisk?.risk_classification || '';
+            
+            // Check across ALL metrics if any have the required data
+            patientMetrics.forEach(metric => {
+              if (!hasBloodGlucose && metric.blood_glucose !== null && metric.blood_glucose !== undefined && metric.blood_glucose !== '') {
+                hasBloodGlucose = true;
+              }
+              if (!hasBloodPressure && ((metric.bp_systolic !== null && metric.bp_systolic !== undefined && metric.bp_systolic !== '') ||
+                                       (metric.bp_diastolic !== null && metric.bp_diastolic !== undefined && metric.bp_diastolic !== ''))) {
+                hasBloodPressure = true;
+              }
+              if (!hasWoundPhoto && metric.wound_photo_url !== null && metric.wound_photo_url !== undefined && metric.wound_photo_url !== '') {
+                hasWoundPhoto = true;
+              }
+            });
+          }
+
+          // Count submitted metrics
+          const submittedMetrics = [hasBloodGlucose, hasBloodPressure, hasWoundPhoto].filter(Boolean).length;
+          const isHighRisk = riskClassification.toLowerCase() === 'high';
+
+          // Categorize patient for this month using the same logic
+          if (submittedMetrics === 3) {
+            // All 3 metrics submitted = Full Compliance
+            monthFullCompliance++;
+          } else if (submittedMetrics < 3) {
+            // Less than 3 metrics submitted = at least 1 missing
+            if (submittedMetrics > 0 || !isHighRisk) {
+              // Has some metrics OR not high risk = Missing Logs
+              monthMissingLogs++;
+            } else if (submittedMetrics === 0 && isHighRisk) {
+              // High risk + all 3 missing = Non-Compliant
+              monthNonCompliant++;
+            }
+          }
+        }
+
+        console.log(`Month ${monthYear} results: Full Compliance: ${monthFullCompliance}, Missing Logs: ${monthMissingLogs}, Non-Compliant: ${monthNonCompliant}`);
+
+        fullComplianceData.push(monthFullCompliance);
+        missingLogsData.push(monthMissingLogs);
+        nonCompliantData.push(monthNonCompliant);
+      }
+
+      setFullComplianceHistory({ labels: months, data: fullComplianceData });
+      setMissingLogsHistory({ labels: months, data: missingLogsData });
+      setNonCompliantHistory({ labels: months, data: nonCompliantData });
+
+      console.log('Compliance History Calculated:', {
+        months,
+        fullCompliance: fullComplianceData,
+        missingLogs: missingLogsData,
+        nonCompliant: nonCompliantData
+      });
+
+    } catch (error) {
+      console.error("Error calculating compliance history:", error);
+      setFullComplianceHistory({ labels: [], data: [] });
+      setMissingLogsHistory({ labels: [], data: [] });
+      setNonCompliantHistory({ labels: [], data: [] });
+    }
   };
 
  const fetchAllAppointments = async () => {
@@ -1734,13 +2232,24 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Start of today in local time
   
-  // Expand the search range to include appointments that might appear as different dates due to UTC storage
-  const startDate = new Date(today);
-  startDate.setDate(startDate.getDate() - 1); // Start from yesterday
-  const endDate = new Date(today);
-  endDate.setDate(endDate.getDate() + 2); // Go to day after tomorrow
+  // Determine date range based on filter
+  let startDate, endDate;
+  
+  if (appointmentFilter === 'today') {
+    // For today: expand the search range to include appointments that might appear as different dates due to UTC storage
+    startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - 1); // Start from yesterday
+    endDate = new Date(today);
+    endDate.setDate(endDate.getDate() + 2); // Go to day after tomorrow
+  } else {
+    // For upcoming: from today onwards
+    startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - 1); // Include today with buffer
+    endDate = new Date(today);
+    endDate.setDate(endDate.getDate() + 90); // Next 90 days
+  }
 
-  console.log("Fetching appointments in expanded range:", startDate.toISOString(), "to", endDate.toISOString());
+  console.log("Fetching appointments in range:", startDate.toISOString(), "to", endDate.toISOString());
 
   const { data, error } = await supabase
     .from("appointments")
@@ -1766,28 +2275,36 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     console.error("Error fetching appointments:", error);
     setMessage(`Error fetching appointments: ${error.message}`);
   } else {
-    // Filter to only show appointments that are actually "today" when we extract the date
     const todayDateString = today.toLocaleDateString('en-CA'); // YYYY-MM-DD format
     
-    const todaysAppointments = data.filter(app => {
+    // Filter based on selected filter option
+    const filteredAppointments = data.filter(app => {
       const state = (app.appointment_state || '').toLowerCase();
       const isActive = state !== 'finished' && state !== 'done' && state !== 'cancelled';
       
-      // Extract the date part from the stored datetime and compare with today
+      // Extract the date part from the stored datetime
       const appointmentDateString = app.appointment_datetime.substring(0, 10); // Gets YYYY-MM-DD
-      const isToday = appointmentDateString === todayDateString;
       
-      console.log("Checking appointment:", app.appointment_id, "Date:", appointmentDateString, "Today:", todayDateString, "IsToday:", isToday, "IsActive:", isActive);
-      
-      return isActive && isToday;
+      if (appointmentFilter === 'today') {
+        const isToday = appointmentDateString === todayDateString;
+        console.log("Checking appointment:", app.appointment_id, "Date:", appointmentDateString, "Today:", todayDateString, "IsToday:", isToday, "IsActive:", isActive);
+        return isActive && isToday;
+      } else {
+        // For upcoming: include today and future dates
+        const appointmentDate = new Date(appointmentDateString);
+        appointmentDate.setHours(0, 0, 0, 0);
+        const isUpcoming = appointmentDate >= today;
+        console.log("Checking appointment:", app.appointment_id, "Date:", appointmentDateString, "IsUpcoming:", isUpcoming, "IsActive:", isActive);
+        return isActive && isUpcoming;
+      }
     });
 
-    console.log("Filtered appointments for today:", todaysAppointments);
+    console.log("Filtered appointments:", filteredAppointments);
 
-    const processedAppointments = todaysAppointments.map(app => {
+    const processedAppointments = filteredAppointments.map(app => {
       // Extract time directly from the ISO string (HH:MM format)
-      // Since we stored it as UTC, we just extract the time part
       const timeString = app.appointment_datetime.substring(11, 16); // Gets HH:MM
+      const dateString = app.appointment_datetime.substring(0, 10); // Gets YYYY-MM-DD
       
       console.log("Processing appointment:", app.appointment_id, "Raw datetime:", app.appointment_datetime, "Extracted time:", timeString);
       
@@ -1796,11 +2313,50 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         patient_name: app.patients ? `${app.patients.first_name} ${app.patients.last_name}` : 'Unknown Patient',
         doctor_name: app.doctors ? `${app.doctors.first_name} ${app.doctors.last_name}` : 'Unknown Doctor',
         timeDisplay: formatTimeTo12Hour(timeString),
+        dateDisplay: formatDateToReadable(dateString),
       };
     });
 
-    console.log("Final processed appointments for today table:", processedAppointments);
+    console.log("Final processed appointments:", processedAppointments);
     setAppointmentsToday(processedAppointments);
+    
+    // Fetch ALL appointments for calendar (not limited by date range filter)
+    const { data: allApptsData, error: allApptsError } = await supabase
+      .from("appointments")
+      .select(`
+        appointment_id,
+        appointment_datetime,
+        appointment_state,
+        notes,
+        patient_id,
+        doctor_id,
+        patients (first_name, last_name),
+        doctors (first_name, last_name)
+      `)
+      .eq("secretary_id", user.secretary_id)
+      .order("appointment_datetime", { ascending: true });
+
+    if (!allApptsError && allApptsData) {
+      // Filter only by active status, not by date
+      const allActiveAppointments = allApptsData
+        .filter(app => {
+          const state = (app.appointment_state || '').toLowerCase();
+          return state !== 'finished' && state !== 'done' && state !== 'cancelled';
+        })
+        .map(app => {
+          const timeString = app.appointment_datetime.substring(11, 16);
+          const dateString = app.appointment_datetime.substring(0, 10);
+          return {
+            ...app,
+            patient_name: app.patients ? `${app.patients.first_name} ${app.patients.last_name}` : 'Unknown Patient',
+            doctor_name: app.doctors ? `${app.doctors.first_name} ${app.doctors.last_name}` : 'Unknown Doctor',
+            timeDisplay: formatTimeTo12Hour(timeString),
+            dateDisplay: formatDateToReadable(dateString),
+          };
+        });
+      setAllAppointments(allActiveAppointments);
+      console.log("Calendar appointments set (all active):", allActiveAppointments.length);
+    }
   }
 };
 
@@ -1865,6 +2421,19 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
   };
 
   const savePatient = async () => {
+    // Check for duplicate email before saving
+    const { data: existingPatient, error: emailCheckError } = await supabase
+      .from("patients")
+      .select("patient_id, email")
+      .eq("email", patientForm.email)
+      .single();
+
+    // If we found a patient with this email and it's not the one we're editing
+    if (existingPatient && (!editingPatientId || existingPatient.patient_id !== editingPatientId)) {
+      setMessage(`Error: A patient with email "${patientForm.email}" already exists. Please use a different email address.`);
+      return;
+    }
+
     const patientData = {
         first_name: patientForm.firstName,
         last_name: patientForm.lastName,
@@ -1879,6 +2448,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         emergency_contact: patientForm.emergencyContactNumber,
         diabetes_type: patientForm.diabetesType,
         allergies: patientForm.allergies,
+        diabetes_duration: patientForm.diabetes_duration,
         medication: JSON.stringify(medications), // Store medications as a JSON string
         complication_history: [
           patientForm.footUlcersAmputation && "Foot Ulcers/Amputation",
@@ -1887,6 +2457,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
           patientForm.stroke && "Stroke",
           patientForm.heartAttack && "Heart Attack",
           patientForm.hypertensive && "Hypertensive",
+          patientForm.family_diabetes && "Family Diabetes",
+          patientForm.family_hypertension && "Family Hypertension",
+          patientForm.cardiovascular && "Cardiovascular",
         ].filter(Boolean).join(", ") || null,
         smoking_status: patientForm.smokingStatus,
         monitoring_frequency: patientForm.monitoringFrequencyGlucose,
@@ -1989,7 +2562,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       // Reset form and navigate after confirmed action, so it's ready for a new entry
       setPatientForm({
         firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", contactInfo: "",
-        middleName: "", gender: "", address: "", emergencyContactNumber: "", diabetesType: "", allergies: "",
+        middleName: "", gender: "", address: "", emergencyContactNumber: "", diabetesType: "", allergies: "", diabetes_duration: "",
         footUlcersAmputation: false, eyeIssues: false, kidneyIssues: false, stroke: false,
         heartAttack: false, hypertensive: false, smokingStatus: "", monitoringFrequencyGlucose: "", lastDoctorVisit: "",
         lastEyeExam: "", preparedBy: "", patientHeight: "", patientWeight: "", bmi: ""
@@ -2016,6 +2589,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       emergencyContactNumber: patient.emergency_contact || "",
       diabetesType: patient.diabetes_type || "",
       allergies: patient.allergies || "",
+      diabetes_duration: patient.diabetes_duration || "",
       footUlcersAmputation: patient.complication_history?.includes("Foot Ulcers/Amputation") || false,
       eyeIssues: patient.complication_history?.includes("Eye Issues") || false,
       kidneyIssues: patient.complication_history?.includes("Kidney Issues") || false,
@@ -2299,6 +2873,50 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setActivePage("appointments"); // Navigate to the appointment scheduling page
   };
 
+  // Handler for "Flag" button in missing logs table
+  const handleFlagPatient = async (patient) => {
+    try {
+      setMessage("Sending notifications...");
+      
+      // Send notification to patient - using 'patient' type instead of 'compliance'
+      const patientNotificationSuccess = await sendNotification(
+        patient.patient_id,
+        'patient',
+        'Missing Health Metrics Submission',
+        'You have missing health metrics that need to be submitted. Please log your blood pressure, blood glucose, and wound photos as required for your treatment plan.',
+        'patient'
+      );
+
+      // Send notification to preferred doctor if patient has one - using 'patient' type
+      let doctorNotificationSuccess = true;
+      if (patient.preferred_doctor_id) {
+        doctorNotificationSuccess = await sendNotification(
+          patient.preferred_doctor_id,
+          'doctor',
+          'Patient Flagged for Missing Metrics',
+          `Patient ${patient.first_name} ${patient.last_name} has been flagged for missing health metrics submissions. They have been notified to submit their required data.`,
+          'patient'
+        );
+      }
+
+      // Note: Audit logging removed temporarily to avoid constraint violations
+
+      if (patientNotificationSuccess && doctorNotificationSuccess) {
+        setMessage(`✅ Notifications sent successfully to ${patient.first_name} ${patient.last_name} and their doctor.`);
+      } else {
+        setMessage(`⚠️ Some notifications may have failed to send. Please try again.`);
+      }
+
+      // Clear the message after 5 seconds
+      setTimeout(() => setMessage(""), 5000);
+
+    } catch (error) {
+      console.error('Error flagging patient:', error);
+      setMessage(`❌ Error sending notifications: ${error.message}`);
+      setTimeout(() => setMessage(""), 5000);
+    }
+  };
+
 
   const filteredPatients = patients.filter((pat) => {
     const nameMatch = `${pat.first_name} ${pat.last_name}`.toLowerCase().includes(searchTerm.toLowerCase());
@@ -2314,9 +2932,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     let labStatusMatch = true;
     if (selectedLabStatusFilter !== 'all') {
       if (selectedLabStatusFilter === 'awaiting') {
-        labStatusMatch = pat.lab_status === 'Awaiting';
+        labStatusMatch = pat.lab_status === '❌Awaiting';
       } else if (selectedLabStatusFilter === 'submitted') {
-        labStatusMatch = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
+        labStatusMatch = pat.lab_status === '✅Submitted';
       }
     }
     
@@ -2348,9 +2966,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     let labStatusMatch = true;
     if (selectedLabEntryLabStatusFilter !== 'all') {
       if (selectedLabEntryLabStatusFilter === 'awaiting') {
-        labStatusMatch = pat.lab_status === 'Awaiting';
+        labStatusMatch = pat.lab_status === '❌Awaiting';
       } else if (selectedLabEntryLabStatusFilter === 'submitted') {
-        labStatusMatch = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
+        labStatusMatch = pat.lab_status === '✅Submitted';
       }
     }
     
@@ -2381,10 +2999,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     const paginatedLabSearchPatients = filteredLabSearchPatients.slice(startIndexLabSearchPatient, endIndexLabSearchPatient);
 
     // Health Metrics pagination calculations
-    const totalHealthMetricsPages = Math.ceil(allPatientHealthMetrics.length / HEALTH_METRICS_PER_PAGE);
+    const sortedHealthMetrics = [...allPatientHealthMetrics].sort((a, b) => new Date(b.submission_date) - new Date(a.submission_date));
+    const totalHealthMetricsPages = Math.ceil(sortedHealthMetrics.length / HEALTH_METRICS_PER_PAGE);
     const startIndexHealthMetrics = (currentPageHealthMetrics - 1) * HEALTH_METRICS_PER_PAGE;
     const endIndexHealthMetrics = startIndexHealthMetrics + HEALTH_METRICS_PER_PAGE;
-    const paginatedHealthMetrics = allPatientHealthMetrics.slice(startIndexHealthMetrics, endIndexHealthMetrics);
+    const paginatedHealthMetrics = sortedHealthMetrics.slice(startIndexHealthMetrics, endIndexHealthMetrics);
     
   // Risk filter handlers
   const handleRiskFilterChange = (riskLevel) => {
@@ -2419,6 +3038,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setCurrentPageLabSearchPatients(1); // Reset to first page when filter changes
   };
 
+  // Sort order handlers
+  const handleSortOrderChange = (order) => {
+    setSortOrder(order);
+    setCurrentPagePatients(1); // Reset to first page when sort order changes
+  };
+
+  const handleLabEntrySortOrderChange = (order) => {
+    setLabEntrySortOrder(order);
+    setCurrentPageLabSearchPatients(1); // Reset to first page when sort order changes
+  };
+
   // Calculate risk counts for filter buttons
   const calculateRiskCounts = (patientList) => {
     const searchFilteredPatients = patientList.filter((pat) =>
@@ -2442,8 +3072,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     
     return {
       all: searchFilteredPatients.length,
-      awaiting: searchFilteredPatients.filter(pat => pat.lab_status === 'Awaiting').length,
-      submitted: searchFilteredPatients.filter(pat => pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted').length
+      awaiting: searchFilteredPatients.filter(pat => pat.lab_status === '❌Awaiting').length,
+      submitted: searchFilteredPatients.filter(pat => pat.lab_status === '✅Submitted').length
     };
   };
 
@@ -2496,6 +3126,199 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setSelectedPhoto(null);
   };
 
+  // Function to fetch and display saved analysis for a specific wound photo
+  const handleViewWoundAnalysis = async (photo) => {
+    setIsLoadingAnalysis(true);
+    setAnalysisError(null);
+    setSelectedWoundPhotoForAnalysis(photo);
+    setShowAnalysisModal(true);
+
+    try {
+      console.log('Fetching analysis for photo:', photo.url);
+      console.log('Patient ID:', selectedPatientForDetail.patient_id);
+      
+      // Fetch the health metric associated with this wound photo including treatment plan
+      const { data: healthMetric, error: metricError } = await supabase
+        .from('health_metrics')
+        .select('wound_photo_grad_url, wound_photo_mask_url, risk_classification, wound_diagnosis, wound_care, wound_dressing, wound_medication, "wound_follow-up", "wound_important-notes"')
+        .eq('patient_id', selectedPatientForDetail.patient_id)
+        .eq('wound_photo_url', photo.url)
+        .order('submission_date', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (metricError) {
+        console.error('Error fetching analysis:', metricError);
+        console.error('Error code:', metricError.code);
+        console.error('Error message:', metricError.message);
+        console.error('Error details:', metricError.details);
+        
+        // If no rows found, show a more specific message
+        if (metricError.code === 'PGRST116') {
+          setAnalysisError('No analysis found for this wound photo. The doctor may not have submitted analysis results yet.');
+        } else {
+          setAnalysisError(`Error loading analysis: ${metricError.message}`);
+        }
+        setAnalysisResults(null);
+        setIsLoadingAnalysis(false);
+        return;
+      }
+
+      if (!healthMetric || !healthMetric.wound_photo_grad_url || !healthMetric.wound_photo_mask_url) {
+        setAnalysisError('No saved analysis found for this wound photo.');
+        setAnalysisResults(null);
+        setIsLoadingAnalysis(false);
+        return;
+      }
+
+      // Set the analysis results with the saved URLs and treatment plan
+      setAnalysisResults({
+        gradcam: healthMetric.wound_photo_grad_url,
+        segmentation: healthMetric.wound_photo_mask_url,
+        className: healthMetric.risk_classification || 'Unknown',
+        originalImage: photo.url,
+        treatmentPlan: {
+          diagnosis: healthMetric.wound_diagnosis || 'N/A',
+          care: healthMetric.wound_care || 'N/A',
+          dressing: healthMetric.wound_dressing || 'N/A',
+          medication: healthMetric.wound_medication || 'N/A',
+          followUp: healthMetric['wound_follow-up'] || 'N/A',
+          importantNotes: healthMetric['wound_important-notes'] || 'N/A'
+        }
+      });
+
+    } catch (error) {
+      console.error('Error fetching wound analysis:', error);
+      setAnalysisError('Failed to load analysis. Please try again.');
+      setAnalysisResults(null);
+    } finally {
+      setIsLoadingAnalysis(false);
+    }
+  };
+
+  // Function to close the analysis modal
+  const handleCloseAnalysisModal = () => {
+    setShowAnalysisModal(false);
+    setAnalysisResults(null);
+    setAnalysisError(null);
+    setSelectedWoundPhotoForAnalysis(null);
+  };
+
+  // Function to open demographics edit modal
+  const handleOpenDemographicsEdit = () => {
+    if (selectedPatientForDetail) {
+      setDemographicsForm({
+        firstName: selectedPatientForDetail.first_name || "",
+        lastName: selectedPatientForDetail.last_name || "",
+        dateOfBirth: selectedPatientForDetail.date_of_birth || "",
+        gender: selectedPatientForDetail.gender || "",
+        contactInfo: selectedPatientForDetail.contact_info || "",
+        address: selectedPatientForDetail.address || "",
+        emergencyContactNumber: selectedPatientForDetail.emergency_contact || "",
+        password: selectedPatientForDetail.password || "",
+        patientHeight: selectedPatientForDetail.patient_height || "",
+        patientWeight: selectedPatientForDetail.patient_weight || "",
+        bmi: selectedPatientForDetail.BMI || ""
+      });
+      setShowDemographicsEditModal(true);
+    }
+  };
+
+  // Function to close demographics edit modal
+  const handleCloseDemographicsEdit = () => {
+    setShowDemographicsEditModal(false);
+    setDemographicsForm({
+      firstName: "",
+      lastName: "",
+      dateOfBirth: "",
+      gender: "",
+      contactInfo: "",
+      address: "",
+      emergencyContactNumber: "",
+      password: "",
+      patientHeight: "",
+      patientWeight: "",
+      bmi: ""
+    });
+  };
+
+  // Function to handle demographics form input changes
+  const handleDemographicsInputChange = (field, value) => {
+    setDemographicsForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Function to save demographics changes
+  const handleSaveDemographics = async () => {
+    if (!selectedPatientForDetail) {
+      setMessage("No patient selected.");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('patients')
+        .update({
+          first_name: demographicsForm.firstName,
+          last_name: demographicsForm.lastName,
+          date_of_birth: demographicsForm.dateOfBirth,
+          gender: demographicsForm.gender,
+          contact_info: demographicsForm.contactInfo,
+          address: demographicsForm.address,
+          emergency_contact: demographicsForm.emergencyContactNumber,
+          password: demographicsForm.password,
+          patient_height: demographicsForm.patientHeight || null,
+          patient_weight: demographicsForm.patientWeight || null,
+          BMI: demographicsForm.bmi || null
+        })
+        .eq('patient_id', selectedPatientForDetail.patient_id);
+
+      if (error) {
+        console.error("Error updating patient demographics:", error);
+        setMessage(`Error: ${error.message}`);
+        return;
+      }
+
+      setMessage("Patient demographics updated successfully!");
+      
+      // Update the selected patient detail with new data
+      setSelectedPatientForDetail(prev => ({
+        ...prev,
+        first_name: demographicsForm.firstName,
+        last_name: demographicsForm.lastName,
+        date_of_birth: demographicsForm.dateOfBirth,
+        gender: demographicsForm.gender,
+        contact_info: demographicsForm.contactInfo,
+        address: demographicsForm.address,
+        emergency_contact: demographicsForm.emergencyContactNumber,
+        password: demographicsForm.password,
+        patient_height: demographicsForm.patientHeight,
+        patient_weight: demographicsForm.patientWeight,
+        BMI: demographicsForm.bmi
+      }));
+
+      // Refresh the patients list
+      await fetchPatients();
+
+      // Close the modal
+      handleCloseDemographicsEdit();
+
+      // Log the update
+      await logSystemAction(
+        'secretary',
+        user.secretary_id,
+        `${user.first_name} ${user.last_name}`,
+        'patient_update',
+        'update',
+        `Updated demographics for patient: ${demographicsForm.firstName} ${demographicsForm.lastName}`,
+        'Secretary Dashboard - Patient Demographics Update'
+      );
+
+    } catch (error) {
+      console.error("Error saving demographics:", error);
+      setMessage(`Error: ${error.message}`);
+    }
+  };
+
 // ... rest of the component's functions and return statement ...
 
   // New function to handle viewing lab details
@@ -2513,8 +3336,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     setCurrentPageHealthMetrics(1); // Reset health metrics pagination
     setLastLabDate('N/A'); // Reset last lab date
     setPatientLabResults({ // Reset lab results when closing
-      hba1c: 'N/A', creatinine: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
+      Hba1c: 'N/A', UCR: 'N/A', gotAst: 'N/A', gptAlt: 'N/A',
       cholesterol: 'N/A', triglycerides: 'N/A', hdlCholesterol: 'N/A', ldlCholesterol: 'N/A',
+      UREA: 'N/A', BUN: 'N/A', URIC: 'N/A', EGFR: 'N/A',
     });
     setAllPatientLabResultsHistory([]); // Reset all lab results history
     setPatientHealthMetrics({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' }); // Reset health metrics
@@ -2602,50 +3426,43 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     }
 
     try {
-      // Check if this specialist is already assigned to this patient
-      const { data: existingAssignment } = await supabase
-        .from("patient_specialists")
-        .select("id")
-        .eq("patient_id", patientForSpecialistAssignment.patient_id)
-        .eq("doctor_id", selectedSpecialistId)
-        .single();
+      // Get the selected doctor's information
+      const selectedDoctor = availableSpecialists.find(doc => doc.doctor_id === selectedSpecialistId);
 
-      if (existingAssignment) {
-        setMessage("This specialist is already assigned to this patient.");
-        return;
-      }
-
-      // Insert new specialist assignment
-      const { error } = await supabase
-        .from("patient_specialists")
+      // Send notification to the doctor for confirmation (don't add to database yet)
+      // Store necessary data in the message with special format: PATIENT_ID|PATIENT_NAME|SECRETARY_ID|SECRETARY_NAME
+      const notificationData = `${patientForSpecialistAssignment.patient_id}|${patientForSpecialistAssignment.first_name} ${patientForSpecialistAssignment.last_name}|${user.secretary_id}|${user.first_name} ${user.last_name}`;
+      
+      const { error: notifError } = await supabase
+        .from("notifications")
         .insert([
           {
-            patient_id: patientForSpecialistAssignment.patient_id,
-            doctor_id: selectedSpecialistId,
-            specialization: null // Will use doctor's specialization from doctors table
+            user_id: selectedSpecialistId,
+            user_role: 'doctor',
+            type: 'patient',
+            title: 'New Patient Assignment Request',
+            message: `ASSIGNMENT_REQUEST:${notificationData}`,
+            is_read: false
           }
         ]);
 
-      if (error) {
-        console.error("Error assigning specialist:", error);
-        setMessage(`Error assigning specialist: ${error.message}`);
+      if (notifError) {
+        console.error("Error sending notification:", notifError);
+        setMessage(`Error sending notification: ${notifError.message}`);
         return;
       }
 
-      setMessage("Specialist assigned successfully!");
+      setMessage(`Assignment request sent to ${selectedDoctor?.first_name} ${selectedDoctor?.last_name}. Waiting for confirmation.`);
       setSelectedSpecialistId("");
       
-      // Refresh the current patient specialists list
-      fetchPatientSpecialists(patientForSpecialistAssignment.patient_id);
-      
-      // Log the assignment
+      // Log the assignment request
       await logSystemAction(
         'secretary',
         user.secretary_id,
         `${user.first_name} ${user.last_name}`,
         'specialist_assignment',
-        'assign',
-        `Assigned specialist to patient: ${patientForSpecialistAssignment.first_name} ${patientForSpecialistAssignment.last_name}`,
+        'request',
+        `Requested specialist assignment for patient: ${patientForSpecialistAssignment.first_name} ${patientForSpecialistAssignment.last_name} to doctor: ${selectedDoctor?.first_name} ${selectedDoctor?.last_name}`,
         'Secretary Dashboard - Specialist Assignment'
       );
 
@@ -2727,14 +3544,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
     // Validate if required fields have values before parsing
     if (!labResults.dateSubmitted ||
-        labResults.hba1c === "" ||
-        labResults.creatinine === "" ||
+        labResults.Hba1c === "" ||
+        labResults.UCR === "" ||
         labResults.gotAst === "" ||
         labResults.gptAlt === "" ||
         labResults.cholesterol === "" ||
         labResults.triglycerides === "" ||
         labResults.hdlCholesterol === "" ||
-        labResults.ldlCholesterol === "") {
+        labResults.ldlCholesterol === "" ||
+        labResults.UREA === "" ||
+        labResults.BUN === "" ||
+        labResults.URIC === "" ||
+        labResults.EGFR === "") {
         setMessage("Please fill in all lab result fields.");
         return;
     }
@@ -2744,14 +3565,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       patient_id: labResults.selectedPatientForLab.patient_id,
       date_submitted: labResults.dateSubmitted,
       // !!! IMPORTANT CHANGE HERE: Use 'HbA1c' to match your database column name exactly !!!
-      Hba1c: parseFloat(labResults.hba1c) || null,
-      creatinine: parseFloat(labResults.creatinine) || null,
+      Hba1c: parseFloat(labResults.Hba1c) || null,
+      ucr: parseFloat(labResults.UCR) || null,
       got_ast: parseFloat(labResults.gotAst) || null,
       gpt_alt: parseFloat(labResults.gptAlt) || null,
       cholesterol: parseFloat(labResults.cholesterol) || null,
       triglycerides: parseFloat(labResults.triglycerides) || null,
       hdl_cholesterol: parseFloat(labResults.hdlCholesterol) || null,
       ldl_cholesterol: parseFloat(labResults.ldlCholesterol) || null,
+      urea: parseFloat(labResults.UREA) || null,
+      bun: parseFloat(labResults.BUN) || null,
+      uric: parseFloat(labResults.URIC) || null,
+      egfr: parseFloat(labResults.EGFR) || null,
     };
 
     console.log("Attempting to insert lab data:", dataToInsert);
@@ -2775,14 +3600,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       setLabResults({
         selectedPatientForLab: null,
         dateSubmitted: "",
-        hba1c: "",
-        creatinine: "",
+        Hba1c: "",
+        UCR: "",
         gotAst: "",
         gptAlt: "",
         cholesterol: "",
         triglycerides: "",
         hdlCholesterol: "",
         ldlCholesterol: "",
+        UREA: "",
+        BUN: "",
+        URIC: "",
+        EGFR: "",
       });
       // No fetchPatients() here as we are not updating patient_status yet.
       // If you want to see the patient list update for *other reasons*, you might keep it.
@@ -2809,7 +3638,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         {activePage === "dashboard" && ( // MODIFIED: Only show header actions on dashboard
           <div className="dashboard-header-section">
             <h2 className="welcome-message">Welcome Back, {user ? user.first_name : 'Maria'} 👋</h2>
-            <p className="reports-info">Patient reports here always update in real time</p>
             <div className="header-actions">
               <div className="search-bar">
                 <input type="text" placeholder="Search for patients here" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
@@ -2819,7 +3647,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                 setActivePage("create-patient");
                 setPatientForm({ // Reset all fields
                   firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", contactInfo: "",
-                  middleName: "", gender: "", address: "", emergencyContactNumber: "", diabetesType: "", allergies: "",
+                  middleName: "", gender: "", address: "", emergencyContactNumber: "", diabetesType: "", allergies: "", diabetes_duration: "",
                   footUlcersAmputation: "", eyeIssues: "", kidneyIssues: "", stroke: "",
                   heartAttack: "", hypertensive: "", smokingStatus: "", monitoringFrequencyGlucose: "", lastDoctorVisit: "",
                   lastEyeExam: "", preparedBy: "", patientHeight: "", patientWeight: "", bmi: ""
@@ -2829,7 +3657,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                 setEditingPatientId(null);
                 setCurrentPatientStep(0); // Reset step
               }}>
-                <i className="fas fa-plus"></i> Create New Patient
+                <i className="fas fa-plus"></i> Add New Patient
               </button>
             </div>
           </div>
@@ -2875,11 +3703,32 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
               <div className="dashboard-right-column">
                 <div className="appointments-today">
-                  <h3>Appointments Today</h3> {/* Changed heading */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                    <h3>{appointmentFilter === 'today' ? 'Appointments Today' : 'All Upcoming Appointments'}</h3>
+                    <select 
+                      value={appointmentFilter} 
+                      onChange={(e) => {
+                        setAppointmentFilter(e.target.value);
+                        setCurrentPageAppointments(1); // Reset to first page when filter changes
+                      }}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '5px',
+                        border: '1px solid #ddd',
+                        backgroundColor: 'white',
+                        cursor: 'pointer',
+                        fontSize: '14px'
+                      }}
+                    >
+                      <option value="today">Today</option>
+                      <option value="upcoming">All Upcoming</option>
+                    </select>
+                  </div>
                   <div className="appointment-list-container"> {/* Added container for table + pagination */}
                     <table className="appointment-list-table"> {/* Class added for potential styling */}
                       <thead>
                         <tr>
+                          {appointmentFilter === 'upcoming' && <th>Date</th>}
                           <th>Time</th> {/* Changed to Time only */}
                           <th>Patient Name</th>
                           <th>Status</th>
@@ -2895,6 +3744,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           )
                           .map((appointment) => (
                             <tr key={appointment.appointment_id}>
+                              {appointmentFilter === 'upcoming' && <td>{appointment.dateDisplay}</td>}
                               <td>{appointment.timeDisplay}</td> {/* Use the new timeDisplay */}
                               <td>{appointment.patient_name}</td>
                               <td className="appointment-status">
@@ -2927,8 +3777,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         {/* Message for no appointments on the current page */}
                         {appointmentsToday.length === 0 && (
                           <tr>
-                            <td colSpan="4" style={{ textAlign: "center" }}>
-                              No appointments found.
+                            <td colSpan={appointmentFilter === 'upcoming' ? "5" : "4"} style={{ textAlign: "center" }}>
+                              {appointmentFilter === 'today' ? 'No appointments today.' : 'No upcoming appointments.'}
                             </td>
                           </tr>
                         )}
@@ -2939,7 +3789,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           currentPageAppointments * APPOINTMENTS_PER_PAGE
                         ).length === 0 && (
                           <tr>
-                            <td colSpan="4" style={{ textAlign: "center" }}>
+                            <td colSpan={appointmentFilter === 'upcoming' ? "5" : "4"} style={{ textAlign: "center" }}>
                               No appointments on this page.
                             </td>
                           </tr>
@@ -2958,6 +3808,121 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         showPageInfo={false}
                       />
                     )}
+                  </div>
+                </div>
+
+                {/* Calendar Section */}
+                <div className="dashboard-calendar-section" style={{ marginTop: '20px' }}>
+                  <h3>Calendar</h3>
+                  <div className="dashboard-appointment-schedule-container">
+                    <div className="dashboard-appointment-calendar-container">
+                      <Calendar
+                        value={calendarDate}
+                        onChange={setCalendarDate}
+                        tileDisabled={({ date, view }) => {
+                          // Disable weekends (Saturday = 6, Sunday = 0)
+                          if (view === 'month') {
+                            const day = date.getDay();
+                            return day === 0 || day === 6;
+                          }
+                          return false;
+                        }}
+                        tileClassName={({ date, view }) => {
+                          if (view === 'month') {
+                            // Check if this date has an appointment - use allAppointments to show all
+                            const hasAppointment = allAppointments.some(appointment => {
+                              // Parse the appointment date string (YYYY-MM-DD format from substring)
+                              const appointmentDateStr = appointment.appointment_datetime.substring(0, 10);
+                              const [year, month, day] = appointmentDateStr.split('-').map(Number);
+                              
+                              // Compare with calendar tile date
+                              const matches = (
+                                date.getDate() === day &&
+                                date.getMonth() === (month - 1) && // Month is 0-indexed in JS
+                                date.getFullYear() === year
+                              );
+                              return matches;
+                            });
+                            return hasAppointment ? 'dashboard-appointment-date' : null;
+                          }
+                        }}
+                        tileContent={({ date, view }) => {
+                          if (view === 'month') {
+                            const dayAppointments = allAppointments.filter(appointment => {
+                              // Parse the appointment date string (YYYY-MM-DD format from substring)
+                              const appointmentDateStr = appointment.appointment_datetime.substring(0, 10);
+                              const [year, month, day] = appointmentDateStr.split('-').map(Number);
+                              
+                              // Compare with calendar tile date
+                              return (
+                                date.getDate() === day &&
+                                date.getMonth() === (month - 1) && // Month is 0-indexed in JS
+                                date.getFullYear() === year
+                              );
+                            });
+                            if (dayAppointments.length > 0) {
+                              return (
+                                <div className="appointment-indicator">
+                                  <span className="appointment-count">{dayAppointments.length}</span>
+                                </div>
+                              );
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Appointment Details List */}
+                    <div className="dashboard-appointment-details-list">
+                      <h4>
+                        {(() => {
+                          const now = new Date();
+                          const futureAppointments = allAppointments.filter(appointment => 
+                            new Date(appointment.appointment_datetime) > now
+                          );
+                          return futureAppointments.length > 0 ? 'Upcoming Appointments' : 'Recent Appointments';
+                        })()}
+                      </h4>
+                      {(() => {
+                        const now = new Date();
+                        const futureAppointments = allAppointments.filter(appointment => 
+                          new Date(appointment.appointment_datetime) > now
+                        );
+                        
+                        let appointmentsToShow = [];
+                        if (futureAppointments.length > 0) {
+                          appointmentsToShow = futureAppointments.slice(0, 3);
+                        } else {
+                          // Show 3 most recent appointments
+                          appointmentsToShow = allAppointments
+                            .sort((a, b) => new Date(b.appointment_datetime) - new Date(a.appointment_datetime))
+                            .slice(0, 3);
+                        }
+                        
+                        if (appointmentsToShow.length > 0) {
+                          return (
+                            <ul className="dashboard-appointment-list">
+                              {appointmentsToShow.map((appointment, idx) => (
+                                <li key={idx} className="dashboard-appointment-item">
+                                  <div className="dashboard-appointment-date-time">
+                                    <strong>{appointment.dateDisplay || formatDateToReadable(appointment.appointment_datetime.split('T')[0])}</strong>
+                                    <span className="dashboard-appointment-time">{appointment.timeDisplay || formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</span>
+                                  </div>
+                                  <div className="dashboard-appointment-patient">
+                                    <strong>Patient:</strong> {appointment.patient_name}
+                                  </div>
+                                  <div className="dashboard-appointment-notes">
+                                    {appointment.notes || 'No notes'}
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          );
+                        } else {
+                          return <p className="no-appointments">No appointments scheduled.</p>;
+                        }
+                      })()}
+                    </div>
                   </div>
                 </div>
                   </div>
@@ -3042,7 +4007,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             <input className="patient-input" placeholder="Date of Birth" type="date" value={patientForm.dateOfBirth} onChange={(e) => handleInputChange("dateOfBirth", e.target.value)} />
                           </div>
                           <div className="form-group">
-                            <label>Contact Info:</label>
+                            <label>Contact Number:</label>
                             <input className="patient-input" placeholder="Contact Info" value={patientForm.contactInfo} onChange={(e) => handleInputChange("contactInfo", e.target.value)} />
                           </div>
                           <div className="form-group">
@@ -3111,6 +4076,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             <label>Allergies:</label>
                             <input className="patient-input" placeholder="Allergies" value={patientForm.allergies} onChange={(e) => handleInputChange("allergies", e.target.value)} />
                           </div>
+                          <div className="form-group">
+                            <label>Duration of Diabetes:</label>
+                            <input className="patient-input" placeholder="e.g., 5 years" value={patientForm.diabetes_duration} onChange={(e) => handleInputChange("diabetes_duration", e.target.value)} />
+                          </div>
                         </div>
                          <div className="medications-table-container">
                           <label>Current Medications:</label>
@@ -3133,12 +4102,12 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   <td className="med-actions">
                                     {medications.length > 1 && (
                                       <button type="button" className="remove-med-button" onClick={() => handleRemoveMedication(index)}>
-                                        <img src="/picture/minus.svg" alt="Remove" style={{ width: '20px', height: '20px' }} />
+                                        <img src="../picture/minus.svg" alt="Remove" className="icon-button-img" />
                                       </button>
                                     )}
                                     {index === medications.length - 1 && (
                                       <button type="button" className="add-med-button" onClick={handleAddMedication}>
-                                        <img src="/picture/add.svg" alt="Add" style={{ width: '20px', height: '20px' }} />
+                                        <img src="../picture/add.svg" alt="Add" className="icon-button-img" />
                                       </button>
                                     )}
                                   </td>
@@ -3179,6 +4148,20 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           <div className="form-group checkbox-group">
                             <input type="checkbox" id="hypertensive" checked={patientForm.hypertensive} onChange={(e) => handleInputChange("hypertensive", e.target.checked)} />
                             <label htmlFor="hypertensive">Hypertensive</label>
+                          </div>
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group checkbox-group">
+                            <input type="checkbox" id="family_diabetes" checked={patientForm.family_diabetes} onChange={(e) => handleInputChange("family_diabetes", e.target.checked)} />
+                            <label htmlFor="family_diabetes">Family Diabetes</label>
+                          </div>
+                          <div className="form-group checkbox-group">
+                            <input type="checkbox" id="family_hypertension" checked={patientForm.family_hypertension} onChange={(e) => handleInputChange("family_hypertension", e.target.checked)} />
+                            <label htmlFor="family_hypertension">Family Hypertension</label>
+                          </div>
+                          <div className="form-group checkbox-group">
+                            <input type="checkbox" id="cardiovascular" checked={patientForm.cardiovascular} onChange={(e) => handleInputChange("cardiovascular", e.target.checked)} />
+                            <label htmlFor="cardiovascular">Cardiovascular</label>
                           </div>
                         </div>
                       </div>
@@ -3320,6 +4303,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       onLabStatusChange={handleLabStatusFilterChange}
                       selectedProfileStatus={selectedProfileStatusFilter}
                       onProfileStatusChange={handleProfileStatusFilterChange}
+                      sortOrder={sortOrder}
+                      onSortOrderChange={handleSortOrderChange}
                       showCounts={true}
                       counts={patientRiskCounts}
                       labStatusCounts={patientLabStatusCounts}
@@ -3330,11 +4315,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     <thead>
                       <tr>
                       <th>Patient Name</th>
-                      <th>Age/Sex</th>
+                      <th>Age</th>
+                      <th>Sex</th>
                       <th>Classification</th>
                       <th>Lab Status</th>
                       <th>Profile Status</th>
-                      <th>Last Visit</th>
                       <th>Actions</th>
                       </tr>
                     </thead>
@@ -3353,9 +4338,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
                               </div>
                             </td>
-                            <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                            <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
+                            <td>{pat.gender || 'N/A'}</td>
                             <td className={`classification-cell ${
-                              pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                              pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                               ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
                               (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
                               (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
@@ -3364,16 +4350,15 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               {getClassificationDisplay(pat)}
                             </td>
                             <td className={
-                            pat.lab_status === 'Submitted' ? 'lab-status-complete' :
-                            pat.lab_status === 'Awaiting' ? 'lab-status-awaiting' : // Add this if you want pending to have a specific style
+                            pat.lab_status === '✅Submitted' ? 'lab-status-complete' :
+                            pat.lab_status === '❌Awaiting' ? 'lab-status-awaiting' : // Add this if you want pending to have a specific style
                             ''
                           }>
-                            {pat.lab_status === 'Awaiting' ? '❌Awaiting' : pat.lab_status || '❌Awaiting'}
+                            {pat.lab_status || '❌Awaiting'}
                           </td>
                           <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                             {pat.profile_status}
                           </td>
-                            <td>{formatDateToReadable(pat.last_doctor_visit)}</td> {/* Updated to use new date format */}
                             <td className="patient-actions-cell">
                               {/* Enter Labs button to go to lab result entry */}
                               <button className="enter-labs-button" onClick={() => {
@@ -3416,16 +4401,21 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                 <div className="patient-detail-view-section">
                     <div className="detail-view-header">
                         <button className="back-to-list-button" onClick={handleClosePatientDetailModal}>
-                            <img src="/picture/back.png" alt="Back" /> Back to List
+                            <img src="../picture/back.png" alt="Back" className="icon-button-img" /> Back to List
                         </button>
                         <div className="patient-details-header-row">
                             <h2>Patient Details</h2>
-                            <button className="export-pdf-button" onClick={() => {
-                                // Export PDF functionality - will print and allow saving
-                                window.print();
-                            }}>
-                                <img src="/picture/upload.png" alt="Export" /> Export PDF
-                            </button>
+                            <div className="patient-details-header-buttons">
+                                <button className="update-patient-button" onClick={handleOpenDemographicsEdit}>
+                                    <img src="../picture/edit.png" alt="Update" className="icon-button-img" /> Update Patient
+                                </button>
+                                <button className="export-pdf-button" onClick={() => {
+                                    // Export PDF functionality - will print and allow saving
+                                    window.print();
+                                }}>
+                                    <img src="../picture/upload.png" alt="Export" className="icon-button-img" /> Export PDF
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div className="patient-details-content-container">
@@ -3460,6 +4450,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             <div className="patient-detail-item">
                                                 <span className="detail-label">Diabetes Type:</span>
                                                 <span className="detail-value">{selectedPatientForDetail.diabetes_type || 'N/A'}</span>
+                                            </div>
+                                            <div className="patient-detail-item">
+                                                <span className="detail-label">Duration of Diabetes:</span>
+                                                <span className="detail-value">{selectedPatientForDetail.diabetes_duration || 'N/A'}</span>
                                             </div>
                                             <div className="patient-detail-item">
                                                 <span className="detail-label">Phone:</span>
@@ -3497,11 +4491,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                                 <span className="detail-label">Heart Disease:</span>
                                                 <span className="detail-value">{selectedPatientForDetail.complication_history?.includes("Heart Attack") ? "Yes" : "None"}</span>
                                             </div>
-                                        </div>
-                                         <div className="patient-detail-item">
+                                            <div className="patient-detail-item">
                                                 <span className="detail-label">Smoking History:</span>
                                                 <span className="detail-value">{selectedPatientForDetail.smoking_status || 'N/A'}</span>
                                             </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -3510,14 +4504,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             <div className="laboratory-results-section">
                                 <h3>Laboratory Results (Latest)</h3>
                                 <p><strong>Date Submitted:</strong> {formatDateToReadable(lastLabDate)}</p>
-                                <p><strong>HbA1c:</strong> {patientLabResults.hba1c}</p>
-                                <p><strong>Creatinine:</strong> {patientLabResults.creatinine}</p>
+                                <p><strong>Hba1c:</strong> {patientLabResults.Hba1c}</p>
+                                <p><strong>UCR:</strong> {patientLabResults.UCR}</p>
                                 <p><strong>GOT (AST):</strong> {patientLabResults.gotAst}</p>
                                 <p><strong>GPT (ALT):</strong> {patientLabResults.gptAlt}</p>
                                 <p><strong>Cholesterol:</strong> {patientLabResults.cholesterol}</p>
                                 <p><strong>Triglycerides:</strong> {patientLabResults.triglycerides}</p>
                                 <p><strong>HDL Cholesterol:</strong> {patientLabResults.hdlCholesterol}</p>
                                 <p><strong>LDL Cholesterol:</strong> {patientLabResults.ldlCholesterol}</p>
+                                <p><strong>UREA:</strong> {patientLabResults.UREA}</p>
+                                <p><strong>BUN:</strong> {patientLabResults.BUN}</p>
+                                <p><strong>URIC:</strong> {patientLabResults.URIC}</p>
+                                <p><strong>EGFR:</strong> {patientLabResults.EGFR}</p>
                             </div>
                             
                             {/* Latest Health Metrics Section */}
@@ -3860,25 +4858,25 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                           label: 'Risk Classification',
                                           data: riskFilteredMetrics.map(entry => {
                                             const risk = entry.risk_classification?.toLowerCase();
-                                            if (risk === 'low') return 2;
-                                            if (risk === 'moderate') return 3;
-                                            if (risk === 'high') return 4;
+                                            if (risk === 'low' || risk === 'low risk') return 2;
+                                            if (risk === 'moderate' || risk === 'moderate risk') return 3;
+                                            if (risk === 'high' || risk === 'high risk') return 4;
                                             if (risk === 'ppd') return 1;
-                                            return 0; // For unknown/null values
+                                            return 1; // For unknown/null values
                                           }),
                                           backgroundColor: riskFilteredMetrics.map(entry => {
                                             const risk = entry.risk_classification?.toLowerCase();
-                                            if (risk === 'low') return 'rgba(34, 197, 94, 0.8)'; // Green
-                                            if (risk === 'moderate') return 'rgba(255, 193, 7, 0.8)'; // Yellow
-                                            if (risk === 'high') return 'rgba(244, 67, 54, 0.8)'; // Red
+                                            if (risk === 'low' || risk === 'low risk') return 'rgba(34, 197, 94, 0.8)'; // Green
+                                            if (risk === 'moderate' || risk === 'moderate risk') return 'rgba(255, 193, 7, 0.8)'; // Yellow
+                                            if (risk === 'high' || risk === 'high risk') return 'rgba(244, 67, 54, 0.8)'; // Red
                                             if (risk === 'ppd') return 'rgba(103, 101, 105, 0.8)'; // Purple
                                             return 'rgba(156, 163, 175, 0.8)'; // Gray for unknown
                                           }),
                                           borderColor: riskFilteredMetrics.map(entry => {
                                             const risk = entry.risk_classification?.toLowerCase();
-                                            if (risk === 'low') return 'rgba(34, 197, 94, 1)';
-                                            if (risk === 'moderate') return 'rgba(255, 193, 7, 1)';
-                                            if (risk === 'high') return 'rgba(244, 67, 54, 1)';
+                                            if (risk === 'low' || risk === 'low risk') return 'rgba(34, 197, 94, 1)';
+                                            if (risk === 'moderate' || risk === 'moderate risk') return 'rgba(255, 193, 7, 1)';
+                                            if (risk === 'high' || risk === 'high risk') return 'rgba(244, 67, 54, 1)';
                                             if (risk === 'ppd') return 'rgba(103, 101, 105, 1)'; // Purple
                                             return 'rgba(156, 163, 175, 1)';
                                           }),
@@ -3950,6 +4948,15 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                           ticks: {
                                             display: true,
                                             stepSize: 1,
+                                            callback: function(value) {
+                                              const labels = {
+                                                1: 'PPD',
+                                                2: 'Low',
+                                                3: 'Moderate',
+                                                4: 'High'
+                                              };
+                                              return labels[value] || '';
+                                            }
                                           },
                                           grid: {
                                             display: true,
@@ -3966,6 +4973,126 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         Total metrics available: {allPatientHealthMetrics.length}<br/>
                                         Filtered for {riskTimeFilter}: {riskFilteredMetrics.length}
                                       </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Risk Score Over Time Chart */}
+                              <div className="blood-glucose-chart-container">
+                                <div className="chart-header">
+                                  <h4>Risk Score Over Time</h4>
+                                  <div className="time-filter-buttons">
+                                    <button 
+                                      className={`time-filter-btn ${riskScoreTimeFilter === 'day' ? 'active' : ''}`}
+                                      onClick={() => setRiskScoreTimeFilter('day')}
+                                    >
+                                      Day
+                                    </button>
+                                    <button 
+                                      className={`time-filter-btn ${riskScoreTimeFilter === 'week' ? 'active' : ''}`}
+                                      onClick={() => setRiskScoreTimeFilter('week')}
+                                    >
+                                      Week
+                                    </button>
+                                    <button 
+                                      className={`time-filter-btn ${riskScoreTimeFilter === 'month' ? 'active' : ''}`}
+                                      onClick={() => setRiskScoreTimeFilter('month')}
+                                    >
+                                      Month
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="chart-wrapper">
+                                  {riskScoreFilteredMetrics.length > 0 ? (
+                                    <Line
+                                      data={{
+                                        labels: riskScoreFilteredMetrics.map(entry => formatDateForChart(entry.submission_date)),
+                                        datasets: [{
+                                          label: 'Risk Score',
+                                          data: riskScoreFilteredMetrics.map(entry => parseFloat(entry.risk_score) || 0),
+                                          fill: true,
+                                          backgroundColor: (context) => {
+                                            const chart = context.chart;
+                                            const {ctx, chartArea} = chart;
+                                            if (!chartArea) {
+                                              return null;
+                                            }
+                                            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                                            gradient.addColorStop(0, 'rgba(34, 197, 94, 0.8)');
+                                            gradient.addColorStop(1, 'rgba(34, 197, 94, 0.1)');
+                                            return gradient;
+                                          },
+                                          borderColor: '#22c55e',
+                                          borderWidth: 2,
+                                          pointBackgroundColor: '#22c55e',
+                                          pointBorderColor: '#fff',
+                                          pointBorderWidth: 2,
+                                          pointRadius: 4,
+                                          pointHoverRadius: 6,
+                                          tension: 0.4,
+                                        }],
+                                      }}
+                                      options={{
+                                        responsive: true,
+                                        maintainAspectRatio: false,
+                                        plugins: {
+                                          legend: {
+                                            display: false,
+                                          },
+                                          tooltip: {
+                                            callbacks: {
+                                              label: function(context) {
+                                                return `Risk Score: ${context.raw}/100`;
+                                              }
+                                            }
+                                          }
+                                        },
+                                        scales: {
+                                          y: {
+                                            beginAtZero: true,
+                                            title: {
+                                              display: true,
+                                              text: 'Risk Score',
+                                              font: {
+                                                size: 12,
+                                                weight: 'bold'
+                                              }
+                                            },
+                                            min: 0,
+                                            max: 100,
+                                            ticks: {
+                                              display: true,
+                                            },
+                                            grid: {
+                                              display: true,
+                                              color: 'rgba(0, 0, 0, 0.1)',
+                                            }
+                                          },
+                                          x: {
+                                            grid: {
+                                              display: false
+                                            },
+                                            title: {
+                                              display: true,
+                                              text: 'Date',
+                                              font: {
+                                                size: 12,
+                                                weight: 'bold'
+                                              }
+                                            },
+                                            ticks: {
+                                              display: true,
+                                              maxRotation: 45,
+                                              minRotation: 45
+                                            }
+                                          }
+                                        }
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="no-chart-data">
+                                      <p>No risk score data available for selected time period</p>
                                     </div>
                                   )}
                                 </div>
@@ -4067,10 +5194,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             <td><input type="text" className="med-input" value={(med.doctors && med.doctors.first_name) ? `${med.doctors.first_name} ${med.doctors.last_name}` : ''} readOnly /></td>
                                             <td className="med-actions">
                                               <button type="button" className="add-med-button" title="Add medication">
-                                                <img src="/picture/add.svg" alt="Add" style={{ width: '20px', height: '20px' }} />
+                                                <img src="../picture/add.svg" alt="Add" className="icon-button-img" />
                                               </button>
                                               <button type="button" className="remove-med-button" title="Remove medication">
-                                                <img src="/picture/minus.svg" alt="Remove" style={{ width: '20px', height: '20px' }} />
+                                                <img src="../picture/minus.svg" alt="Remove" className="icon-button-img" />
                                               </button>
                                             </td>
                                           </tr>
@@ -4083,7 +5210,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                           <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
                                           <td className="med-actions">
                                             <button type="button" className="add-med-button" title="Add medication">
-                                              <img src="/picture/add.svg" alt="Add" style={{ width: '20px', height: '20px' }} />
+                                              <img src="../picture/add.svg" alt="Add" className="icon-button-img" />
                                             </button>
                                           </td>
                                         </tr>
@@ -4101,31 +5228,48 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 <table className="health-metrics-table">
                                     <thead>
                                         <tr>
-                                            <th>Date & Time</th>
+                                            <th>Date and Time</th>
                                             <th>Blood Glucose</th>
                                             <th>Blood Pressure</th>
+                                            <th>Risk Score</th>
                                             <th>Risk Classification</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {paginatedHealthMetrics.length > 0 ? (
-                                            paginatedHealthMetrics.map((metric, index) => (
-                                                <tr key={index}>
-                                                    <td>{formatDateToReadable(metric.submission_date) + ' ' + formatTimeTo12Hour(new Date(metric.submission_date).toTimeString().substring(0, 5))}</td>
-                                                    <td>{metric.blood_glucose || 'N/A'}</td>
-                                                    <td>
-                                                        {metric.bp_systolic !== null && metric.bp_diastolic !== null
-                                                            ? `${metric.bp_systolic}/${metric.bp_diastolic}`
-                                                            : 'N/A'}
-                                                    </td>
-                                                    <td className={`risk-classification-${(metric.risk_classification || 'N/A').toLowerCase()}`}>
-                                                        {metric.risk_classification || 'N/A'}
-                                                    </td>
-                                                </tr>
-                                            ))
+                                            paginatedHealthMetrics.map((metric, index) => {
+                                                const submissionDate = new Date(metric.submission_date);
+                                                const dateStr = submissionDate.toLocaleDateString('en-US', { 
+                                                    month: 'short', 
+                                                    day: 'numeric', 
+                                                    year: 'numeric' 
+                                                });
+                                                const timeStr = submissionDate.toLocaleTimeString('en-US', {
+                                                    hour: 'numeric',
+                                                    minute: '2-digit',
+                                                    hour12: true
+                                                });
+                                                return (
+                                                    <tr key={index}>
+                                                        <td>{`${dateStr}, ${timeStr}`}</td>
+                                                        <td>{metric.blood_glucose || 'N/A'}</td>
+                                                        <td>
+                                                            {metric.bp_systolic !== null && metric.bp_diastolic !== null
+                                                                ? `${metric.bp_systolic}/${metric.bp_diastolic}`
+                                                                : 'N/A'}
+                                                        </td>
+                                                        <td className="metric-value">
+                                                            {metric.risk_score || 'N/A'}
+                                                        </td>
+                                                        <td className={`risk-classification-${(metric.risk_classification || 'N/A').toLowerCase()}`}>
+                                                            {metric.risk_classification || 'N/A'}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
                                         ) : (
                                             <tr>
-                                                <td colSpan="4">No health metrics history available for this patient.</td>
+                                                <td colSpan="5">No health metrics history available for this patient.</td>
                                             </tr>
                                         )}
                                     </tbody>
@@ -4133,14 +5277,16 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 
                                 {/* Health Metrics Pagination */}
                                 {allPatientHealthMetrics.length > HEALTH_METRICS_PER_PAGE && (
-                                    <Pagination
-                                        currentPage={currentPageHealthMetrics}
-                                        totalPages={totalHealthMetricsPages}
-                                        onPageChange={setCurrentPageHealthMetrics}
-                                        itemsPerPage={HEALTH_METRICS_PER_PAGE}
-                                        totalItems={allPatientHealthMetrics.length}
-                                        showPageInfo={false}
-                                    />
+                                    <div className="health-metrics-pagination">
+                                        <Pagination
+                                            currentPage={currentPageHealthMetrics}
+                                            totalPages={totalHealthMetricsPages}
+                                            onPageChange={setCurrentPageHealthMetrics}
+                                            itemsPerPage={HEALTH_METRICS_PER_PAGE}
+                                            totalItems={allPatientHealthMetrics.length}
+                                            showPageInfo={false}
+                                        />
+                                    </div>
                                 )}
                             </div>
                              {/* Appointment Schedule Section */}
@@ -4259,7 +5405,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                                 className="photo-expand-btn"
                                                 onClick={() => handleExpandPhoto(photo)}
                                             >
-                                                <img src="/picture/expand.svg" alt="Expand" />
+                                                <img src="../picture/expand.svg" alt="Expand" className="icon-button-img" />
                                             </button>
                                         </div>
                                         
@@ -4286,7 +5432,12 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             
                                             <div className="photo-actions">
                                                 <button className="entry-btn">Entry ID: 00{allWoundPhotos.length - index}</button>
-                                                <button className="view-details-btn">View Details</button>
+                                                <button 
+                                                    className="view-details-btn"
+                                                    onClick={() => handleViewWoundAnalysis(photo)}
+                                                >
+                                                    View Details
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -4537,6 +5688,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             onLabStatusChange={handleLabEntryLabStatusFilterChange}
                             selectedProfileStatus={selectedLabEntryProfileStatusFilter}
                             onProfileStatusChange={handleLabEntryProfileStatusFilterChange}
+                            sortOrder={labEntrySortOrder}
+                            onSortOrderChange={handleLabEntrySortOrderChange}
                             showCounts={true}
                             counts={labSearchRiskCounts}
                             labStatusCounts={labSearchLabStatusCounts}
@@ -4548,11 +5701,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           <thead>
                             <tr>
                               <th>Patient Name</th>
-                              <th>Age/Sex</th>
+                              <th>Age</th>
+                              <th>Sex</th>
                               <th>Classification</th>
                               <th>Lab Status</th>
                               <th>Profile Status</th>
-                              <th>Last Visit</th>
                               <th>Actions</th>
                             </tr>
                           </thead>
@@ -4572,9 +5725,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                       <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
                                     </div>
                                   </td>
-                                  <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                                  <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
+                                  <td>{pat.gender || 'N/A'}</td>
                                   <td className={`classification-cell ${
-                                    pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                                    pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                                     ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
                                     (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
                                     (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
@@ -4583,19 +5737,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                     {getClassificationDisplay(pat)}
                                   </td>
                                   <td className={
-                                    pat.lab_status === 'Submitted' ? 'lab-status-submitted' :
+                                    pat.lab_status === '✅Submitted' ? 'lab-status-submitted' :
                                     pat.lab_status === 'Pending' ? 'lab-status-pending' :
                                     pat.lab_status === 'N/A' ? 'lab-status-na' :
-                                    '' }> {pat.lab_status === 'Awaiting' ? '❌Awaiting' : pat.lab_status || 'N/A'}
+                                    '' }> {pat.lab_status === '❌Awaiting' ? '❌Awaiting' : pat.lab_status || 'N/A'}
                                   </td>
                                   <td className={pat.profile_status === 'Finalized' ? 'status-finalized' : 'status-pending'}>
                                     {pat.profile_status}
                                   </td>
-                                  <td>{pat.last_doctor_visit || 'N/A'}</td>
                                   <td>
                                     <div className="lab-actions-buttons">
                                       <button className="enter-labs-button" onClick={() => handleSelectPatientForLab(pat)}>
-                                        {pat.lab_status === 'Submitted' ? '🔄 Update': '🧪 Enter Labs'}
+                                        {pat.lab_status === '✅Submitted' ? '🔄 Update': '🧪 Enter Labs'}
                                       </button>
                                       <button className="view-labs-button" onClick={() => handleViewPatientLabDetails(pat)}>
                                         👁️View
@@ -4644,18 +5797,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               type="number"
                               step="0.1"
                               placeholder="e.g., 7.0"
-                              value={labResults.hba1c}
-                              onChange={(e) => handleLabInputChange("hba1c", e.target.value)}
+                              value={labResults.Hba1c}
+                              onChange={(e) => handleLabInputChange("Hba1c", e.target.value)}
                             />
                           </div>
                           <div className="form-group">
-                            <label>Creatinine (mg/dL):</label>
+                            <label>UCR (mg/dL):</label>
                             <input
                               type="number"
                               step="0.1"
                               placeholder="e.g., 0.8"
-                              value={labResults.creatinine}
-                              onChange={(e) => handleLabInputChange("creatinine", e.target.value)}
+                              value={labResults.UCR}
+                              onChange={(e) => handleLabInputChange("UCR", e.target.value)}
                             />
                           </div>
                         </div>
@@ -4717,6 +5870,50 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             />
                           </div>
                         </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>UREA (mg/dL):</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              placeholder="e.g., 20"
+                              value={labResults.UREA}
+                              onChange={(e) => handleLabInputChange("UREA", e.target.value)}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>BUN (mg/dL):</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              placeholder="e.g., 15"
+                              value={labResults.BUN}
+                              onChange={(e) => handleLabInputChange("BUN", e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>URIC (mg/dL):</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              placeholder="e.g., 5"
+                              value={labResults.URIC}
+                              onChange={(e) => handleLabInputChange("URIC", e.target.value)}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>EGFR (mL/min/1.73m²):</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              placeholder="e.g., 90"
+                              value={labResults.EGFR}
+                              onChange={(e) => handleLabInputChange("EGFR", e.target.value)}
+                            />
+                          </div>
+                        </div>
                         <div className="lab-navigation-buttons">
                           <button className="previous-step-button" onClick={() => setLabEntryStep(1)}>Back</button>
                           <button className="next-step-button" onClick={() => setLabEntryStep(3)}>Review & Finalize</button>
@@ -4730,14 +5927,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         <h3>Review Lab Results for {labResults.selectedPatientForLab?.first_name} {labResults.selectedPatientForLab?.last_name}</h3>
                         <div className="review-details">
                           <p><strong>Date Submitted:</strong> {labResults.dateSubmitted}</p>
-                          <p><strong>HbA1c:</strong> {labResults.hba1c} %</p>
-                          <p><strong>Creatinine:</strong> {labResults.creatinine} mg/dL</p>
+                          <p><strong>HbA1c:</strong> {labResults.Hba1c} %</p>
+                          <p><strong>UCR:</strong> {labResults.UCR} mg/dL</p>
                           <p><strong>GOT (AST):</strong> {labResults.gotAst} U/L</p>
                           <p><strong>GPT (ALT):</strong> {labResults.gptAlt} U/L</p>
                           <p><strong>Cholesterol:</strong> {labResults.cholesterol} mg/dL</p>
                           <p><strong>Triglycerides:</strong> {labResults.triglycerides} mg/dL</p>
                           <p><strong>HDL Cholesterol:</strong> {labResults.hdlCholesterol} mg/dL</p>
                           <p><strong>LDL Cholesterol:</strong> {labResults.ldlCholesterol} mg/dL</p>
+                          <p><strong>UREA:</strong> {labResults.UREA} mg/dL</p>
+                          <p><strong>BUN:</strong> {labResults.BUN} mg/dL</p>
+                          <p><strong>URIC:</strong> {labResults.URIC} mg/dL</p>
+                          <p><strong>EGFR:</strong> {labResults.EGFR} mL/min/1.73m²</p>
                         </div>
                         <p className="final-warning">
                           <i className="fas fa-exclamation-triangle"></i> Once finalized, these lab results cannot be edited. Please ensure all data is accurate.
@@ -4784,7 +5985,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   <div className="detail-view-header">
                     <h2>Lab Results History for {selectedPatientForLabView.first_name} {selectedPatientForLabView.last_name}</h2>
                     <button className="back-to-list-button" onClick={handleCloseLabDetailsView}>
-                      <img src="/picture/back.png" alt="Back" /> Back to Lab Entry
+                      <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Lab Entry
                     </button>
                   </div>
                   <div className="lab-history-table-container">
@@ -4793,13 +5994,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         <tr>
                           <th>Date Submitted</th>
                           <th>HbA1c (%)</th>
-                          <th>Creatinine (mg/dL)</th>
+                          <th>UCR (mg/dL)</th>
                           <th>GOT (AST) (U/L)</th>
                           <th>GPT (ALT) (U/L)</th>
                           <th>Cholesterol (mg/dL)</th>
                           <th>Triglycerides (mg/dL)</th>
                           <th>HDL (mg/dL)</th>
                           <th>LDL (mg/dL)</th>
+                          <th>UREA (mg/dL)</th>
+                          <th>BUN (mg/dL)</th>
+                          <th>URIC (mg/dL)</th>
+                          <th>EGFR (mL/min/1.73m²)</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -4808,13 +6013,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             <tr key={index}>
                               <td>{formatDateToReadable(labEntry.date_submitted)}</td>
                               <td>{labEntry.Hba1c || 'N/A'}</td>
-                              <td>{labEntry.creatinine || 'N/A'}</td>
+                              <td>{labEntry.ucr || 'N/A'}</td>
                               <td>{labEntry.got_ast || 'N/A'}</td>
                               <td>{labEntry.gpt_alt || 'N/A'}</td>
                               <td>{labEntry.cholesterol || 'N/A'}</td>
                               <td>{labEntry.triglycerides || 'N/A'}</td>
                               <td>{labEntry.hdl_cholesterol || 'N/A'}</td>
                               <td>{labEntry.ldl_cholesterol || 'N/A'}</td>
+                              <td>{labEntry.urea || 'N/A'}</td>
+                              <td>{labEntry.bun || 'N/A'}</td>
+                              <td>{labEntry.uric || 'N/A'}</td>
+                              <td>{labEntry.egfr || 'N/A'}</td>
                             </tr>
                           ))
                         ) : (
@@ -4863,14 +6072,17 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     {/* New Reports Widgets Row */}
     <div className="reports-widgets-grid">
       {/* Total Patients Report Widget */}
-      <div className="report-widget report-total-patients" onClick={() => {
-        setReportDetailView('total-patients');
-        setActivePage('report-detail');
-        setCurrentPageReportDetail(1);
-      }} style={{ cursor: 'pointer' }}>
+      <div className="report-widget report-total-patients">
         <div className="report-widget-header">
           <img src="../picture/total.png" alt="Total Patients" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=👥"; }}/>
           <h4>Total Patients</h4>
+          <button className="report-widget-view-button" onClick={async () => {
+            const filteredPatients = await getFilteredPatientsForWidget('total-patients');
+            setReportDetailPatients(filteredPatients);
+            setReportDetailView('total-patients');
+            setActivePage('report-detail');
+            setCurrentPageReportDetail(1);
+          }}>View</button>
         </div>
         <div className="report-widget-content">
           <div className="report-widget-left">
@@ -4992,27 +6204,21 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       </div>
 
       {/* Full Compliance Report Widget */}
-      <div className="report-widget report-full-compliance" onClick={() => {
-        setReportDetailView('full-compliance');
-        setActivePage('report-detail');
-        setCurrentPageReportDetail(1);
-      }} style={{ cursor: 'pointer' }}>
+      <div className="report-widget report-full-compliance">
         <div className="report-widget-header">
           <img src="../picture/full.svg" alt="Full Compliance" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/28a745/ffffff?text=✓"; }}/>
           <h4>Full Compliance</h4>
+          <button className="report-widget-view-button" onClick={async () => {
+            const filteredPatients = await getFilteredPatientsForWidget('full-compliance');
+            setReportDetailPatients(filteredPatients);
+            setReportDetailView('full-compliance');
+            setActivePage('report-detail');
+            setCurrentPageReportDetail(1);
+          }}>View</button>
         </div>
         <div className="report-widget-content">
           <div className="report-widget-left">
-            <p className="report-number">
-              {patients.filter(pat => {
-                // Count patients who have submitted all three metrics
-                const hasLabResults = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
-                // For blood glucose and blood pressure, we'll assume they're submitted if they have health metrics
-                // For wound photos, we'll check if they have wound photo data
-                // For now, we'll count full compliance as having submitted lab results
-                return hasLabResults;
-              }).length}
-            </p>
+            <p className="report-number">{fullComplianceCount}</p>
           </div>
           <div className="report-widget-right">
             <p className="report-subtitle">Patients with complete metrics (Blood Glucose, Blood Pressure, Wound Photos)</p>
@@ -5020,13 +6226,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         </div>
         {/* Mini Area Chart for Full Compliance History */}
         <div className="mini-chart-container">
-          <Line 
-            data={{
-              labels: patientCountHistory?.labels || ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
-              datasets: [
-                {
-                  label: 'Full Compliance',
-                  data: patientCountHistory?.data?.map(count => Math.floor(count * 0.7)) || [0, 2, 4, 6, 8, 10],
+          {fullComplianceHistory?.labels?.length > 0 ? (
+            <Line 
+              data={{
+                labels: fullComplianceHistory.labels,
+                datasets: [
+                  {
+                    label: 'Full Compliance',
+                    data: fullComplianceHistory.data,
                   fill: true,
                   backgroundColor: (context) => {
                     const chart = context.chart;
@@ -5119,44 +6326,45 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
               },
             }}
           />
+          ) : (
+            <div className="no-chart-data">
+              <p>No historical data available</p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Missing Logs Report Widget */}
-      <div className="report-widget report-missing-logs" onClick={() => {
-        setReportDetailView('missing-logs');
-        setActivePage('report-detail');
-        setCurrentPageReportDetail(1);
-      }} style={{ cursor: 'pointer' }}>
+      <div className="report-widget report-missing-logs">
         <div className="report-widget-header">
           <img src="../picture/missinglogs.svg" alt="Missing Logs" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ffc107/ffffff?text=⚠"; }}/>
           <h4>Missing Logs</h4>
+          <button className="report-widget-view-button" onClick={async () => {
+            const filteredPatients = await getFilteredPatientsForWidget('missing-logs');
+            setReportDetailPatients(filteredPatients);
+            setReportDetailView('missing-logs');
+            setActivePage('report-detail');
+            setCurrentPageReportDetail(1);
+          }}>View</button>
         </div>
         <div className="report-widget-content">
           <div className="report-widget-left">
-            <p className="report-number">
-              {patients.filter(pat => {
-                // Count patients who have 1 or 2 missing metrics
-                const hasLabResults = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
-                // For simplicity, we'll count missing logs as patients without full lab results
-                // but who have some activity (not completely non-compliant)
-                return !hasLabResults && pat.profile_status === '🟢Finalized';
-              }).length}
-            </p>
+            <p className="report-number">{missingLogsCount}</p>
           </div>
           <div className="report-widget-right">
-            <p className="report-subtitle">Patients with 1-2 missing metrics (Blood Glucose, Blood Pressure, Wound Photos)</p>
+            <p className="report-subtitle">Patients with at least 1 missing metric (Blood Glucose, Blood Pressure, Wound Photos)</p>
           </div>
         </div>
         {/* Mini Area Chart for Missing Logs History */}
         <div className="mini-chart-container">
-          <Line 
-            data={{
-              labels: patientCountHistory?.labels || ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
-              datasets: [
-                {
-                  label: 'Missing Logs',
-                  data: patientCountHistory?.data?.map(count => Math.floor(count * 0.2)) || [1, 2, 1, 3, 2, 1],
+          {missingLogsHistory?.labels?.length > 0 ? (
+            <Line 
+              data={{
+                labels: missingLogsHistory.labels,
+                datasets: [
+                  {
+                    label: 'Missing Logs',
+                    data: missingLogsHistory.data,
                   fill: true,
                   backgroundColor: (context) => {
                     const chart = context.chart;
@@ -5249,30 +6457,30 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
               },
             }}
           />
+          ) : (
+            <div className="no-chart-data">
+              <p>No historical data available</p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Non-Compliant Cases Report Widget */}
-      <div className="report-widget report-non-compliant" onClick={() => {
-        setReportDetailView('non-compliant');
-        setActivePage('report-detail');
-        setCurrentPageReportDetail(1);
-      }} style={{ cursor: 'pointer' }}>
+      <div className="report-widget report-non-compliant">
         <div className="report-widget-header">
           <img src="../picture/noncompliant.svg" alt="Non-Compliant Cases" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/dc3545/ffffff?text=✗"; }}/>
           <h4>Non-Compliant Cases</h4>
+          <button className="report-widget-view-button" onClick={async () => {
+            const filteredPatients = await getFilteredPatientsForWidget('non-compliant');
+            setReportDetailPatients(filteredPatients);
+            setReportDetailView('non-compliant');
+            setActivePage('report-detail');
+            setCurrentPageReportDetail(1);
+          }}>View</button>
         </div>
         <div className="report-widget-content">
           <div className="report-widget-left">
-            <p className="report-number">
-              {patients.filter(pat => {
-                // Count patients who are high risk with 3 missing metrics
-                const isHighRisk = (pat.risk_classification || '').toLowerCase() === 'high';
-                const hasNoLabResults = pat.lab_status === 'Awaiting' || pat.lab_status === 'N/A';
-                const hasIncompleteProfile = pat.profile_status === '🟡Pending';
-                return isHighRisk && hasNoLabResults && hasIncompleteProfile;
-              }).length}
-            </p>
+            <p className="report-number">{nonCompliantCount}</p>
           </div>
           <div className="report-widget-right">
             <p className="report-subtitle">High-risk patients with 3 missing metrics (Blood Glucose, Blood Pressure, Wound Photos)</p>
@@ -5280,13 +6488,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
         </div>
         {/* Mini Area Chart for Non-Compliant Cases History */}
         <div className="mini-chart-container">
-          <Line 
-            data={{
-              labels: patientCountHistory?.labels || ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
-              datasets: [
-                {
-                  label: 'Non-Compliant Cases',
-                  data: patientCountHistory?.data?.map(count => Math.floor(count * 0.1)) || [0, 1, 0, 2, 1, 0],
+          {nonCompliantHistory?.labels?.length > 0 ? (
+            <Line 
+              data={{
+                labels: nonCompliantHistory.labels,
+                datasets: [
+                  {
+                    label: 'Non-Compliant Cases',
+                    data: nonCompliantHistory.data,
                   fill: true,
                   backgroundColor: (context) => {
                     const chart = context.chart;
@@ -5379,55 +6588,19 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
               },
             }}
           />
+          ) : (
+            <div className="no-chart-data">
+              <p>No historical data available</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
 
     {/* New container for side-by-side layout */}
     <div className="reports-content-row">
-      {/* Table for Patients with Submitted Labs */}
-      <div className="submitted-labs-table-container">
-        <h3>Patients with Submitted Lab Results</h3>
-        <table className="patient-list-table">
-          <thead>
-            <tr>
-              <th>Patient Name</th>
-              <th>Submission Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* Filter and map patients with 'Submitted' lab status and a valid submission date */}
-            {patients
-              .filter(
-                (pat) =>
-                  pat.lab_status === "Submitted" &&
-                  pat.latest_lab_date
-              )
-              .map((patient) => (
-                <tr key={patient.patient_id}>
-                  <td>{patient.first_name} {patient.last_name}</td>
-                  <td>{formatDateToReadable(patient.latest_lab_date)}</td>
-                </tr>
-              ))}
-            {/* Display message if no patients meet the criteria */}
-            {patients.filter(
-              (pat) =>
-                
-                pat.lab_status === "Submitted" &&
-                pat.latest_lab_date
-            ).length === 0 && (
-              <tr>
-                <td colSpan="2">
-                  No patients have submitted all their lab results yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
       {/* Appointment History Chart */}
-      <div className="appointment-chart-container">
+      <div className="appointment-chart-container chart-half-width">
         <h3>Appointment History</h3>
         {loadingAppointments && <p>Loading appointment data...</p>}
         {appointmentError && <p className="error-message">Error: {appointmentError}</p>}
@@ -5477,7 +6650,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       </div>
 
       {/* Lab Submission Report Chart */}
-      <div className="lab-submission-chart-container">
+      <div className="lab-submission-chart-container chart-half-width">
         <h3>Lab Submission Report</h3>
         {loadingLabSubmissionData && <p>Loading lab submission data...</p>}
         {labSubmissionError && <p className="error-message">Error: {labSubmissionError}</p>}
@@ -5551,7 +6724,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       setReportDetailView(null);
                       setActivePage('reports');
                     }}>
-                      <img src="/picture/back.png" alt="Back" /> Back to Reports
+                      <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Reports
                     </button>
                     <h2>Total Patients</h2>
                   </div>
@@ -5559,11 +6732,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     <thead>
                       <tr>
                         <th>Patient Name</th>
-                        <th>Age/Sex</th>
+                        <th>Age</th>
+                        <th>Sex</th>
                         <th>Classification</th>
                         <th>Lab Status</th>
                         <th>Profile Status</th>
-                        <th>Last Visit</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
@@ -5571,7 +6744,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       {(() => {
                         const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
                         const endIndex = startIndex + REPORT_DETAIL_PER_PAGE;
-                        const paginatedData = patients.slice(startIndex, endIndex);
+                        const paginatedData = reportDetailPatients.slice(startIndex, endIndex);
                         
                         return paginatedData.length > 0 ? (
                           paginatedData.map((pat) => (
@@ -5587,9 +6760,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
                                 </div>
                               </td>
-                              <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                              <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
+                              <td>{pat.gender || 'N/A'}</td>
                               <td className={`classification-cell ${
-                                pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                                pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                                 ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
                                 (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
                                 (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
@@ -5598,15 +6772,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 {getClassificationDisplay(pat)}
                               </td>
                               <td className={
-                                pat.lab_status === 'Submitted' ? 'lab-status-complete' :
-                                pat.lab_status === 'Awaiting' ? 'lab-status-awaiting' : ''
+                                pat.lab_status === '✅Submitted' ? 'lab-status-complete' :
+                                pat.lab_status === '❌Awaiting' ? 'lab-status-awaiting' : ''
                               }>
-                                {pat.lab_status || 'Awaiting'}
+                                {pat.lab_status || '❌Awaiting'}
                               </td>
                               <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                                 {pat.profile_status}
                               </td>
-                              <td>{formatDateToReadable(pat.last_doctor_visit)}</td>
                               <td className="patient-actions-cell">
                                 <button className="enter-labs-button" onClick={() => {
                                   setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
@@ -5631,13 +6804,13 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   </table>
                   
                   {/* Pagination */}
-                  {patients.length > REPORT_DETAIL_PER_PAGE && (
+                  {reportDetailPatients.length > REPORT_DETAIL_PER_PAGE && (
                     <Pagination
                       currentPage={currentPageReportDetail}
-                      totalPages={Math.ceil(patients.length / REPORT_DETAIL_PER_PAGE)}
+                      totalPages={Math.ceil(reportDetailPatients.length / REPORT_DETAIL_PER_PAGE)}
                       onPageChange={setCurrentPageReportDetail}
                       itemsPerPage={REPORT_DETAIL_PER_PAGE}
-                      totalItems={patients.length}
+                      totalItems={reportDetailPatients.length}
                     />
                   )}
                 </div>
@@ -5650,7 +6823,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       setReportDetailView(null);
                       setActivePage('reports');
                     }}>
-                      <img src="/picture/back.png" alt="Back" /> Back to Reports
+                      <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Reports
                     </button>
                     <h2>Full Compliance - Patients with Complete Metrics</h2>
                   </div>
@@ -5658,23 +6831,19 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     <thead>
                       <tr>
                         <th>Patient Name</th>
-                        <th>Age/Sex</th>
+                        <th>Age</th>
+                        <th>Sex</th>
                         <th>Classification</th>
                         <th>Lab Status</th>
                         <th>Profile Status</th>
-                        <th>Last Visit</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(() => {
-                        const filteredData = patients.filter(pat => {
-                          const hasLabResults = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
-                          return hasLabResults;
-                        });
                         const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
                         const endIndex = startIndex + REPORT_DETAIL_PER_PAGE;
-                        const paginatedData = filteredData.slice(startIndex, endIndex);
+                        const paginatedData = reportDetailPatients.slice(startIndex, endIndex);
                         
                         return paginatedData.length > 0 ? (
                           paginatedData.map((pat) => (
@@ -5690,9 +6859,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
                                 </div>
                               </td>
-                              <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                              <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
+                              <td>{pat.gender || 'N/A'}</td>
                               <td className={`classification-cell ${
-                                pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                                pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                                 ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
                                 (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
                                 (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
@@ -5701,15 +6871,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 {getClassificationDisplay(pat)}
                               </td>
                               <td className={
-                                pat.lab_status === 'Submitted' ? 'lab-status-complete' :
-                                pat.lab_status === 'Awaiting' ? 'lab-status-awaiting' : ''
+                                pat.lab_status === '✅Submitted' ? 'lab-status-complete' :
+                                pat.lab_status === '❌Awaiting' ? 'lab-status-awaiting' : ''
                               }>
-                                {pat.lab_status || 'Awaiting'}
+                                {pat.lab_status || '❌Awaiting'}
                               </td>
                               <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                                 {pat.profile_status}
                               </td>
-                              <td>{formatDateToReadable(pat.last_doctor_visit)}</td>
                               <td className="patient-actions-cell">
                                 <button className="enter-labs-button" onClick={() => {
                                   setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
@@ -5734,21 +6903,15 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   </table>
                   
                   {/* Pagination */}
-                  {(() => {
-                    const filteredData = patients.filter(pat => {
-                      const hasLabResults = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
-                      return hasLabResults;
-                    });
-                    return filteredData.length > REPORT_DETAIL_PER_PAGE && (
-                      <Pagination
-                        currentPage={currentPageReportDetail}
-                        totalPages={Math.ceil(filteredData.length / REPORT_DETAIL_PER_PAGE)}
-                        onPageChange={setCurrentPageReportDetail}
-                        itemsPerPage={REPORT_DETAIL_PER_PAGE}
-                        totalItems={filteredData.length}
-                      />
-                    );
-                  })()}
+                  {reportDetailPatients.length > REPORT_DETAIL_PER_PAGE && (
+                    <Pagination
+                      currentPage={currentPageReportDetail}
+                      totalPages={Math.ceil(reportDetailPatients.length / REPORT_DETAIL_PER_PAGE)}
+                      onPageChange={setCurrentPageReportDetail}
+                      itemsPerPage={REPORT_DETAIL_PER_PAGE}
+                      totalItems={reportDetailPatients.length}
+                    />
+                  )}
                 </div>
               )}
 
@@ -5759,31 +6922,49 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       setReportDetailView(null);
                       setActivePage('reports');
                     }}>
-                      <img src="/picture/back.png" alt="Back" /> Back to Reports
+                      <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Reports
                     </button>
-                    <h2>Missing Logs - Patients with 1-2 Missing Metrics</h2>
+                    <h2>Missing Logs - Patients with Missing Metrics</h2>
                   </div>
+                  {/* Message display for flag notifications */}
+                  {message && (
+                    <div className="message-display" style={{
+                      padding: '10px',
+                      margin: '10px 0',
+                      borderRadius: '5px',
+                      backgroundColor: message.includes('✅') ? '#d4edda' : 
+                                      message.includes('⚠️') ? '#fff3cd' : 
+                                      message.includes('❌') ? '#f8d7da' : '#cce7ff',
+                      color: message.includes('✅') ? '#155724' : 
+                             message.includes('⚠️') ? '#856404' : 
+                             message.includes('❌') ? '#721c24' : '#004085',
+                      border: `1px solid ${message.includes('✅') ? '#c3e6cb' : 
+                                           message.includes('⚠️') ? '#ffeaa7' : 
+                                           message.includes('❌') ? '#f5c6cb' : '#bee5eb'}`,
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}>
+                      {message}
+                    </div>
+                  )}
                   <table className="patient-table">
                     <thead>
                       <tr>
                         <th>Patient Name</th>
-                        <th>Age/Sex</th>
+                        <th>Age</th>
+                        <th>Sex</th>
                         <th>Classification</th>
                         <th>Lab Status</th>
                         <th>Profile Status</th>
-                        <th>Last Visit</th>
+                        <th>Days Since Last Submission</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(() => {
-                        const filteredData = patients.filter(pat => {
-                          const hasLabResults = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
-                          return !hasLabResults && pat.profile_status === '🟢Finalized';
-                        });
                         const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
                         const endIndex = startIndex + REPORT_DETAIL_PER_PAGE;
-                        const paginatedData = filteredData.slice(startIndex, endIndex);
+                        const paginatedData = reportDetailPatients.slice(startIndex, endIndex);
                         
                         return paginatedData.length > 0 ? (
                           paginatedData.map((pat) => (
@@ -5799,9 +6980,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
                                 </div>
                               </td>
-                              <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                              <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
+                              <td>{pat.gender || 'N/A'}</td>
                               <td className={`classification-cell ${
-                                pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                                pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                                 ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
                                 (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
                                 (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
@@ -5810,32 +6992,44 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 {getClassificationDisplay(pat)}
                               </td>
                               <td className={
-                                pat.lab_status === 'Submitted' ? 'lab-status-complete' :
-                                pat.lab_status === 'Awaiting' ? 'lab-status-awaiting' : ''
+                                pat.lab_status === '✅Submitted' ? 'lab-status-complete' :
+                                pat.lab_status === '❌Awaiting' ? 'lab-status-awaiting' : ''
                               }>
-                                {pat.lab_status || 'Awaiting'}
+                                {pat.lab_status || '❌Awaiting'}
                               </td>
                               <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                                 {pat.profile_status}
                               </td>
-                              <td>{formatDateToReadable(pat.last_doctor_visit)}</td>
+                              <td>{(() => {
+                                const lastSubmissionDate = healthMetricsSubmissions[pat.patient_id];
+                                const daysPassed = lastSubmissionDate
+                                  ? Math.max(0, Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(lastSubmissionDate).setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24)))
+                                  : "No Submission";
+                                
+                                return (
+                                  <span className={`compliance-status ${
+                                    daysPassed === "No Submission" ? "no-submission" : 
+                                    daysPassed > 7 ? "overdue" : 
+                                    daysPassed > 3 ? "warning" : "good"
+                                  }`}>
+                                    {daysPassed}
+                                  </span>
+                                );
+                              })()}</td>
                               <td className="patient-actions-cell">
-                                <button className="enter-labs-button" onClick={() => {
-                                  setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
-                                  setLabEntryStep(2);
-                                  setActivePage("lab-result-entry");
-                                  setReportDetailView(null);
-                                }}>🧪 Enter Labs</button>
-                                <button className="view-button" onClick={() => {
-                                  handleViewPatientDetails(pat);
-                                  setReportDetailView(null);
-                                }}>👁️ View</button>
+                                <button 
+                                  className="action-btn flag-button"
+                                  onClick={() => handleFlagPatient(pat)}
+                                  title="Flag patient for missing metrics and send notifications"
+                                >
+                                  🚩 Flag
+                                </button>
                               </td>
                             </tr>
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="7">No patients with missing logs found.</td>
+                            <td colSpan="8">No patients with missing logs found.</td>
                           </tr>
                         );
                       })()}
@@ -5843,21 +7037,15 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   </table>
                   
                   {/* Pagination */}
-                  {(() => {
-                    const filteredData = patients.filter(pat => {
-                      const hasLabResults = pat.lab_status === 'Submitted' || pat.lab_status === '✅Submitted';
-                      return !hasLabResults && pat.profile_status === '🟢Finalized';
-                    });
-                    return filteredData.length > REPORT_DETAIL_PER_PAGE && (
-                      <Pagination
-                        currentPage={currentPageReportDetail}
-                        totalPages={Math.ceil(filteredData.length / REPORT_DETAIL_PER_PAGE)}
-                        onPageChange={setCurrentPageReportDetail}
-                        itemsPerPage={REPORT_DETAIL_PER_PAGE}
-                        totalItems={filteredData.length}
-                      />
-                    );
-                  })()}
+                  {reportDetailPatients.length > REPORT_DETAIL_PER_PAGE && (
+                    <Pagination
+                      currentPage={currentPageReportDetail}
+                      totalPages={Math.ceil(reportDetailPatients.length / REPORT_DETAIL_PER_PAGE)}
+                      onPageChange={setCurrentPageReportDetail}
+                      itemsPerPage={REPORT_DETAIL_PER_PAGE}
+                      totalItems={reportDetailPatients.length}
+                    />
+                  )}
                 </div>
               )}
 
@@ -5868,33 +7056,27 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       setReportDetailView(null);
                       setActivePage('reports');
                     }}>
-                      <img src="/picture/back.png" alt="Back" /> Back to Reports
+                      <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Reports
                     </button>
-                    <h2>Non-Compliant Cases - High-Risk Patients with 3 Missing Metrics</h2>
+                    <h2>Non-Compliant Cases - High-Risk Patients with All Missing Metrics</h2>
                   </div>
                   <table className="patient-table">
                     <thead>
                       <tr>
                         <th>Patient Name</th>
-                        <th>Age/Sex</th>
+                        <th>Age</th>
+                        <th>Sex</th>
                         <th>Classification</th>
                         <th>Lab Status</th>
                         <th>Profile Status</th>
-                        <th>Last Visit</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(() => {
-                        const filteredData = patients.filter(pat => {
-                          const isHighRisk = (pat.risk_classification || '').toLowerCase() === 'high';
-                          const hasNoLabResults = pat.lab_status === 'Awaiting' || pat.lab_status === 'N/A';
-                          const hasIncompleteProfile = pat.profile_status === '🟡Pending';
-                          return isHighRisk && hasNoLabResults && hasIncompleteProfile;
-                        });
                         const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
                         const endIndex = startIndex + REPORT_DETAIL_PER_PAGE;
-                        const paginatedData = filteredData.slice(startIndex, endIndex);
+                        const paginatedData = reportDetailPatients.slice(startIndex, endIndex);
                         
                         return paginatedData.length > 0 ? (
                           paginatedData.map((pat) => (
@@ -5910,9 +7092,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
                                 </div>
                               </td>
-                              <td>{pat.date_of_birth ? `${Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))}/${pat.gender}` : 'N/A'}</td>
+                              <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
+                              <td>{pat.gender || 'N/A'}</td>
                               <td className={`classification-cell ${
-                                pat.lab_status === 'Awaiting' ? 'classification-awaiting' :
+                                pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
                                 ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
                                 (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
                                 (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
@@ -5921,15 +7104,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 {getClassificationDisplay(pat)}
                               </td>
                               <td className={
-                                pat.lab_status === 'Submitted' ? 'lab-status-complete' :
-                                pat.lab_status === 'Awaiting' ? 'lab-status-awaiting' : ''
+                                pat.lab_status === '✅Submitted' ? 'lab-status-complete' :
+                                pat.lab_status === '❌Awaiting' ? 'lab-status-awaiting' : ''
                               }>
-                                {pat.lab_status || 'Awaiting'}
+                                {pat.lab_status || '❌Awaiting'}
                               </td>
                               <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                                 {pat.profile_status}
                               </td>
-                              <td>{formatDateToReadable(pat.last_doctor_visit)}</td>
                               <td className="patient-actions-cell">
                                 <button className="enter-labs-button" onClick={() => {
                                   setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
@@ -5954,23 +7136,15 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   </table>
                   
                   {/* Pagination */}
-                  {(() => {
-                    const filteredData = patients.filter(pat => {
-                      const isHighRisk = (pat.risk_classification || '').toLowerCase() === 'high';
-                      const hasNoLabResults = pat.lab_status === 'Awaiting' || pat.lab_status === 'N/A';
-                      const hasIncompleteProfile = pat.profile_status === '🟡Pending';
-                      return isHighRisk && hasNoLabResults && hasIncompleteProfile;
-                    });
-                    return filteredData.length > REPORT_DETAIL_PER_PAGE && (
-                      <Pagination
-                        currentPage={currentPageReportDetail}
-                        totalPages={Math.ceil(filteredData.length / REPORT_DETAIL_PER_PAGE)}
-                        onPageChange={setCurrentPageReportDetail}
-                        itemsPerPage={REPORT_DETAIL_PER_PAGE}
-                        totalItems={filteredData.length}
-                      />
-                    );
-                  })()}
+                  {reportDetailPatients.length > REPORT_DETAIL_PER_PAGE && (
+                    <Pagination
+                      currentPage={currentPageReportDetail}
+                      totalPages={Math.ceil(reportDetailPatients.length / REPORT_DETAIL_PER_PAGE)}
+                      onPageChange={setCurrentPageReportDetail}
+                      itemsPerPage={REPORT_DETAIL_PER_PAGE}
+                      totalItems={reportDetailPatients.length}
+                    />
+                  )}
                 </div>
               )}
               </div>
@@ -6003,6 +7177,239 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       minute: '2-digit', 
                       hour12: true 
                     })}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Wound Analysis Modal */}
+            {showAnalysisModal && (
+              <div className="modal-backdrop" onClick={handleCloseAnalysisModal}>
+                <div className="analysis-modal-content" onClick={(e) => e.stopPropagation()}>
+                  <div className="analysis-modal-header">
+                    <h3>Wound Analysis Results</h3>
+                    <button className="modal-close" onClick={handleCloseAnalysisModal}>
+                      <img src="/picture/close.png" alt="Close" className="icon-button-img" />
+                    </button>
+                  </div>
+                  <div className="analysis-modal-body">
+                    {isLoadingAnalysis ? (
+                      <div className="loading-message">
+                        <p>Loading analysis...</p>
+                      </div>
+                    ) : analysisError ? (
+                      <div className="error-message">
+                        <p>{analysisError}</p>
+                      </div>
+                    ) : analysisResults ? (
+                      <>
+                        <div className="analysis-images-grid">
+                          <div className="analysis-image-item">
+                            <h4>Original Image</h4>
+                            <img 
+                              src={analysisResults.originalImage} 
+                              alt="Original" 
+                              className="analysis-image"
+                            />
+                          </div>
+                          <div className="analysis-image-item">
+                            <h4>Grad-CAM Heatmap</h4>
+                            <img 
+                              src={analysisResults.gradcam} 
+                              alt="Grad-CAM Heatmap" 
+                              className="analysis-image"
+                            />
+                          </div>
+                          <div className="analysis-image-item">
+                            <h4>Segmentation Mask</h4>
+                            <img 
+                              src={analysisResults.segmentation} 
+                              alt="Segmentation Mask" 
+                              className="analysis-image"
+                            />
+                          </div>
+                        </div>
+                        <div className="analysis-info">
+                          <h4>AI Diagnosis</h4>
+                          <p><strong>Risk Classification:</strong> {analysisResults.className}</p>
+                          <p className="analysis-note">
+                            The Grad-CAM heatmap shows regions of interest identified by the AI model, 
+                            and the segmentation mask highlights the wound area.
+                          </p>
+                        </div>
+                        
+                        {/* Treatment Plan Section */}
+                        {analysisResults.treatmentPlan && (
+                          <div className="treatment-plan-section">
+                            <h4>Doctor's Treatment Plan</h4>
+                            <div className="treatment-plan-grid">
+                              <div className="treatment-plan-item">
+                                <label>Diagnosis:</label>
+                                <p>{analysisResults.treatmentPlan.diagnosis}</p>
+                              </div>
+                              <div className="treatment-plan-item">
+                                <label>Wound Care:</label>
+                                <p>{analysisResults.treatmentPlan.care}</p>
+                              </div>
+                              <div className="treatment-plan-item">
+                                <label>Dressing:</label>
+                                <p>{analysisResults.treatmentPlan.dressing}</p>
+                              </div>
+                              <div className="treatment-plan-item">
+                                <label>Medication:</label>
+                                <p>{analysisResults.treatmentPlan.medication}</p>
+                              </div>
+                              <div className="treatment-plan-item">
+                                <label>Follow-up:</label>
+                                <p>{analysisResults.treatmentPlan.followUp}</p>
+                              </div>
+                              <div className="treatment-plan-item full-width">
+                                <label>Important Notes:</label>
+                                <p>{analysisResults.treatmentPlan.importantNotes}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Demographics Edit Modal */}
+            {showDemographicsEditModal && (
+              <div className="modal-backdrop" onClick={handleCloseDemographicsEdit}>
+                <div className="demographics-modal-content" onClick={(e) => e.stopPropagation()}>
+                  <div className="demographics-modal-header">
+                    <h3>Update Patient Demographics</h3>
+                    <button className="modal-close" onClick={handleCloseDemographicsEdit}>
+                      <img src="/picture/close.png" alt="Close" className="icon-button-img" />
+                    </button>
+                  </div>
+                  <div className="demographics-modal-body">
+                    <div className="demographics-form-grid">
+                      <div className="form-group">
+                        <label>First Name *</label>
+                        <input
+                          type="text"
+                          value={demographicsForm.firstName}
+                          onChange={(e) => handleDemographicsInputChange('firstName', e.target.value)}
+                          placeholder="Enter first name"
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Last Name *</label>
+                        <input
+                          type="text"
+                          value={demographicsForm.lastName}
+                          onChange={(e) => handleDemographicsInputChange('lastName', e.target.value)}
+                          placeholder="Enter last name"
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Date of Birth *</label>
+                        <input
+                          type="date"
+                          value={demographicsForm.dateOfBirth}
+                          onChange={(e) => handleDemographicsInputChange('dateOfBirth', e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Gender *</label>
+                        <select
+                          value={demographicsForm.gender}
+                          onChange={(e) => handleDemographicsInputChange('gender', e.target.value)}
+                          required
+                        >
+                          <option value="">Select Gender</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Contact Number *</label>
+                        <input
+                          type="text"
+                          value={demographicsForm.contactInfo}
+                          onChange={(e) => handleDemographicsInputChange('contactInfo', e.target.value)}
+                          placeholder="Enter contact number"
+                          required
+                        />
+                      </div>
+                      <div className="form-group full-width">
+                        <label>Address *</label>
+                        <input
+                          type="text"
+                          value={demographicsForm.address}
+                          onChange={(e) => handleDemographicsInputChange('address', e.target.value)}
+                          placeholder="Enter address"
+                          required
+                        />
+                      </div>
+                      <div className="form-group full-width">
+                        <label>Emergency Contact Number *</label>
+                        <input
+                          type="text"
+                          value={demographicsForm.emergencyContactNumber}
+                          onChange={(e) => handleDemographicsInputChange('emergencyContactNumber', e.target.value)}
+                          placeholder="Enter emergency contact number"
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Password *</label>
+                        <input
+                          type="password"
+                          value={demographicsForm.password}
+                          onChange={(e) => handleDemographicsInputChange('password', e.target.value)}
+                          placeholder="Enter password"
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Height (cm)</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={demographicsForm.patientHeight}
+                          onChange={(e) => handleDemographicsInputChange('patientHeight', e.target.value)}
+                          placeholder="Enter height in cm"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Weight (kg)</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={demographicsForm.patientWeight}
+                          onChange={(e) => handleDemographicsInputChange('patientWeight', e.target.value)}
+                          placeholder="Enter weight in kg"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>BMI</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={demographicsForm.bmi}
+                          onChange={(e) => handleDemographicsInputChange('bmi', e.target.value)}
+                          placeholder="Enter BMI"
+                        />
+                      </div>
+                    </div>
+                    <div className="demographics-modal-footer">
+                      <button className="cancel-button" onClick={handleCloseDemographicsEdit}>
+                        Cancel
+                      </button>
+                      <button className="save-button" onClick={handleSaveDemographics}>
+                        Save Changes
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
