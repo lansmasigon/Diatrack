@@ -551,6 +551,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [patientMetrics, setPatientMetrics] = useState([]);
   const [patientLabs, setPatientLabs] = useState([]); // New state for patient lab results
   const [woundPhotos, setWoundPhotos] = useState([]); // New state for wound photos
+  const [patientDetailTab, setPatientDetailTab] = useState("profile"); // 'profile' or 'charts'
 
   // NEW: States for popup messages
   const [showUsersPopup, setShowUsersPopup] = useState(false);
@@ -4524,11 +4525,30 @@ const renderReportsContent = () => {
             <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Dashboard
           </button>
           <div className="patient-details-header-row">
-            <h2>Patient Details</h2>
+            <div className="patient-details-title-nav">
+              <h2>Patient Details</h2>
+              <div className="patient-detail-nav-buttons">
+                <button 
+                  className={`patient-nav-button ${patientDetailTab === "profile" ? "active" : ""}`}
+                  onClick={() => setPatientDetailTab("profile")}
+                >
+                  Patient Profile
+                </button>
+                <button 
+                  className={`patient-nav-button ${patientDetailTab === "charts" ? "active" : ""}`}
+                  onClick={() => setPatientDetailTab("charts")}
+                >
+                  History Charts
+                </button>
+              </div>
+            </div>
           </div>
         </div>
         <div className="patient-details-content-container">
           <div className="patient-details-left-column">
+            {/* Patient Profile Tab Content */}
+            {patientDetailTab === "profile" && (
+            <>
             {/* Basic Patient Information Section */}
             <div className="patient-basic-info-section">
               <div className="patient-info-container">
@@ -4562,7 +4582,7 @@ const renderReportsContent = () => {
                     </div>
                     <div className="patient-detail-item">
                       <span className="detail-label">Duration of Diabetes:</span>
-                      <span className="detail-value">{selectedPatient.diabetes_duration ? `${selectedPatient.diabetes_duration} years` : 'N/A'}</span>
+                      <span className="detail-value">{selectedPatient.diabetes_duration ? `${selectedPatient.diabetes_duration} years` : 'N/A'} years</span>
                     </div>
                     <div className="patient-detail-item">
                       <span className="detail-label">Phone:</span>
@@ -4662,12 +4682,14 @@ const renderReportsContent = () => {
                 </>
               )}
             </div>
+            </>
+            )}
 
+            {/* Charts Tab Content */}
+            {patientDetailTab === "charts" && (
+            <>
             {/* History Charts Section */}
             <div className="history-charts-section">
-              <div className="history-charts-section-header">
-                <h3>History Charts</h3>
-              </div>
               
               {/* Blood Glucose Chart */}
               <div className="blood-glucose-chart-container">
@@ -4929,7 +4951,15 @@ const renderReportsContent = () => {
                   )}
                 </div>
               </div>
+            </div>
+            </>
+            )}
+          </div>
 
+          <div className="patient-details-right-column">
+            {/* Charts Tab - Right Column Content */}
+            {patientDetailTab === "charts" && (
+            <>
               {/* Risk Classification History Chart */}
               <div className="risk-classification-chart-container">
                 <div className="chart-header">
@@ -5215,10 +5245,12 @@ const renderReportsContent = () => {
                   )}
                 </div>
               </div>
-            </div>
-          </div>
+            </>
+            )}
 
-          <div className="patient-details-right-column">
+            {/* Patient Profile Tab - Right Column Content */}
+            {patientDetailTab === "profile" && (
+            <>
             {/* Doctor Assigned Section */}
             <div className="doctor-assigned-section">
               <div className="doctors-grid">
@@ -5496,67 +5528,6 @@ const renderReportsContent = () => {
               </div>
             </div>
 
-            {/* Health Metrics History Section */}
-            <div className="health-metrics-history-section">
-              <h3>Health Metrics History</h3>
-              <div className="health-metrics-table-container">
-                {allPatientHealthMetrics.length > 0 ? (
-                  <>
-                    <table className="health-metrics-table">
-                      <thead>
-                        <tr>
-                          <th>Date</th>
-                          <th>Blood Glucose (mg/dL)</th>
-                          <th>Blood Pressure (mmHg)</th>
-                          <th>Risk Score</th>
-                          <th>Risk Classification</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {getPaginatedHealthMetrics().map((metric, index) => (
-                          <tr key={index}>
-                            <td>{new Date(metric.submission_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                            <td className="metric-value">
-                              {metric.blood_glucose || 'N/A'}
-                            </td>
-                            <td className="metric-value">
-                              {(metric.bp_systolic && metric.bp_diastolic) 
-                                ? `${metric.bp_systolic}/${metric.bp_diastolic}` 
-                                : metric.blood_pressure || 'N/A'}
-                            </td>
-                            <td className="metric-value">
-                              {metric.risk_score ? `${metric.risk_score}/100` : 'N/A'}
-                            </td>
-                            <td className={`risk-classification-${(metric.risk_classification || 'N/A').toLowerCase()}`}>
-                              {metric.risk_classification || 'N/A'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-
-                    {/* Health Metrics Pagination */}
-                    {getTotalHealthMetricsPages() > 1 && (
-                      <div className="health-metrics-pagination">
-                        <Pagination
-                          currentPage={currentPageHealthMetrics}
-                          totalPages={getTotalHealthMetricsPages()}
-                          onPageChange={setCurrentPageHealthMetrics}
-                          itemsPerPage={HEALTH_METRICS_PER_PAGE}
-                          totalItems={allPatientHealthMetrics.length}
-                          showPageInfo={true}
-                        />
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="no-metrics-message">
-                    <p>No health metrics available for this patient.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* Appointment Schedule Section */}
             <div className="appointment-schedule-section">
               <h3>Appointment Schedule</h3>
@@ -5644,10 +5615,76 @@ const renderReportsContent = () => {
                 </div>
               </div>
             </div>
+            </>
+            )}
           </div>
         </div>
+
+        {/* Health Metrics History Section - Full Width for Charts Tab */}
+        {patientDetailTab === "charts" && (
+        <div className="health-metrics-history-section">
+          <h3>Health Metrics History</h3>
+          <div className="health-metrics-table-container">
+            {allPatientHealthMetrics.length > 0 ? (
+              <>
+                <table className="health-metrics-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Blood Glucose (mg/dL)</th>
+                      <th>Blood Pressure (mmHg)</th>
+                      <th>Risk Score</th>
+                      <th>Risk Classification</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getPaginatedHealthMetrics().map((metric, index) => (
+                      <tr key={index}>
+                        <td>{new Date(metric.submission_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                        <td className="metric-value">
+                          {metric.blood_glucose || 'N/A'}
+                        </td>
+                        <td className="metric-value">
+                          {(metric.bp_systolic && metric.bp_diastolic) 
+                            ? `${metric.bp_systolic}/${metric.bp_diastolic}` 
+                            : metric.blood_pressure || 'N/A'}
+                        </td>
+                        <td className="metric-value">
+                          {metric.risk_score ? `${metric.risk_score}/100` : 'N/A'}
+                        </td>
+                        <td className={`risk-classification-${(metric.risk_classification || 'N/A').toLowerCase()}`}>
+                          {metric.risk_classification || 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Health Metrics Pagination */}
+                {getTotalHealthMetricsPages() > 1 && (
+                  <div className="health-metrics-pagination">
+                    <Pagination
+                      currentPage={currentPageHealthMetrics}
+                      totalPages={getTotalHealthMetricsPages()}
+                      onPageChange={setCurrentPageHealthMetrics}
+                      itemsPerPage={HEALTH_METRICS_PER_PAGE}
+                      totalItems={allPatientHealthMetrics.length}
+                      showPageInfo={true}
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="no-metrics-message">
+                <p>No health metrics available for this patient.</p>
+              </div>
+            )}
+          </div>
+        </div>
+        )}
         
-        {/* Enhanced Wound Gallery Section */}
+        {/* Enhanced Wound Gallery Section - Only in Profile Tab */}
+        {patientDetailTab === "profile" && (
         <div className="wound-gallery-section">
           <h3>Wound Gallery</h3>
           <div className="wound-gallery-grid">
@@ -5725,6 +5762,7 @@ const renderReportsContent = () => {
           
           {/* Treatment Plan Button */}
         </div>
+        )}
 
         {/* Photo Expansion Modal */}
         {expandedPhoto && (
