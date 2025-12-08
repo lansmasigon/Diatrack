@@ -258,6 +258,32 @@ const Header = ({
       }
     }
   };
+  // Helper function to determine which main tab should be active
+  const getActiveTab = () => {
+    // Dashboard-related pages
+    if (activePage === "dashboard" || activePage === "create-patient") {
+      return "dashboard";
+    }
+    // Patient List-related pages (includes patient profile, treatment plan, specialist assignment, lab entry)
+    if (activePage === "patient-list" || activePage === "patient-detail-view" || 
+        activePage === "patient-profile" || activePage === "specialist-assignment" || 
+        activePage === "lab-result-entry" || activePage === "treatment-plan" || 
+        activePage === "treatment-plan-next-step" || activePage === "treatment-plan-summary") {
+      return "patient-list";
+    }
+    // Appointments-related pages
+    if (activePage === "appointments") {
+      return "appointments";
+    }
+    // Reports-related pages
+    if (activePage === "reports" || activePage === "report-detail") {
+      return "reports";
+    }
+    return activePage;
+  };
+
+  const activeTab = getActiveTab();
+
   return (
     <>
       <div className="top-navbar">
@@ -267,10 +293,10 @@ const Header = ({
         </h1>
         {userRole !== 'Admin' && (
           <ul className="navbar-menu">
-            <li className={activePage === "dashboard" ? "active" : ""} onClick={() => setActivePage("dashboard")}>Dashboard</li>
-            <li className={activePage === "patient-list" ? "active" : ""} onClick={() => setActivePage("patient-list")}>Patient List</li>
-            <li className={activePage === "appointments" ? "active" : ""} onClick={() => setActivePage("appointments")}>Appointments</li>
-            <li className={activePage === "reports" ? "active" : ""} onClick={() => setActivePage("reports")}>Reports</li>
+            <li className={activeTab === "dashboard" ? "active" : ""} onClick={() => setActivePage("dashboard")}>Dashboard</li>
+            <li className={activeTab === "patient-list" ? "active" : ""} onClick={() => setActivePage("patient-list")}>Patient List</li>
+            <li className={activeTab === "appointments" ? "active" : ""} onClick={() => setActivePage("appointments")}>Appointments</li>
+            <li className={activeTab === "reports" ? "active" : ""} onClick={() => setActivePage("reports")}>Reports</li>
           </ul>
         )}
         <div className="navbar-right">

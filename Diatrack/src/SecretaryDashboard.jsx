@@ -581,6 +581,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   // const [showPatientDetailModal, setShowPatientDetailModal] = useState(false); // REMOVED: No longer a modal
   const [selectedPatientForDetail, setSelectedPatientForDetail] = useState(null); // This is good, renamed for clarity
   const [selectedPatientForLabView, setSelectedPatientForLabView] = useState(null); // New state for lab view
+  const [patientDetailTab, setPatientDetailTab] = useState("profile"); // 'profile' or 'charts'
   
   // State for report widget detail view
   const [reportDetailView, setReportDetailView] = useState(null); // 'total-patients', 'full-compliance', 'missing-logs', 'non-compliant'
@@ -3112,6 +3113,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
   const handleViewPatientDetails = (patient) => {
     setSelectedPatientForDetail(patient);
     setCurrentPageHealthMetrics(1); // Reset health metrics pagination when viewing new patient
+    setPatientDetailTab("profile"); // Set active tab to profile
     setActivePage("patient-detail-view"); // Change to new page state
   };
 
@@ -4404,7 +4406,23 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             <img src="../picture/back.png" alt="Back" className="icon-button-img" /> Back to List
                         </button>
                         <div className="patient-details-header-row">
-                            <h2>Patient Details</h2>
+                            <div className="patient-details-title-nav">
+                                <h2>Patient Details</h2>
+                                <div className="patient-detail-nav-buttons">
+                                    <button 
+                                        className={`patient-nav-button ${patientDetailTab === "profile" ? "active" : ""}`}
+                                        onClick={() => setPatientDetailTab("profile")}
+                                    >
+                                        Patient Profile
+                                    </button>
+                                    <button 
+                                        className={`patient-nav-button ${patientDetailTab === "charts" ? "active" : ""}`}
+                                        onClick={() => setPatientDetailTab("charts")}
+                                    >
+                                       History Charts
+                                    </button>
+                                </div>
+                            </div>
                             <div className="patient-details-header-buttons">
                                 <button className="update-patient-button" onClick={handleOpenDemographicsEdit}>
                                     <img src="../picture/edit.png" alt="Update" className="icon-button-img" /> Update Patient
@@ -4420,6 +4438,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     </div>
                     <div className="patient-details-content-container">
                         <div className="patient-details-left-column">
+                            {/* Patient Profile Tab Content */}
+                            {patientDetailTab === "profile" && (
+                            <>
                             {/* Basic Patient Information Section */}
                             <div className="patient-basic-info-section">
                                 <div className="patient-info-container">
@@ -4453,7 +4474,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             </div>
                                             <div className="patient-detail-item">
                                                 <span className="detail-label">Duration of Diabetes:</span>
-                                                <span className="detail-value">{selectedPatientForDetail.diabetes_duration || 'N/A'}</span>
+                                                <span className="detail-value">{selectedPatientForDetail.diabetes_duration || 'N/A'} years</span>
                                             </div>
                                             <div className="patient-detail-item">
                                                 <span className="detail-label">Phone:</span>
@@ -4525,138 +4546,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 <p><strong>Blood Pressure:</strong> {patientHealthMetrics.bloodPressure} {patientHealthMetrics.bloodPressure !== 'N/A' && patientHealthMetrics.bloodPressure !== 'Error' ? 'mmHg' : ''}</p>
                                 <p><strong>Risk Classification:</strong> {selectedPatientForDetail.risk_classification || 'N/A'}</p>
                             </div>
+                            </>
+                            )}
 
+                            {/* Charts Tab Content */}
+                            {patientDetailTab === "charts" && (
+                            <>
                             {/* History Charts Section - Updated structure */}
                             <div className="history-charts-section">
-                              <h3>History Charts</h3>
-                              
-                              {/* Blood Glucose Chart - Separate div */}
-                              <div className="blood-glucose-chart-container">
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                  <h4 style={{ margin: 0 }}>Blood Glucose Level History</h4>
-                                  <div className="time-filter-buttons">
-                                    <button 
-                                      className={`time-filter-btn ${glucoseTimeFilter === 'day' ? 'active' : ''}`}
-                                      onClick={() => setGlucoseTimeFilter('day')}
-                                    >
-                                      Day
-                                    </button>
-                                    <button 
-                                      className={`time-filter-btn ${glucoseTimeFilter === 'week' ? 'active' : ''}`}
-                                      onClick={() => setGlucoseTimeFilter('week')}
-                                    >
-                                      Week
-                                    </button>
-                                    <button 
-                                      className={`time-filter-btn ${glucoseTimeFilter === 'month' ? 'active' : ''}`}
-                                      onClick={() => setGlucoseTimeFilter('month')}
-                                    >
-                                      Month
-                                    </button>
-                                  </div>
-                                </div>
-                                <div className="chart-wrapper">
-                                  {glucoseFilteredMetrics.length > 0 ? (
-                                  <Line
-                                    data={{
-                                      labels: glucoseFilteredMetrics.map(entry => formatDateForChart(entry.submission_date)),
-                                      datasets: [{
-                                        label: 'Blood Glucose',
-                                        data: glucoseFilteredMetrics.map(entry => parseFloat(entry.blood_glucose) || 0),
-                                        fill: true,
-                                        backgroundColor: (context) => {
-                                          const chart = context.chart;
-                                          const {ctx, chartArea} = chart;
-                                          if (!chartArea) {
-                                            return null;
-                                          }
-                                          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                                          gradient.addColorStop(0, 'rgba(34, 197, 94, 0.8)'); // Green with opacity
-                                          gradient.addColorStop(1, 'rgba(34, 197, 94, 0.1)'); // Light green at bottom
-                                          return gradient;
-                                        },
-                                        borderColor: '#22c55e', // Green border
-                                        borderWidth: 2,
-                                        pointBackgroundColor: '#22c55e',
-                                        pointBorderColor: '#fff',
-                                        pointBorderWidth: 2,
-                                        pointRadius: 4,
-                                        pointHoverRadius: 6,
-                                        tension: 0.4, // Smooth line curves
-                                      }],
-                                    }}
-                                    options={{
-                                      responsive: true,
-                                      maintainAspectRatio: false,
-                                      plugins: {
-                                        legend: {
-                                          display: false,
-                                        },
-                                        tooltip: {
-                                          callbacks: {
-                                            label: function(context) {
-                                              return `Glucose: ${context.raw} mg/dL`;
-                                            }
-                                          }
-                                        }
-                                      },
-                                      scales: {
-                                        y: {
-                                          beginAtZero: true,
-                                          title: {
-                                            display: true,
-                                            text: 'Blood Glucose (mg/dL)',
-                                            font: {
-                                              size: 12,
-                                              weight: 'bold'
-                                            }
-                                          },
-                                          min: 0,
-                                          max: 300,
-                                          ticks: {
-                                            display: true,
-                                          },
-                                          grid: {
-                                            display: true,
-                                            color: 'rgba(0, 0, 0, 0.1)',
-                                          }
-                                        },
-                                        x: {
-                                          grid: {
-                                            display: false
-                                          },
-                                          title: {
-                                            display: true,
-                                            text: 'Date',
-                                            font: {
-                                              size: 12,
-                                              weight: 'bold'
-                                            }
-                                          },
-                                          ticks: {
-                                            display: true,
-                                            maxRotation: 45,
-                                            minRotation: 45
-                                          }
-                                        }
-                                      }
-                                    }}
-                                  />
-                                  ) : (
-                                    <div className="no-chart-data">
-                                      <p>No blood glucose data available for selected time period</p>
-                                      <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
-                                        Total metrics available: {allPatientHealthMetrics.length}<br/>
-                                        Filtered for {glucoseTimeFilter}: {glucoseFilteredMetrics.length}<br/>
-                                        {allPatientHealthMetrics.length > 0 && (
-                                          <>Latest entry: {new Date(allPatientHealthMetrics[allPatientHealthMetrics.length - 1]?.submission_date).toLocaleString()}</>
-                                        )}
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
                               {/* Blood Pressure Chart - Separate div */}
                               <div className="blood-pressure-chart-container">
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -4802,117 +4699,97 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 </div>
                               </div>
 
-                              {/* Risk Classification History Chart - New */}
-                              <div className="risk-classification-chart-container">
+                              {/* Blood Glucose Chart - Separate div */}
+                              <div className="blood-glucose-chart-container">
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                  <h4 style={{ margin: 0 }}>Risk Classification History</h4>
+                                  <h4 style={{ margin: 0 }}>Blood Glucose Level History</h4>
                                   <div className="time-filter-buttons">
                                     <button 
-                                      className={`time-filter-btn ${riskTimeFilter === 'day' ? 'active' : ''}`}
-                                      onClick={() => setRiskTimeFilter('day')}
+                                      className={`time-filter-btn ${glucoseTimeFilter === 'day' ? 'active' : ''}`}
+                                      onClick={() => setGlucoseTimeFilter('day')}
                                     >
                                       Day
                                     </button>
                                     <button 
-                                      className={`time-filter-btn ${riskTimeFilter === 'week' ? 'active' : ''}`}
-                                      onClick={() => setRiskTimeFilter('week')}
+                                      className={`time-filter-btn ${glucoseTimeFilter === 'week' ? 'active' : ''}`}
+                                      onClick={() => setGlucoseTimeFilter('week')}
                                     >
                                       Week
                                     </button>
                                     <button 
-                                      className={`time-filter-btn ${riskTimeFilter === 'month' ? 'active' : ''}`}
-                                      onClick={() => setRiskTimeFilter('month')}
+                                      className={`time-filter-btn ${glucoseTimeFilter === 'month' ? 'active' : ''}`}
+                                      onClick={() => setGlucoseTimeFilter('month')}
                                     >
                                       Month
                                     </button>
                                   </div>
                                 </div>
-                                
-                                {/* Risk Classification Legend */}
-                                <div className="risk-legend-container">
-                                  <div className="risk-legend-item">
-                                    <div className="risk-legend-color low-risk"></div>
-                                    <span>Low Risk</span>
-                                  </div>
-                                  <div className="risk-legend-item">
-                                    <div className="risk-legend-color moderate-risk"></div>
-                                    <span>Moderate Risk</span>
-                                  </div>
-                                  <div className="risk-legend-item">
-                                    <div className="risk-legend-color high-risk"></div>
-                                    <span>High Risk</span>
-                                  </div>
-                                  <div className="risk-legend-item">
-                                    <div className="risk-legend-color ppd-risk"></div>
-                                    <span>PPD</span>
-                                  </div>
-                                </div>
-
                                 <div className="chart-wrapper">
-                                  {riskFilteredMetrics.length > 0 ? (
-                                  <Bar
+                                  {glucoseFilteredMetrics.length > 0 ? (
+                                  <Line
                                     data={{
-                                      labels: riskFilteredMetrics.map(entry => formatDateForChart(entry.submission_date)),
-                                      datasets: [
-                                        {
-                                          label: 'Risk Classification',
-                                          data: riskFilteredMetrics.map(entry => {
-                                            const risk = entry.risk_classification?.toLowerCase();
-                                            if (risk === 'low' || risk === 'low risk') return 2;
-                                            if (risk === 'moderate' || risk === 'moderate risk') return 3;
-                                            if (risk === 'high' || risk === 'high risk') return 4;
-                                            if (risk === 'ppd') return 1;
-                                            return 1; // For unknown/null values
-                                          }),
-                                          backgroundColor: riskFilteredMetrics.map(entry => {
-                                            const risk = entry.risk_classification?.toLowerCase();
-                                            if (risk === 'low' || risk === 'low risk') return 'rgba(34, 197, 94, 0.8)'; // Green
-                                            if (risk === 'moderate' || risk === 'moderate risk') return 'rgba(255, 193, 7, 0.8)'; // Yellow
-                                            if (risk === 'high' || risk === 'high risk') return 'rgba(244, 67, 54, 0.8)'; // Red
-                                            if (risk === 'ppd') return 'rgba(103, 101, 105, 0.8)'; // Purple
-                                            return 'rgba(156, 163, 175, 0.8)'; // Gray for unknown
-                                          }),
-                                          borderColor: riskFilteredMetrics.map(entry => {
-                                            const risk = entry.risk_classification?.toLowerCase();
-                                            if (risk === 'low' || risk === 'low risk') return 'rgba(34, 197, 94, 1)';
-                                            if (risk === 'moderate' || risk === 'moderate risk') return 'rgba(255, 193, 7, 1)';
-                                            if (risk === 'high' || risk === 'high risk') return 'rgba(244, 67, 54, 1)';
-                                            if (risk === 'ppd') return 'rgba(103, 101, 105, 1)'; // Purple
-                                            return 'rgba(156, 163, 175, 1)';
-                                          }),
-                                          borderWidth: 1,
-                                          barThickness: 15,
-                                          borderRadius: {
-                                            topLeft: 8,
-                                            topRight: 8,
-                                            bottomLeft: 8,
-                                            bottomRight: 8
-                                          },
-                                          borderSkipped: false,
+                                      labels: glucoseFilteredMetrics.map(entry => formatDateForChart(entry.submission_date)),
+                                      datasets: [{
+                                        label: 'Blood Glucose',
+                                        data: glucoseFilteredMetrics.map(entry => parseFloat(entry.blood_glucose) || 0),
+                                        fill: true,
+                                        backgroundColor: (context) => {
+                                          const chart = context.chart;
+                                          const {ctx, chartArea} = chart;
+                                          if (!chartArea) {
+                                            return null;
+                                          }
+                                          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                                          gradient.addColorStop(0, 'rgba(34, 197, 94, 0.8)'); // Green with opacity
+                                          gradient.addColorStop(1, 'rgba(34, 197, 94, 0.1)'); // Light green at bottom
+                                          return gradient;
                                         },
-                                      ],
+                                        borderColor: '#22c55e', // Green border
+                                        borderWidth: 2,
+                                        pointBackgroundColor: '#22c55e',
+                                        pointBorderColor: '#fff',
+                                        pointBorderWidth: 2,
+                                        pointRadius: 4,
+                                        pointHoverRadius: 6,
+                                        tension: 0.4, // Smooth line curves
+                                      }],
                                     }}
                                     options={{
                                       responsive: true,
                                       maintainAspectRatio: false,
-                                      interaction: {
-                                        intersect: false,
-                                        mode: 'index',
-                                      },
                                       plugins: {
                                         legend: {
-                                          display: false, // Hide legend since colors are self-explanatory
+                                          display: false,
                                         },
                                         tooltip: {
                                           callbacks: {
                                             label: function(context) {
-                                              const entry = riskFilteredMetrics[context.dataIndex];
-                                              return `Risk: ${entry.risk_classification || 'Unknown'}`;
+                                              return `Glucose: ${context.raw} mg/dL`;
                                             }
                                           }
                                         }
                                       },
                                       scales: {
+                                        y: {
+                                          beginAtZero: true,
+                                          title: {
+                                            display: true,
+                                            text: 'Blood Glucose (mg/dL)',
+                                            font: {
+                                              size: 12,
+                                              weight: 'bold'
+                                            }
+                                          },
+                                          min: 0,
+                                          max: 300,
+                                          ticks: {
+                                            display: true,
+                                          },
+                                          grid: {
+                                            display: true,
+                                            color: 'rgba(0, 0, 0, 0.1)',
+                                          }
+                                        },
                                         x: {
                                           grid: {
                                             display: false
@@ -4929,38 +4806,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                             display: true,
                                             maxRotation: 45,
                                             minRotation: 45
-                                          },
-                                          categoryPercentage: 0.95,
-                                          barPercentage: 0.95,
-                                        },
-                                        y: {
-                                          beginAtZero: true,
-                                          title: {
-                                            display: true,
-                                            text: 'Risk Level',
-                                            font: {
-                                              size: 12,
-                                              weight: 'bold'
-                                            }
-                                          },
-                                          min: 0,
-                                          max: 4,
-                                          ticks: {
-                                            display: true,
-                                            stepSize: 1,
-                                            callback: function(value) {
-                                              const labels = {
-                                                1: 'PPD',
-                                                2: 'Low',
-                                                3: 'Moderate',
-                                                4: 'High'
-                                              };
-                                              return labels[value] || '';
-                                            }
-                                          },
-                                          grid: {
-                                            display: true,
-                                            color: 'rgba(0, 0, 0, 0.1)',
                                           }
                                         }
                                       }
@@ -4968,139 +4813,27 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   />
                                   ) : (
                                     <div className="no-chart-data">
-                                      <p>No risk classification data available for selected time period</p>
+                                      <p>No blood glucose data available for selected time period</p>
                                       <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
                                         Total metrics available: {allPatientHealthMetrics.length}<br/>
-                                        Filtered for {riskTimeFilter}: {riskFilteredMetrics.length}
+                                        Filtered for {glucoseTimeFilter}: {glucoseFilteredMetrics.length}<br/>
+                                        {allPatientHealthMetrics.length > 0 && (
+                                          <>Latest entry: {new Date(allPatientHealthMetrics[allPatientHealthMetrics.length - 1]?.submission_date).toLocaleString()}</>
+                                        )}
                                       </p>
                                     </div>
                                   )}
                                 </div>
                               </div>
-
-                              {/* Risk Score Over Time Chart */}
-                              <div className="blood-glucose-chart-container">
-                                <div className="chart-header">
-                                  <h4>Risk Score Over Time</h4>
-                                  <div className="time-filter-buttons">
-                                    <button 
-                                      className={`time-filter-btn ${riskScoreTimeFilter === 'day' ? 'active' : ''}`}
-                                      onClick={() => setRiskScoreTimeFilter('day')}
-                                    >
-                                      Day
-                                    </button>
-                                    <button 
-                                      className={`time-filter-btn ${riskScoreTimeFilter === 'week' ? 'active' : ''}`}
-                                      onClick={() => setRiskScoreTimeFilter('week')}
-                                    >
-                                      Week
-                                    </button>
-                                    <button 
-                                      className={`time-filter-btn ${riskScoreTimeFilter === 'month' ? 'active' : ''}`}
-                                      onClick={() => setRiskScoreTimeFilter('month')}
-                                    >
-                                      Month
-                                    </button>
-                                  </div>
-                                </div>
-                                <div className="chart-wrapper">
-                                  {riskScoreFilteredMetrics.length > 0 ? (
-                                    <Line
-                                      data={{
-                                        labels: riskScoreFilteredMetrics.map(entry => formatDateForChart(entry.submission_date)),
-                                        datasets: [{
-                                          label: 'Risk Score',
-                                          data: riskScoreFilteredMetrics.map(entry => parseFloat(entry.risk_score) || 0),
-                                          fill: true,
-                                          backgroundColor: (context) => {
-                                            const chart = context.chart;
-                                            const {ctx, chartArea} = chart;
-                                            if (!chartArea) {
-                                              return null;
-                                            }
-                                            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                                            gradient.addColorStop(0, 'rgba(34, 197, 94, 0.8)');
-                                            gradient.addColorStop(1, 'rgba(34, 197, 94, 0.1)');
-                                            return gradient;
-                                          },
-                                          borderColor: '#22c55e',
-                                          borderWidth: 2,
-                                          pointBackgroundColor: '#22c55e',
-                                          pointBorderColor: '#fff',
-                                          pointBorderWidth: 2,
-                                          pointRadius: 4,
-                                          pointHoverRadius: 6,
-                                          tension: 0.4,
-                                        }],
-                                      }}
-                                      options={{
-                                        responsive: true,
-                                        maintainAspectRatio: false,
-                                        plugins: {
-                                          legend: {
-                                            display: false,
-                                          },
-                                          tooltip: {
-                                            callbacks: {
-                                              label: function(context) {
-                                                return `Risk Score: ${context.raw}/100`;
-                                              }
-                                            }
-                                          }
-                                        },
-                                        scales: {
-                                          y: {
-                                            beginAtZero: true,
-                                            title: {
-                                              display: true,
-                                              text: 'Risk Score',
-                                              font: {
-                                                size: 12,
-                                                weight: 'bold'
-                                              }
-                                            },
-                                            min: 0,
-                                            max: 100,
-                                            ticks: {
-                                              display: true,
-                                            },
-                                            grid: {
-                                              display: true,
-                                              color: 'rgba(0, 0, 0, 0.1)',
-                                            }
-                                          },
-                                          x: {
-                                            grid: {
-                                              display: false
-                                            },
-                                            title: {
-                                              display: true,
-                                              text: 'Date',
-                                              font: {
-                                                size: 12,
-                                                weight: 'bold'
-                                              }
-                                            },
-                                            ticks: {
-                                              display: true,
-                                              maxRotation: 45,
-                                              minRotation: 45
-                                            }
-                                          }
-                                        }
-                                      }}
-                                    />
-                                  ) : (
-                                    <div className="no-chart-data">
-                                      <p>No risk score data available for selected time period</p>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
                             </div>
+                            </>
+                            )}
                         </div>
 
                         <div className="patient-details-right-column">
+                            {/* Profile Tab - Right Column Content */}
+                            {patientDetailTab === "profile" && (
+                            <>
                             {/* Doctor Assigned Section */}
                             <div className="doctor-assigned-section">
                                 <div className="doctors-grid">
@@ -5220,76 +4953,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 </div>
                             </div>
                             
-                           
-
-                            {/* Health Metrics History Table */}
-                            <div className="health-metrics-history-section">
-                                <h3>Health Metrics History</h3>
-                                <table className="health-metrics-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Date and Time</th>
-                                            <th>Blood Glucose</th>
-                                            <th>Blood Pressure</th>
-                                            <th>Risk Score</th>
-                                            <th>Risk Classification</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {paginatedHealthMetrics.length > 0 ? (
-                                            paginatedHealthMetrics.map((metric, index) => {
-                                                const submissionDate = new Date(metric.submission_date);
-                                                const dateStr = submissionDate.toLocaleDateString('en-US', { 
-                                                    month: 'short', 
-                                                    day: 'numeric', 
-                                                    year: 'numeric' 
-                                                });
-                                                const timeStr = submissionDate.toLocaleTimeString('en-US', {
-                                                    hour: 'numeric',
-                                                    minute: '2-digit',
-                                                    hour12: true
-                                                });
-                                                return (
-                                                    <tr key={index}>
-                                                        <td>{`${dateStr}, ${timeStr}`}</td>
-                                                        <td>{metric.blood_glucose || 'N/A'}</td>
-                                                        <td>
-                                                            {metric.bp_systolic !== null && metric.bp_diastolic !== null
-                                                                ? `${metric.bp_systolic}/${metric.bp_diastolic}`
-                                                                : 'N/A'}
-                                                        </td>
-                                                        <td className="metric-value">
-                                                            {metric.risk_score || 'N/A'}
-                                                        </td>
-                                                        <td className={`risk-classification-${(metric.risk_classification || 'N/A').toLowerCase()}`}>
-                                                            {metric.risk_classification || 'N/A'}
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })
-                                        ) : (
-                                            <tr>
-                                                <td colSpan="5">No health metrics history available for this patient.</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                                
-                                {/* Health Metrics Pagination */}
-                                {allPatientHealthMetrics.length > HEALTH_METRICS_PER_PAGE && (
-                                    <div className="health-metrics-pagination">
-                                        <Pagination
-                                            currentPage={currentPageHealthMetrics}
-                                            totalPages={totalHealthMetricsPages}
-                                            onPageChange={setCurrentPageHealthMetrics}
-                                            itemsPerPage={HEALTH_METRICS_PER_PAGE}
-                                            totalItems={allPatientHealthMetrics.length}
-                                            showPageInfo={false}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                             {/* Appointment Schedule Section */}
+                            {/* Appointment Schedule Section */}
                             <div className="appointment-schedule-section">
                                 <h3>Appointment Schedule</h3>
                                 <div className="appointment-schedule-container">
@@ -5376,78 +5040,453 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   </div>
                                 </div>
                             </div>
+                    </>
+                    )}
+
+                    {/* Charts Tab - Right Column Content */}
+                    {patientDetailTab === "charts" && (
+                    <>
+                    {/* Risk Classification History Chart - New */}
+                    <div className="risk-classification-chart-container">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <h4 style={{ margin: 0 }}>Risk Classification History</h4>
+                        <div className="time-filter-buttons">
+                          <button 
+                            className={`time-filter-btn ${riskTimeFilter === 'day' ? 'active' : ''}`}
+                            onClick={() => setRiskTimeFilter('day')}
+                          >
+                            Day
+                          </button>
+                          <button 
+                            className={`time-filter-btn ${riskTimeFilter === 'week' ? 'active' : ''}`}
+                            onClick={() => setRiskTimeFilter('week')}
+                          >
+                            Week
+                          </button>
+                          <button 
+                            className={`time-filter-btn ${riskTimeFilter === 'month' ? 'active' : ''}`}
+                            onClick={() => setRiskTimeFilter('month')}
+                          >
+                            Month
+                          </button>
                         </div>
+                      </div>
+                      
+                      {/* Risk Classification Legend */}
+                      <div className="risk-legend-container">
+                        <div className="risk-legend-item">
+                          <div className="risk-legend-color low-risk"></div>
+                          <span>Low Risk</span>
+                        </div>
+                        <div className="risk-legend-item">
+                          <div className="risk-legend-color moderate-risk"></div>
+                          <span>Moderate Risk</span>
+                        </div>
+                        <div className="risk-legend-item">
+                          <div className="risk-legend-color high-risk"></div>
+                          <span>High Risk</span>
+                        </div>
+                        <div className="risk-legend-item">
+                          <div className="risk-legend-color ppd-risk"></div>
+                          <span>PPD</span>
+                        </div>
+                      </div>
+
+                      <div className="chart-wrapper">
+                        {riskFilteredMetrics.length > 0 ? (
+                        <Bar
+                          data={{
+                            labels: riskFilteredMetrics.map(entry => formatDateForChart(entry.submission_date)),
+                            datasets: [
+                              {
+                                label: 'Risk Classification',
+                                data: riskFilteredMetrics.map(entry => {
+                                  const risk = entry.risk_classification?.toLowerCase();
+                                  if (risk === 'low' || risk === 'low risk') return 2;
+                                  if (risk === 'moderate' || risk === 'moderate risk') return 3;
+                                  if (risk === 'high' || risk === 'high risk') return 4;
+                                  if (risk === 'ppd') return 1;
+                                  return 1; // For unknown/null values
+                                }),
+                                backgroundColor: riskFilteredMetrics.map(entry => {
+                                  const risk = entry.risk_classification?.toLowerCase();
+                                  if (risk === 'low' || risk === 'low risk') return 'rgba(34, 197, 94, 0.8)'; // Green
+                                  if (risk === 'moderate' || risk === 'moderate risk') return 'rgba(255, 193, 7, 0.8)'; // Yellow
+                                  if (risk === 'high' || risk === 'high risk') return 'rgba(244, 67, 54, 0.8)'; // Red
+                                  if (risk === 'ppd') return 'rgba(103, 101, 105, 0.8)'; // Purple
+                                  return 'rgba(156, 163, 175, 0.8)'; // Gray for unknown
+                                }),
+                                borderColor: riskFilteredMetrics.map(entry => {
+                                  const risk = entry.risk_classification?.toLowerCase();
+                                  if (risk === 'low' || risk === 'low risk') return 'rgba(34, 197, 94, 1)';
+                                  if (risk === 'moderate' || risk === 'moderate risk') return 'rgba(255, 193, 7, 1)';
+                                  if (risk === 'high' || risk === 'high risk') return 'rgba(244, 67, 54, 1)';
+                                  if (risk === 'ppd') return 'rgba(103, 101, 105, 1)'; // Purple
+                                  return 'rgba(156, 163, 175, 1)';
+                                }),
+                                borderWidth: 1,
+                                barThickness: 15,
+                                borderRadius: {
+                                  topLeft: 8,
+                                  topRight: 8,
+                                  bottomLeft: 8,
+                                  bottomRight: 8
+                                },
+                                borderSkipped: false,
+                              },
+                            ],
+                          }}
+                          options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                              intersect: false,
+                              mode: 'index',
+                            },
+                            plugins: {
+                              legend: {
+                                display: false, // Hide legend since colors are self-explanatory
+                              },
+                              tooltip: {
+                                callbacks: {
+                                  label: function(context) {
+                                    const entry = riskFilteredMetrics[context.dataIndex];
+                                    return `Risk: ${entry.risk_classification || 'Unknown'}`;
+                                  }
+                                }
+                              }
+                            },
+                            scales: {
+                              x: {
+                                grid: {
+                                  display: false
+                                },
+                                title: {
+                                  display: true,
+                                  text: 'Date',
+                                  font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                  }
+                                },
+                                ticks: {
+                                  display: true,
+                                  maxRotation: 45,
+                                  minRotation: 45
+                                },
+                                categoryPercentage: 0.95,
+                                barPercentage: 0.95,
+                              },
+                              y: {
+                                beginAtZero: true,
+                                title: {
+                                  display: true,
+                                  text: 'Risk Level',
+                                  font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                  }
+                                },
+                                min: 0,
+                                max: 4,
+                                ticks: {
+                                  display: true,
+                                  stepSize: 1,
+                                  callback: function(value) {
+                                    const labels = {
+                                      1: 'PPD',
+                                      2: 'Low',
+                                      3: 'Moderate',
+                                      4: 'High'
+                                    };
+                                    return labels[value] || '';
+                                  }
+                                },
+                                grid: {
+                                  display: true,
+                                  color: 'rgba(0, 0, 0, 0.1)',
+                                }
+                              }
+                            }
+                          }}
+                        />
+                        ) : (
+                          <div className="no-chart-data">
+                            <p>No risk classification data available for selected time period</p>
+                            <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
+                              Total metrics available: {allPatientHealthMetrics.length}<br/>
+                              Filtered for {riskTimeFilter}: {riskFilteredMetrics.length}
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    
-                    {/* Wound Gallery Section */}
-                    <div className="wound-gallery-section">
-                        <h3>Wound Gallery</h3>
-                        <div className="wound-gallery-grid">
-                            {woundPhotosLoading ? (
-                                <div className="loading-message">
-                                    <p>Loading wound photos...</p>
-                                </div>
-                            ) : allWoundPhotos.length > 0 ? (
-                                allWoundPhotos.map((photo, index) => (
-                                    <div key={index} className="wound-gallery-card">
-                                        <div className="wound-photo-container">
-                                            <img
-                                                src={photo.url}
-                                                alt={`Wound Photo - ${photo.date}`}
-                                                className="wound-photo-image"
-                                                onLoad={() => console.log(`Wound photo ${index} loaded successfully`)}
-                                                onError={(e) => {
-                                                    console.error(`Failed to load wound photo ${index}:`, photo.url);
-                                                    e.target.style.display = 'none';
-                                                }}
-                                            />
-                                            <button 
-                                                className="photo-expand-btn"
-                                                onClick={() => handleExpandPhoto(photo)}
-                                            >
-                                                <img src="../picture/expand.svg" alt="Expand" className="icon-button-img" />
-                                            </button>
-                                        </div>
-                                        
-                                        <div className="photo-info">
-                                            <div className="photo-timestamp">
-                                                <span className="photo-date">{formatDateToReadable(photo.date)}</span>
-                                                <span className="photo-time">| {new Date(photo.date).toLocaleTimeString('en-US', { 
-                                                    hour: 'numeric', 
-                                                    minute: '2-digit', 
-                                                    hour12: true 
-                                                })}</span>
-                                            </div>
-                                            
-                                            <div className="photo-submitter">
-                                                <img 
-                                                    src="../picture/secretary.png" 
-                                                    alt="Submitter Avatar" 
-                                                    className="submitter-avatar"
+
+                    {/* Risk Score Over Time Chart */}
+                    <div className="blood-glucose-chart-container">
+                      <div className="chart-header">
+                        <h4>Risk Score Over Time</h4>
+                        <div className="time-filter-buttons">
+                          <button 
+                            className={`time-filter-btn ${riskScoreTimeFilter === 'day' ? 'active' : ''}`}
+                            onClick={() => setRiskScoreTimeFilter('day')}
+                          >
+                            Day
+                          </button>
+                          <button 
+                            className={`time-filter-btn ${riskScoreTimeFilter === 'week' ? 'active' : ''}`}
+                            onClick={() => setRiskScoreTimeFilter('week')}
+                          >
+                            Week
+                          </button>
+                          <button 
+                            className={`time-filter-btn ${riskScoreTimeFilter === 'month' ? 'active' : ''}`}
+                            onClick={() => setRiskScoreTimeFilter('month')}
+                          >
+                            Month
+                          </button>
+                        </div>
+                      </div>
+                      <div className="chart-wrapper">
+                        {riskScoreFilteredMetrics.length > 0 ? (
+                          <Line
+                            data={{
+                              labels: riskScoreFilteredMetrics.map(entry => formatDateForChart(entry.submission_date)),
+                              datasets: [{
+                                label: 'Risk Score',
+                                data: riskScoreFilteredMetrics.map(entry => parseFloat(entry.risk_score) || 0),
+                                fill: true,
+                                backgroundColor: (context) => {
+                                  const chart = context.chart;
+                                  const {ctx, chartArea} = chart;
+                                  if (!chartArea) {
+                                    return null;
+                                  }
+                                  const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                                  gradient.addColorStop(0, 'rgba(34, 197, 94, 0.8)');
+                                  gradient.addColorStop(1, 'rgba(34, 197, 94, 0.1)');
+                                  return gradient;
+                                },
+                                borderColor: '#22c55e',
+                                borderWidth: 2,
+                                pointBackgroundColor: '#22c55e',
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 2,
+                                pointRadius: 4,
+                                pointHoverRadius: 6,
+                                tension: 0.4,
+                              }],
+                            }}
+                            options={{
+                              responsive: true,
+                              maintainAspectRatio: false,
+                              plugins: {
+                                legend: {
+                                  display: false,
+                                },
+                                tooltip: {
+                                  callbacks: {
+                                    label: function(context) {
+                                      return `Risk Score: ${context.raw}/100`;
+                                    }
+                                  }
+                                }
+                              },
+                              scales: {
+                                y: {
+                                  beginAtZero: true,
+                                  title: {
+                                    display: true,
+                                    text: 'Risk Score',
+                                    font: {
+                                      size: 12,
+                                      weight: 'bold'
+                                    }
+                                  },
+                                  min: 0,
+                                  max: 100,
+                                  ticks: {
+                                    display: true,
+                                  },
+                                  grid: {
+                                    display: true,
+                                    color: 'rgba(0, 0, 0, 0.1)',
+                                  }
+                                },
+                                x: {
+                                  grid: {
+                                    display: false
+                                  },
+                                  title: {
+                                    display: true,
+                                    text: 'Date',
+                                    font: {
+                                      size: 12,
+                                      weight: 'bold'
+                                    }
+                                  },
+                                  ticks: {
+                                    display: true,
+                                    maxRotation: 45,
+                                    minRotation: 45
+                                  }
+                                }
+                              }
+                            }}
+                          />
+                        ) : (
+                          <div className="no-chart-data">
+                            <p>No risk score data available for selected time period</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    </>
+                    )}
+                        </div>
+
+                        {/* Health Metrics History Table - Full Width Footer for Charts Tab */}
+                        {patientDetailTab === "charts" && (
+                        <div className="health-metrics-history-section">
+                            <h3>Health Metrics History</h3>
+                            <table className="health-metrics-table">
+                            <thead>
+                                <tr>
+                                    <th>Date and Time</th>
+                                    <th>Blood Glucose</th>
+                                    <th>Blood Pressure</th>
+                                    <th>Risk Score</th>
+                                    <th>Risk Classification</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {paginatedHealthMetrics.length > 0 ? (
+                                    paginatedHealthMetrics.map((metric, index) => {
+                                        const submissionDate = new Date(metric.submission_date);
+                                        const dateStr = submissionDate.toLocaleDateString('en-US', { 
+                                            month: 'short', 
+                                            day: 'numeric', 
+                                            year: 'numeric' 
+                                        });
+                                        const timeStr = submissionDate.toLocaleTimeString('en-US', {
+                                            hour: 'numeric',
+                                            minute: '2-digit',
+                                            hour12: true
+                                        });
+                                        return (
+                                            <tr key={index}>
+                                                <td>{`${dateStr}, ${timeStr}`}</td>
+                                                <td>{metric.blood_glucose || 'N/A'}</td>
+                                                <td>
+                                                    {metric.bp_systolic !== null && metric.bp_diastolic !== null
+                                                        ? `${metric.bp_systolic}/${metric.bp_diastolic}`
+                                                        : 'N/A'}
+                                                </td>
+                                                <td className="metric-value">
+                                                    {metric.risk_score || 'N/A'}
+                                                </td>
+                                                <td className={`risk-classification-${(metric.risk_classification || 'N/A').toLowerCase()}`}>
+                                                    {metric.risk_classification || 'N/A'}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr>
+                                        <td colSpan="5">No health metrics history available for this patient.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                        
+                        {/* Health Metrics Pagination */}
+                        {allPatientHealthMetrics.length > HEALTH_METRICS_PER_PAGE && (
+                            <div className="health-metrics-pagination">
+                                <Pagination
+                                    currentPage={currentPageHealthMetrics}
+                                    totalPages={totalHealthMetricsPages}
+                                    onPageChange={setCurrentPageHealthMetrics}
+                                    itemsPerPage={HEALTH_METRICS_PER_PAGE}
+                                    totalItems={allPatientHealthMetrics.length}
+                                    showPageInfo={false}
+                                />
+                            </div>
+                        )}
+                        </div>
+                        )}
+
+                        {/* Wound Gallery Section - Full Width Footer for Profile Tab */}
+                        {patientDetailTab === "profile" && (
+                        <div className="wound-gallery-section">
+                            <h3>Wound Gallery</h3>
+                            <div className="wound-gallery-grid">
+                                {woundPhotosLoading ? (
+                                    <div className="loading-message">
+                                        <p>Loading wound photos...</p>
+                                    </div>
+                                ) : allWoundPhotos.length > 0 ? (
+                                    allWoundPhotos.map((photo, index) => (
+                                        <div key={index} className="wound-gallery-card">
+                                            <div className="wound-photo-container">
+                                                <img
+                                                    src={photo.url}
+                                                    alt={`Wound Photo - ${photo.date}`}
+                                                    className="wound-photo-image"
+                                                    onLoad={() => console.log(`Wound photo ${index} loaded successfully`)}
+                                                    onError={(e) => {
+                                                        console.error(`Failed to load wound photo ${index}:`, photo.url);
+                                                        e.target.style.display = 'none';
+                                                    }}
                                                 />
-                                                <span className="submitter-info">
-                                                    <span className="submitter-text">by</span> {selectedPatientForDetail.first_name} {selectedPatientForDetail.last_name}
-                                                </span>
-                                            </div>
-                                            
-                                            <div className="photo-actions">
-                                                <button className="entry-btn">Entry ID: 00{allWoundPhotos.length - index}</button>
                                                 <button 
-                                                    className="view-details-btn"
-                                                    onClick={() => handleViewWoundAnalysis(photo)}
+                                                    className="photo-expand-btn"
+                                                    onClick={() => handleExpandPhoto(photo)}
                                                 >
-                                                    View Details
+                                                    <img src="../picture/expand.svg" alt="Expand" className="icon-button-img" />
                                                 </button>
                                             </div>
+                                            
+                                            <div className="photo-info">
+                                                <div className="photo-timestamp">
+                                                    <span className="photo-date">{formatDateToReadable(photo.date)}</span>
+                                                    <span className="photo-time">| {new Date(photo.date).toLocaleTimeString('en-US', { 
+                                                        hour: 'numeric', 
+                                                        minute: '2-digit', 
+                                                        hour12: true 
+                                                    })}</span>
+                                                </div>
+                                                
+                                                <div className="photo-submitter">
+                                                    <img 
+                                                        src="../picture/secretary.png" 
+                                                        alt="Submitter Avatar" 
+                                                        className="submitter-avatar"
+                                                    />
+                                                    <span className="submitter-info">
+                                                        <span className="submitter-text">by</span> {selectedPatientForDetail.first_name} {selectedPatientForDetail.last_name}
+                                                    </span>
+                                                </div>
+                                                
+                                                <div className="photo-actions">
+                                                    <button className="entry-btn">Entry ID: 00{allWoundPhotos.length - index}</button>
+                                                    <button 
+                                                        className="view-details-btn"
+                                                        onClick={() => handleViewWoundAnalysis(photo)}
+                                                    >
+                                                        View Details
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
+                                    ))
+                                ) : (
+                                    <div className="no-photos-message">
+                                        <p>No wound photos available for this patient.</p>
                                     </div>
-                                ))
-                            ) : (
-                                <div className="no-photos-message">
-                                    <p>No wound photos available for this patient.</p>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
+                        )}
                     </div>
                 </div>
               )}
