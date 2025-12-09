@@ -4539,23 +4539,51 @@ const renderReportsContent = () => {
             <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Dashboard
           </button>
           <div className="patient-details-header-row">
-            <div className="patient-details-title-nav">
-              <h2>Patient Details</h2>
-              <div className="patient-detail-nav-buttons">
-                <button 
-                  className={`patient-nav-button ${patientDetailTab === "profile" ? "active" : ""}`}
-                  onClick={() => setPatientDetailTab("profile")}
-                >
-                  Patient Profile
-                </button>
-                <button 
-                  className={`patient-nav-button ${patientDetailTab === "charts" ? "active" : ""}`}
-                  onClick={() => setPatientDetailTab("charts")}
-                >
-                  History Charts
-                </button>
-              </div>
-            </div>
+            <h2>Patient Details</h2>
+          </div>
+          <div className="patient-detail-nav-buttons">
+            <button 
+              className={`patient-nav-button ${patientDetailTab === "profile" ? "active" : ""}`}
+              onClick={() => setPatientDetailTab("profile")}
+            >
+              Patient Profile
+            </button>
+            <button 
+              className={`patient-nav-button ${patientDetailTab === "charts" ? "active" : ""}`}
+              onClick={() => setPatientDetailTab("charts")}
+            >
+              History Charts
+            </button>
+            <button 
+              className={`patient-nav-button ${patientDetailTab === "medication" ? "active" : ""}`}
+              onClick={() => setPatientDetailTab("medication")}
+            >
+              Medication
+            </button>
+            <button 
+              className={`patient-nav-button ${patientDetailTab === "teamcare" ? "active" : ""}`}
+              onClick={() => setPatientDetailTab("teamcare")}
+            >
+              Team Care
+            </button>
+            <button 
+              className={`patient-nav-button ${patientDetailTab === "woundgallery" ? "active" : ""}`}
+              onClick={() => setPatientDetailTab("woundgallery")}
+            >
+              Wound Gallery
+            </button>
+            <button 
+              className={`patient-nav-button ${patientDetailTab === "appointment" ? "active" : ""}`}
+              onClick={() => setPatientDetailTab("appointment")}
+            >
+              Appointment
+            </button>
+            <button 
+              className={`patient-nav-button ${patientDetailTab === "tables" ? "active" : ""}`}
+              onClick={() => setPatientDetailTab("tables")}
+            >
+              Tables
+            </button>
           </div>
         </div>
         <div className="patient-details-content-container">
