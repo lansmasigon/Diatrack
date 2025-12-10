@@ -3815,7 +3815,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
                 {/* Calendar Section */}
                 <div className="dashboard-calendar-section" style={{ marginTop: '20px' }}>
-                  <h3>Calendar</h3>
+                  <h3 className="calendar-dashboard">Calendar</h3>
                   <div className="dashboard-appointment-schedule-container">
                     <div className="dashboard-appointment-calendar-container">
                       <Calendar
@@ -4408,20 +4408,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         <div className="patient-details-header-row">
                             <div className="patient-details-title-nav">
                                 <h2>Patient Details</h2>
-                                <div className="patient-detail-nav-buttons">
-                                    <button 
-                                        className={`patient-nav-button ${patientDetailTab === "profile" ? "active" : ""}`}
-                                        onClick={() => setPatientDetailTab("profile")}
-                                    >
-                                        Patient Profile
-                                    </button>
-                                    <button 
-                                        className={`patient-nav-button ${patientDetailTab === "charts" ? "active" : ""}`}
-                                        onClick={() => setPatientDetailTab("charts")}
-                                    >
-                                       History Charts
-                                    </button>
-                                </div>
                             </div>
                             <div className="patient-details-header-buttons">
                                 <button className="update-patient-button" onClick={handleOpenDemographicsEdit}>
@@ -4434,6 +4420,50 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                     <img src="../picture/upload.png" alt="Export" className="icon-button-img" /> Export PDF
                                 </button>
                             </div>
+                        </div>
+                        <div className="patient-detail-nav-buttons">
+                            <button 
+                                className={`patient-nav-button ${patientDetailTab === "profile" ? "active" : ""}`}
+                                onClick={() => setPatientDetailTab("profile")}
+                            >
+                                Patient Profile
+                            </button>
+                            <button 
+                                className={`patient-nav-button ${patientDetailTab === "charts" ? "active" : ""}`}
+                                onClick={() => setPatientDetailTab("charts")}
+                            >
+                               History Charts
+                            </button>
+                            <button 
+                                className={`patient-nav-button ${patientDetailTab === "medication" ? "active" : ""}`}
+                                onClick={() => setPatientDetailTab("medication")}
+                            >
+                                Medication
+                            </button>
+                            <button 
+                                className={`patient-nav-button ${patientDetailTab === "teamcare" ? "active" : ""}`}
+                                onClick={() => setPatientDetailTab("teamcare")}
+                            >
+                                Team Care
+                            </button>
+                            <button 
+                                className={`patient-nav-button ${patientDetailTab === "woundgallery" ? "active" : ""}`}
+                                onClick={() => setPatientDetailTab("woundgallery")}
+                            >
+                                Wound Gallery
+                            </button>
+                            <button 
+                                className={`patient-nav-button ${patientDetailTab === "appointment" ? "active" : ""}`}
+                                onClick={() => setPatientDetailTab("appointment")}
+                            >
+                                Appointment
+                            </button>
+                            <button 
+                                className={`patient-nav-button ${patientDetailTab === "tables" ? "active" : ""}`}
+                                onClick={() => setPatientDetailTab("tables")}
+                            >
+                                Tables
+                            </button>
                         </div>
                     </div>
                     <div className="patient-details-content-container">
@@ -4519,32 +4549,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                            
-                            {/* Laboratory Result Section */}
-                            <div className="laboratory-results-section">
-                                <h3>Laboratory Results (Latest)</h3>
-                                <p><strong>Date Submitted:</strong> {formatDateToReadable(lastLabDate)}</p>
-                                <p><strong>Hba1c:</strong> {patientLabResults.Hba1c}</p>
-                                <p><strong>UCR:</strong> {patientLabResults.UCR}</p>
-                                <p><strong>GOT (AST):</strong> {patientLabResults.gotAst}</p>
-                                <p><strong>GPT (ALT):</strong> {patientLabResults.gptAlt}</p>
-                                <p><strong>Cholesterol:</strong> {patientLabResults.cholesterol}</p>
-                                <p><strong>Triglycerides:</strong> {patientLabResults.triglycerides}</p>
-                                <p><strong>HDL Cholesterol:</strong> {patientLabResults.hdlCholesterol}</p>
-                                <p><strong>LDL Cholesterol:</strong> {patientLabResults.ldlCholesterol}</p>
-                                <p><strong>UREA:</strong> {patientLabResults.UREA}</p>
-                                <p><strong>BUN:</strong> {patientLabResults.BUN}</p>
-                                <p><strong>URIC:</strong> {patientLabResults.URIC}</p>
-                                <p><strong>EGFR:</strong> {patientLabResults.EGFR}</p>
-                            </div>
-                            
-                            {/* Latest Health Metrics Section */}
-                            <div className="latest-health-metrics-section">
-                                <h3>Latest Health Metrics</h3>
-                                <p><strong>Blood Glucose Level:</strong> {patientHealthMetrics.bloodGlucoseLevel} {patientHealthMetrics.bloodGlucoseLevel !== 'N/A' && patientHealthMetrics.bloodGlucoseLevel !== 'Error' ? 'mg/dL' : ''}</p>
-                                <p><strong>Blood Pressure:</strong> {patientHealthMetrics.bloodPressure} {patientHealthMetrics.bloodPressure !== 'N/A' && patientHealthMetrics.bloodPressure !== 'Error' ? 'mmHg' : ''}</p>
-                                <p><strong>Risk Classification:</strong> {selectedPatientForDetail.risk_classification || 'N/A'}</p>
                             </div>
                             </>
                             )}
@@ -4834,211 +4838,32 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             {/* Profile Tab - Right Column Content */}
                             {patientDetailTab === "profile" && (
                             <>
-                            {/* Doctor Assigned Section */}
-                            <div className="doctor-assigned-section">
-                                <div className="doctors-grid">
-                                    {/* Assigned Doctor Card */}
-                                    <div className="doctor-card">
-                                        <div className="doctor-avatar">
-                                            <img 
-                                                src="../picture/secretary.png" 
-                                                alt="Doctor Avatar"
-                                            />
-                                        </div>
-                                        <div className="doctor-info">
-                                            <span className="doctor-label">Assigned Doctor:</span>
-                                            <h4 className="doctor-name">
-                                                {selectedPatientForDetail.doctors 
-                                                    ? `${selectedPatientForDetail.doctors.first_name} ${selectedPatientForDetail.doctors.last_name}` 
-                                                    : 'Alex Bulquiren'}
-                                            </h4>
-                                            <p className="doctor-specialty">
-                                                {selectedPatientForDetail.doctors?.specialization || 'General Surgeon'}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    {/* Assigned Specialists Cards */}
-                                    {currentPatientSpecialists.length > 0 ? (
-                                        currentPatientSpecialists.map((specialist, index) => (
-                                            <div key={specialist.id} className="doctor-card specialist-card">
-                                                <div className="doctor-avatar">
-                                                    <img 
-                                                        src="../picture/secretary.png" 
-                                                        alt="Specialist Avatar"
-                                                    />
-                                                </div>
-                                                <div className="doctor-info">
-                                                    <span className="doctor-label">Specialist Doctor</span>
-                                                    <h4 className="doctor-name">
-                                                        {specialist.doctors 
-                                                            ? `${specialist.doctors.first_name} ${specialist.doctors.last_name}` 
-                                                            : 'Unknown Doctor'}
-                                                    </h4>
-                                                    <p className="doctor-specialty">
-                                                        {specialist.doctors?.specialization || 'General'}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="doctor-card specialist-card placeholder-card">
-                                            <div className="doctor-avatar">
-                                                <img 
-                                                    src="../picture/secretary.png" 
-                                                    alt="No Specialist"
-                                                />
-                                            </div>
-                                            <div className="doctor-info">
-                                                <span className="doctor-label">Specialist Doctor</span>
-                                                <h4 className="doctor-name">No Specialist Assigned</h4>
-                                                <p className="doctor-specialty">-</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                
-                                <button className="edit-doctors-button" onClick={() => handleEditSpecialist(selectedPatientForDetail)}>
-                                    Edit Assignments
-                                </button>
-                            </div>
-                            
-                            {/* Current Medications Section */}
-                            <div className="current-medications-section">
-                                <div className="medications-table-container">
-                                  <label>Current Medications:</label>
-                                  <table className="medications-table">
-                                    <thead>
-                                      <tr>
-                                        <th>Drug Name</th>
-                                        <th>Dosage</th>
-                                        <th>Frequency</th>
-                                        <th>Prescribed by</th>
-                                        <th>Actions</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {patientMedications.length > 0 ? (
-                                        patientMedications.map((med, idx) => (
-                                          <tr key={med.id || idx}>
-                                            <td><input type="text" className="med-input" value={med.name || ''} readOnly /></td>
-                                            <td><input type="text" className="med-input" value={med.dosage || ''} readOnly /></td>
-                                            <td><input type="text" className="med-input" value={med.medication_frequencies && med.medication_frequencies.length > 0 ? med.medication_frequencies.map(f => `${f.frequency}`).join(', ') : ''} readOnly /></td>
-                                            <td><input type="text" className="med-input" value={(med.doctors && med.doctors.first_name) ? `${med.doctors.first_name} ${med.doctors.last_name}` : ''} readOnly /></td>
-                                            <td className="med-actions">
-                                              <button type="button" className="add-med-button" title="Add medication">
-                                                <img src="../picture/add.svg" alt="Add" className="icon-button-img" />
-                                              </button>
-                                              <button type="button" className="remove-med-button" title="Remove medication">
-                                                <img src="../picture/minus.svg" alt="Remove" className="icon-button-img" />
-                                              </button>
-                                            </td>
-                                          </tr>
-                                        ))
-                                      ) : (
-                                        <tr>
-                                          <td><input type="text" className="med-input" placeholder="No medications" readOnly /></td>
-                                          <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
-                                          <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
-                                          <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
-                                          <td className="med-actions">
-                                            <button type="button" className="add-med-button" title="Add medication">
-                                              <img src="../picture/add.svg" alt="Add" className="icon-button-img" />
-                                            </button>
-                                          </td>
-                                        </tr>
-                                      )}
-                                    </tbody>
-                                  </table>
+                            {/* Laboratory Result Section */}
+                            <div className="laboratory-results-section">
+                                <h3>Laboratory Results (Latest)</h3>
+                                <div className="laboratory-results-grid">
+                                    <div><strong>Date Submitted:</strong><br />{formatDateToReadable(lastLabDate)}</div>
+                                    <div><strong>Hba1c:</strong><br />{patientLabResults.Hba1c}</div>
+                                    <div><strong>UCR:</strong><br />{patientLabResults.UCR}</div>
+                                    <div><strong>GOT (AST):</strong><br />{patientLabResults.gotAst}</div>
+                                    <div><strong>GPT (ALT):</strong><br />{patientLabResults.gptAlt}</div>
+                                    <div><strong>Cholesterol:</strong><br />{patientLabResults.cholesterol}</div>
+                                    <div><strong>Triglycerides:</strong><br />{patientLabResults.triglycerides}</div>
+                                    <div><strong>HDL Cholesterol:</strong><br />{patientLabResults.hdlCholesterol}</div>
+                                    <div><strong>LDL Cholesterol:</strong><br />{patientLabResults.ldlCholesterol}</div>
+                                    <div><strong>UREA:</strong><br />{patientLabResults.UREA}</div>
+                                    <div><strong>BUN:</strong><br />{patientLabResults.BUN}</div>
+                                    <div><strong>URIC:</strong><br />{patientLabResults.URIC}</div>
+                                    <div><strong>EGFR:</strong><br />{patientLabResults.EGFR}</div>
                                 </div>
                             </div>
                             
-                            {/* Appointment Schedule Section */}
-                            <div className="appointment-schedule-section">
-                                <h3>Appointment Schedule</h3>
-                                <div className="appointment-schedule-container">
-                                  <div className="appointment-calendar-container">
-                                    <Calendar
-                                      value={new Date()}
-                                      tileClassName={({ date, view }) => {
-                                        if (view === 'month') {
-                                          // Check if this date has an appointment
-                                          const hasAppointment = patientAppointments.some(appointment => {
-                                            const appointmentDate = new Date(appointment.appointment_datetime);
-                                            return (
-                                              appointmentDate.getDate() === date.getDate() &&
-                                              appointmentDate.getMonth() === date.getMonth() &&
-                                              appointmentDate.getFullYear() === date.getFullYear()
-                                            );
-                                          });
-                                          return hasAppointment ? 'appointment-date' : null;
-                                        }
-                                      }}
-                                      tileContent={({ date, view }) => {
-                                        if (view === 'month') {
-                                          const dayAppointments = patientAppointments.filter(appointment => {
-                                            const appointmentDate = new Date(appointment.appointment_datetime);
-                                            return (
-                                              appointmentDate.getDate() === date.getDate() &&
-                                              appointmentDate.getMonth() === date.getMonth() &&
-                                              appointmentDate.getFullYear() === date.getFullYear()
-                                            );
-                                          });
-                                  
-                                        }
-                                      }}
-                                    />
-                                  </div>
-                                  
-                                  {/* Appointment Details List */}
-                                  <div className="appointment-details-list">
-                                    <h4>
-                                      {(() => {
-                                        const now = new Date();
-                                        const futureAppointments = patientAppointments.filter(appointment => 
-                                          new Date(appointment.appointment_datetime) > now
-                                        );
-                                        return futureAppointments.length > 0 ? 'Upcoming Appointments' : 'Recent Appointments';
-                                      })()}
-                                    </h4>
-                                    {(() => {
-                                      const now = new Date();
-                                      const futureAppointments = patientAppointments.filter(appointment => 
-                                        new Date(appointment.appointment_datetime) > now
-                                      );
-                                      
-                                      let appointmentsToShow = [];
-                                      if (futureAppointments.length > 0) {
-                                        appointmentsToShow = futureAppointments.slice(0, 3);
-                                      } else {
-                                        // Show 3 most recent appointments
-                                        appointmentsToShow = patientAppointments
-                                          .sort((a, b) => new Date(b.appointment_datetime) - new Date(a.appointment_datetime))
-                                          .slice(0, 3);
-                                      }
-                                      
-                                      if (appointmentsToShow.length > 0) {
-                                        return (
-                                          <ul className="appointment-list">
-                                            {appointmentsToShow.map((appointment, idx) => (
-                                              <li key={idx} className="appointment-item">
-                                                <div className="appointment-date-time">
-                                                  <strong>{formatDateToReadable(appointment.appointment_datetime.split('T')[0])}</strong>
-                                                  <span className="appointment-time">{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</span>
-                                                </div>
-                                                <div className="appointment-notes">
-                                                  {appointment.notes || 'No notes'}
-                                                </div>
-                                              </li>
-                                            ))}
-                                          </ul>
-                                        );
-                                      } else {
-                                        return <p className="no-appointments">No appointments scheduled for this patient.</p>;
-                                      }
-                                    })()}
-                                  </div>
-                                </div>
+                            {/* Latest Health Metrics Section */}
+                            <div className="latest-health-metrics-section">
+                                <h3>Latest Health Metrics</h3>
+                                <p><strong>Blood Glucose Level:</strong> {patientHealthMetrics.bloodGlucoseLevel} {patientHealthMetrics.bloodGlucoseLevel !== 'N/A' && patientHealthMetrics.bloodGlucoseLevel !== 'Error' ? 'mg/dL' : ''}</p>
+                                <p><strong>Blood Pressure:</strong> {patientHealthMetrics.bloodPressure} {patientHealthMetrics.bloodPressure !== 'N/A' && patientHealthMetrics.bloodPressure !== 'Error' ? 'mmHg' : ''}</p>
+                                <p><strong>Risk Classification:</strong> {selectedPatientForDetail.risk_classification || 'N/A'}</p>
                             </div>
                     </>
                     )}
@@ -5345,8 +5170,228 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     )}
                         </div>
 
-                        {/* Health Metrics History Table - Full Width Footer for Charts Tab */}
-                        {patientDetailTab === "charts" && (
+                        {/* Medication Tab - Full Width Content */}
+                        {patientDetailTab === "medication" && (
+                        <div className="current-medications-section">
+                            <div className="medications-table-container">
+                              <label>Current Medications:</label>
+                              <table className="medications-table">
+                                    <thead>
+                                      <tr>
+                                        <th>Drug Name</th>
+                                        <th>Dosage</th>
+                                        <th>Frequency</th>
+                                        <th>Prescribed by</th>
+                                        <th>Actions</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {patientMedications.length > 0 ? (
+                                        patientMedications.map((med, idx) => (
+                                          <tr key={med.id || idx}>
+                                            <td><input type="text" className="med-input" value={med.name || ''} readOnly /></td>
+                                            <td><input type="text" className="med-input" value={med.dosage || ''} readOnly /></td>
+                                            <td><input type="text" className="med-input" value={med.medication_frequencies && med.medication_frequencies.length > 0 ? med.medication_frequencies.map(f => `${f.frequency}`).join(', ') : ''} readOnly /></td>
+                                            <td><input type="text" className="med-input" value={(med.doctors && med.doctors.first_name) ? `${med.doctors.first_name} ${med.doctors.last_name}` : ''} readOnly /></td>
+                                            <td className="med-actions">
+                                              <button type="button" className="add-med-button" title="Add medication">
+                                                <img src="../picture/add.svg" alt="Add" className="icon-button-img" />
+                                              </button>
+                                              <button type="button" className="remove-med-button" title="Remove medication">
+                                                <img src="../picture/minus.svg" alt="Remove" className="icon-button-img" />
+                                              </button>
+                                            </td>
+                                          </tr>
+                                        ))
+                                      ) : (
+                                        <tr>
+                                          <td><input type="text" className="med-input" placeholder="No medications" readOnly /></td>
+                                          <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
+                                          <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
+                                          <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
+                                          <td className="med-actions">
+                                            <button type="button" className="add-med-button" title="Add medication">
+                                              <img src="../picture/add.svg" alt="Add" className="icon-button-img" />
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                            </div>
+                        )}
+
+                            {/* Team Care Tab - Right Column Content */}
+                            {patientDetailTab === "teamcare" && (
+                            <>
+                            {/* Doctor Assigned Section */}
+                            <div className="doctor-assigned-section">
+                                <div className="doctors-grid">
+                                    {/* Assigned Doctor Card */}
+                                    <div className="doctor-card">
+                                        <div className="doctor-avatar">
+                                            <img 
+                                                src="../picture/secretary.png" 
+                                                alt="Doctor Avatar"
+                                            />
+                                        </div>
+                                        <div className="doctor-info">
+                                            <span className="doctor-label">Assigned Doctor:</span>
+                                            <h4 className="doctor-name">
+                                                {selectedPatientForDetail.doctors 
+                                                    ? `${selectedPatientForDetail.doctors.first_name} ${selectedPatientForDetail.doctors.last_name}` 
+                                                    : 'Alex Bulquiren'}
+                                            </h4>
+                                            <p className="doctor-specialty">
+                                                {selectedPatientForDetail.doctors?.specialization || 'General Surgeon'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Assigned Specialists Cards */}
+                                    {currentPatientSpecialists.length > 0 ? (
+                                        currentPatientSpecialists.map((specialist, index) => (
+                                            <div key={specialist.id} className="doctor-card specialist-card">
+                                                <div className="doctor-avatar">
+                                                    <img 
+                                                        src="../picture/secretary.png" 
+                                                        alt="Specialist Avatar"
+                                                    />
+                                                </div>
+                                                <div className="doctor-info">
+                                                    <span className="doctor-label">Specialist Doctor</span>
+                                                    <h4 className="doctor-name">
+                                                        {specialist.doctors 
+                                                            ? `${specialist.doctors.first_name} ${specialist.doctors.last_name}` 
+                                                            : 'Unknown Doctor'}
+                                                    </h4>
+                                                    <p className="doctor-specialty">
+                                                        {specialist.doctors?.specialization || 'General'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="doctor-card specialist-card placeholder-card">
+                                            <div className="doctor-avatar">
+                                                <img 
+                                                    src="../picture/secretary.png" 
+                                                    alt="No Specialist"
+                                                />
+                                            </div>
+                                            <div className="doctor-info">
+                                                <span className="doctor-label">Specialist Doctor</span>
+                                                <h4 className="doctor-name">No Specialist Assigned</h4>
+                                                <p className="doctor-specialty">-</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <button className="edit-doctors-button" onClick={() => handleEditSpecialist(selectedPatientForDetail)}>
+                                    Edit Assignments
+                                </button>
+                            </div>
+                            </>
+                            )}
+
+                            {/* Appointment Tab - Right Column Content */}
+                            {patientDetailTab === "appointment" && (
+                            <>
+                            {/* Appointment Schedule Section */}
+                            <div className="appointment-schedule-section">
+                                <h3>Appointment Schedule</h3>
+                                <div className="appointment-schedule-container">
+                                  <div className="appointment-calendar-container">
+                                    <Calendar
+                                      value={new Date()}
+                                      tileClassName={({ date, view }) => {
+                                        if (view === 'month') {
+                                          // Check if this date has an appointment
+                                          const hasAppointment = patientAppointments.some(appointment => {
+                                            const appointmentDate = new Date(appointment.appointment_datetime);
+                                            return (
+                                              appointmentDate.getDate() === date.getDate() &&
+                                              appointmentDate.getMonth() === date.getMonth() &&
+                                              appointmentDate.getFullYear() === date.getFullYear()
+                                            );
+                                          });
+                                          return hasAppointment ? 'appointment-date' : null;
+                                        }
+                                      }}
+                                      tileContent={({ date, view }) => {
+                                        if (view === 'month') {
+                                          const dayAppointments = patientAppointments.filter(appointment => {
+                                            const appointmentDate = new Date(appointment.appointment_datetime);
+                                            return (
+                                              appointmentDate.getDate() === date.getDate() &&
+                                              appointmentDate.getMonth() === date.getMonth() &&
+                                              appointmentDate.getFullYear() === date.getFullYear()
+                                            );
+                                          });
+                                  
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                  
+                                  {/* Appointment Details List */}
+                                  <div className="appointment-details-list">
+                                    <h4>
+                                      {(() => {
+                                        const now = new Date();
+                                        const futureAppointments = patientAppointments.filter(appointment => 
+                                          new Date(appointment.appointment_datetime) > now
+                                        );
+                                        return futureAppointments.length > 0 ? 'Upcoming Appointments' : 'Recent Appointments';
+                                      })()}
+                                    </h4>
+                                    {(() => {
+                                      const now = new Date();
+                                      const futureAppointments = patientAppointments.filter(appointment => 
+                                        new Date(appointment.appointment_datetime) > now
+                                      );
+                                      
+                                      let appointmentsToShow = [];
+                                      if (futureAppointments.length > 0) {
+                                        appointmentsToShow = futureAppointments.slice(0, 3);
+                                      } else {
+                                        // Show 3 most recent appointments
+                                        appointmentsToShow = patientAppointments
+                                          .sort((a, b) => new Date(b.appointment_datetime) - new Date(a.appointment_datetime))
+                                          .slice(0, 3);
+                                      }
+                                      
+                                      if (appointmentsToShow.length > 0) {
+                                        return (
+                                          <ul className="appointment-list">
+                                            {appointmentsToShow.map((appointment, idx) => (
+                                              <li key={idx} className="appointment-item">
+                                                <div className="appointment-date-time">
+                                                  <strong>{formatDateToReadable(appointment.appointment_datetime.split('T')[0])}</strong>
+                                                  <span className="appointment-time">{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</span>
+                                                </div>
+                                                <div className="appointment-notes">
+                                                  {appointment.notes || 'No notes'}
+                                                </div>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        );
+                                      } else {
+                                        return <p className="no-appointments">No appointments scheduled for this patient.</p>;
+                                      }
+                                    })()}
+                                  </div>
+                                </div>
+                            </div>
+                            </>
+                            )}
+                        </div>
+
+                        {/* Health Metrics History Table - Full Width Footer for Tables Tab */}
+                        {patientDetailTab === "tables" && (
                         <div className="health-metrics-history-section">
                             <h3>Health Metrics History</h3>
                             <table className="health-metrics-table">
@@ -5415,8 +5460,8 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         </div>
                         )}
 
-                        {/* Wound Gallery Section - Full Width Footer for Profile Tab */}
-                        {patientDetailTab === "profile" && (
+                        {/* Wound Gallery Section - Full Width Footer for Wound Gallery Tab */}
+                        {patientDetailTab === "woundgallery" && (
                         <div className="wound-gallery-section">
                             <h3>Wound Gallery</h3>
                             <div className="wound-gallery-grid">
@@ -5488,7 +5533,6 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         </div>
                         )}
                     </div>
-                </div>
               )}
 
 {/* ... rest of the patient details ...*/}
