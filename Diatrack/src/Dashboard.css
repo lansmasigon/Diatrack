@@ -218,6 +218,104 @@ body {
   font-weight: 700;
 }
 
+/* Dashboard Header Row - Welcome message and status switch */
+.dashboard-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.dashboard-header-row .welcomeh1 {
+  margin: 0;
+}
+
+/* Compact Doctor Status Switch */
+.doctor-status-compact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: var(--background-white);
+  padding: 10px 16px;
+  border-radius: 25px;
+  box-shadow: 0 2px 6px var(--shadow-light);
+  transition: all 0.3s ease;
+}
+
+.doctor-status-compact:hover {
+  box-shadow: 0 3px 10px var(--shadow-medium);
+}
+
+.status-text-compact {
+  font-size: 0.95em;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.status-text-compact.status-in {
+  color: var(--success-color);
+}
+
+.status-text-compact.status-out {
+  color: var(--danger-color);
+}
+
+/* Compact Toggle Switch */
+.status-switch-compact {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.status-switch-compact input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.status-slider-compact {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 24px;
+}
+
+.status-slider-compact:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+.status-switch-compact input:checked + .status-slider-compact {
+  background-color: var(--success-color);
+}
+
+.status-switch-compact input:focus + .status-slider-compact {
+  box-shadow: 0 0 1px var(--success-color);
+}
+
+.status-switch-compact input:checked + .status-slider-compact:before {
+  transform: translateX(20px);
+}
+
+/* Hover effect for the compact switch */
+.status-switch-compact:hover .status-slider-compact {
+  opacity: 0.9;
+}
+
 
 /* Report Widget Styles */
 .report-widget {
@@ -1232,7 +1330,6 @@ body {
   text-align: center;
   padding: 15px;
   background-color: var(--background-light);
-  border-radius: 8px;
 }
 
 /* Health Metrics Table Specific Styles */
@@ -1523,853 +1620,742 @@ body {
 }
 
 
-/* Appointment Schedule Section */
-.appointment-schedule-section {
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 0px;
+/* ========================================
+   FULL-WIDTH TAB SECTIONS - NEW STYLES
+   ======================================== */
 
-}
-
-.appointment-schedule-section h3 {
-  margin: 0 0 20px 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #2C3E50;
-}
-
-.appointment-schedule-container {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-/* Dashboard Calendar Styles - Original */
-.dashboard-appointment-schedule-container {
-  display: flex;
-  gap: 30px;
-  flex-wrap: nowrap;
-  align-items: flex-start;
-}
-
-.dashboard-appointment-calendar-container {
-  flex: 0 0 auto;
-  width: 280px;
-  min-width: 280px;
-}
-
-.dashboard-appointment-details-list {
-  flex: 1;
-  min-width: 250px;
-  max-width: 400px;
-}
-
-.dashboard-appointment-details-list h4 {
-  margin: 0 0 15px 0;
-  font-size: 16px;
-  font-weight: 500;
-  color: #495057;
-}
-
-/* Calendar tile styling for appointments */
-.react-calendar__tile.dashboard-appointment-date {
-  background-color: #e3f2fd !important;
-  color: #1976d2 !important;
-  font-weight: 600;
-}
-
-.react-calendar__tile.dashboard-appointment-date:hover {
-  background-color: #bbdefb !important;
-}
-
-/* Dashboard Calendar Specific Styles */
-.dashboard-appointment-calendar-container .react-calendar {
-  width: 100%;
-  background-color: white;
-  border: 1px solid #e9ecef;
-  border-radius: 12px;
-  padding: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  font-family: inherit;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__tile {
-  max-width: 100%;
-  height: 34px;
-  padding: 0;
-  background: none;
-  text-align: center;
-  line-height: 34px;
-  font-size: 14px;
-  position: relative;
-  border: none;
-  color: #374151;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  margin: 1px;
-  border-radius: 6px;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__tile:enabled:hover,
-.dashboard-appointment-calendar-container .react-calendar__tile:enabled:focus {
-  background-color: #e5f3ff;
-  color: #1976d2;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__tile--now {
-  background: #1976d2;
-  color: white;
-  border-radius: 6px;
-  font-weight: 600;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__navigation {
-  display: flex;
-  height: 40px;
-  margin-bottom: 0;
-  background-color: transparent;
-  padding: 0;
-  align-items: center;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__navigation button {
-  min-width: 30px;
-  background: none;
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-  border-radius: 6px;
-  padding: 4px;
-  transition: all 0.2s ease;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__month-view__weekdays {
-  text-align: center;
-  text-transform: uppercase;
-  font-weight: 500;
-  font-size: 12px;
-  background-color: #f8f9fa;
-  margin: 0;
-  padding: 8px 0;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__month-view__weekdays__weekday {
-  padding: 8px 0;
-  color: #6c757d;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-/* Additional calendar fixes for Dashboard */
-.dashboard-appointment-calendar-container .react-calendar button {
-  margin: 0;
-  border: 0;
-  outline: none;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__month-view__days__day--weekend {
-  color: #dc3545;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__month-view__days__day--neighboringMonth {
-  color: #9ca3af;
-}
-
-/* Dashboard Appointment List Styles */
-.dashboard-appointment-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.dashboard-appointment-item {
-  background: white;
-  border-radius: 8px;
-  padding: 12px;
-  border: 1px solid #e9ecef;
-  transition: all 0.2s ease;
-}
-
-.dashboard-appointment-item:hover {
-  border-color: #1976d2;
-  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
-  transform: translateY(-1px);
-}
-
-.dashboard-appointment-date-time {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.dashboard-appointment-date-time strong {
-  color: #2C3E50;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.dashboard-appointment-time {
-  color: #6c757d;
-  font-size: 13px;
-}
-
-.dashboard-appointment-notes {
-  color: #495057;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-/* No specialist message */
-.no-specialists-message {
-  text-align: center;
-  padding: 20px;
-  color: #6c757d;
-  font-style: italic;
-}
-
-/* Placeholder card for no specialist */
-.placeholder-card {
-  opacity: 0.6;
-}
-
-.placeholder-card .doctor-name {
-  color: #6c757d;
-  font-style: italic;
-}
-
-/* Responsive design for appointment schedule */
-@media (max-width: 768px) {
-  .appointment-schedule-container {
-    flex-direction: column;
-  }
-  
-  .appointment-calendar-container,
-  .appointment-details-list {
-    min-width: 100%;
-  }
-}
-
-/* Responsive design for dashboard appointment schedule */
-@media (max-width: 768px) {
-  .dashboard-appointment-schedule-container {
-    flex-direction: column;
-    flex-wrap: wrap;
-  }
-  
-  .dashboard-appointment-calendar-container,
-  .dashboard-appointment-details-list {
-    min-width: 100%;
-    width: 100%;
-  }
-}
-
-
-/* History Charts Section Styles */
-.history-charts-section {
-  background-color: var(--card-bg);
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px var(--shadow-light);
-  margin-bottom: 0px;
-}
-
-.history-charts-section h3 {
-  color: var(--text-dark);
-  margin-top: 0;
-  margin-bottom: 15px;
-  font-weight: 600;
-  font-size: 1.3em;
-  padding-bottom: 10px;
-}
-
-/* Individual chart containers */
-.risk-score-chart-section,
-.blood-glucose-chart-container,
-.blood-pressure-chart-container,
-.risk-classification-chart-container {
-  margin-bottom: 20px;
-  background-color: var(--background-light);
-  border-radius: 8px;
-  padding: 10px;
-  border: 1px solid var(--border-light);
-}
-
-.blood-glucose-chart-container h4,
-.blood-pressure-chart-container h4,
-.risk-classification-chart-container h4,
-.risk-score-chart-section h4 {
-  color: var(--text-medium);
-  margin-top: 0;
-  margin-bottom: 10px;
-  font-size: 1.1em;
-  font-weight: 600;
-}
-
-/* Risk Classification Legend Styles */
-.risk-legend-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-  margin-bottom: 15px;
-  padding: 10px;
+/* Medication Tab - Full Width Section */
+.current-medications-section {
   background-color: var(--background-white);
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 2px 8px var(--shadow-light);
+  margin: 20px;
+}
+
+.current-medications-section h3 {
+  color: var(--text-dark);
+  font-size: 1.4em;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.medications-table-container {
+  margin-bottom: 25px;
+  overflow-x: auto;
+}
+
+.medications-table-container label {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 15px;
+}
+
+.medications-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.medications-table thead {
+  background-color: #f8f9fa;
+}
+
+.medications-table th {
+  padding: 12px 15px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-dark);
+  font-size: 14px;
+  border-bottom: 2px solid var(--border-light);
+}
+
+.medications-table td {
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.medications-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.med-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-light);
   border-radius: 6px;
+  font-size: 14px;
+  background-color: white;
+}
+
+.med-input:read-only {
+  background-color: #f8f9fa;
+  cursor: default;
+}
+
+.med-input:focus {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(31, 170, 237, 0.1);
+}
+
+.med-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.edit-medication-button3,
+.remove-medication-button3,
+.add-med-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
   justify-content: center;
 }
 
-.risk-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9em;
-  color: var(--text-dark);
+.edit-medication-button3:hover {
+  background-color: rgba(31, 170, 237, 0.1);
 }
 
-.risk-legend-color {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+.remove-medication-button3:hover {
+  background-color: rgba(220, 53, 69, 0.1);
 }
 
-.risk-legend-color.low-risk {
-  background-color: rgba(34, 197, 94, 0.8);
+.add-med-button:hover {
+  background-color: rgba(40, 167, 69, 0.1);
 }
 
-.risk-legend-color.moderate-risk {
-  background-color: rgba(255, 193, 7, 0.8);
+.edit-medication-button3 .button-icon,
+.remove-medication-button3 .button-icon,
+.add-med-button img {
+  width: 20px;
+  height: 20px;
 }
 
-.risk-legend-color.high-risk {
-  background-color: rgba(244, 67, 54, 0.8);
-}
-
-.risk-legend-color.ppd-risk {
-  background-color: rgba(103, 101, 105, 0.8);
-}
-
-/* Chart wrapper to ensure proper sizing */
-.chart-wrapper {
-  position: relative;
-  height: 300px;
-  width: 100%;
-  background-color: var(--background-white);
+.action-button3 {
+  padding: 8px 16px;
+  border: none;
   border-radius: 6px;
-  padding: 10px;
-}
-
-/* Time Filter Buttons for Charts */
-.time-filter-buttons {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.time-filter-btn {
-  padding: 6px 16px;
-  border: 1px solid var(--border-medium);
-  background-color: var(--background-white);
-  color: var(--text-medium);
-  border-radius: 6px;
-  font-size: 0.85em;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
+}
+
+.save-button3 {
+  background-color: var(--primary-blue);
+  color: white;
+}
+
+.save-button3:hover {
+  background-color: #1890d1;
+}
+
+.cancel-button3 {
+  background-color: #6c757d;
+  color: white;
+}
+
+.cancel-button3:hover {
+  background-color: #5a6268;
+}
+
+.medication-checkbox-group-edit3 {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.medication-checkbox-group-edit3 label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  color: var(--text-dark);
+  cursor: pointer;
+  margin: 0;
+}
+
+.medication-checkbox-group-edit3 input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.medication-input-group3 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: flex-end;
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.medication-input3 {
+  flex: 1;
+  min-width: 150px;
+  padding: 10px 15px;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.medication-input3:focus {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(31, 170, 237, 0.1);
+}
+
+.medication-checkbox-group3 {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 10px 15px;
+  background-color: white;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+}
+
+.medication-checkbox-group3 label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-dark);
+  cursor: pointer;
+  margin: 0;
+}
+
+.medication-checkbox-group3 input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.add-medication-button3 {
+  padding: 10px 25px;
+  background-color: var(--primary-blue);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
   white-space: nowrap;
 }
 
-.time-filter-btn:hover {
-  background-color: var(--background-light);
-  border-color: var(--primary-blue);
-  color: var(--primary-blue);
+.add-medication-button3:hover {
+  background-color: #1890d1;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
-.time-filter-btn.active {
-  background-color: var(--primary-blue);
-  color: var(--background-white);
-  border-color: var(--primary-blue);
-  font-weight: 600;
-  box-shadow: 0 2px 4px rgba(31, 170, 237, 0.3);
-}
-
-.time-filter-btn.active:hover {
-  background-color: #1a8fcc;
-  border-color: #1a8fcc;
-}
-
-/* Responsive chart adjustments */
-@media (max-width: 768px) {
-  .chart-wrapper {
-    height: 250px;
-  }
-  
-  .risk-legend-container {
-    gap: 10px;
-  }
-  
-  .blood-glucose-chart-container,
-  .blood-pressure-chart-container,
-  .risk-classification-chart-container {
-    padding: 10px;
-  }
-  
-  /* Health metrics table responsive styling */
-  .health-metrics-table {
-    font-size: 11px;
-  }
-  
-  .health-metrics-table th,
-  .health-metrics-table td {
-    padding: 8px 6px;
-  }
-  
-  .health-metrics-table th:first-child,
-  .health-metrics-table td:first-child {
-    min-width: 140px;
-    padding-right: 12px;
-  }
-  
-  .health-metrics-table th:nth-child(n+2),
-  .health-metrics-table td:nth-child(n+2) {
-    min-width: 90px;
-    padding-left: 8px;
-    padding-right: 8px;
-  }
-}
-
-@media (max-width: 480px) {
-  /* Health metrics table for very small screens */
-  .health-metrics-table {
-    font-size: 10px;
-  }
-  
-  .health-metrics-table th,
-  .health-metrics-table td {
-    padding: 6px 4px;
-  }
-  
-  .health-metrics-table th:first-child,
-  .health-metrics-table td:first-child {
-    min-width: 120px;
-    padding-right: 8px;
-  }
-  
-  .health-metrics-table th:nth-child(n+2),
-  .health-metrics-table td:nth-child(n+2) {
-    min-width: 70px;
-    padding-left: 4px;
-    padding-right: 4px;
-  }
-  
-  .health-metrics-table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-}
-
-/* Button Icon Styles */
-.button-icon {
-  width: 16px;
-  height: 16px;
-  display: inline-block;
-  vertical-align: middle;
-}
-
-.button-icon.back-icon {
-  margin-right: 8px;
-}
-
-/* New styles for the risk classification chart */
-.risk-chart-card3 {
-  grid-column: span 1; /* Make it span across two columns for better visibility */
-  display: flex;
-  flex-direction: column;
-  align-items: center; /* This centers the content horizontally within the card */
-  margin-top: 0px; /* Add margin to push it below other widgets if needed by grid flow */
-}
-
-.bar-chart-container3 {
-  display: flex;
-  justify-content: space-around;
-  align-items: flex-end; /* Bars grow upwards from the bottom */
-  width: 100%;
-  height: 200px; /* Fixed height for the chart area */
-  padding: 10px;
+/* Team Care Tab - Doctor Cards Section */
+.doctor-assigned-section {
   background-color: var(--background-white);
-  border-radius: var(--border-radius);
-  box-shadow: var(--card-shadow);
-  /* margin-top: 20px; Removed as it's now on the card itself */
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 2px 8px var(--shadow-light);
+  margin: 20px;
 }
 
-.bar-chart-item3 {
-  display: flex;
-  flex-direction: column;
-  align-items: center; /* This centers the label, bar, and value horizontally within each bar item */
-  width: 30%; /* Adjust width for spacing between bars */
-  height: 100%; /* Take full height of the container */
-  justify-content: flex-end; /* Align content to the bottom */
-}
-
-.bar-chart-label3 {
-  font-size: 0.9em;
-  color: var(--text-color-light);
-  margin-bottom: 5px;
-  text-align: center; /* Ensure label text is centered */
-}
-
-.bar-chart-bar-wrapper3 {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center; /* Center the bar within its wrapper */
-  width: 100%;
-  height: 100%; /* Bar wrapper takes full height */
-  position: relative;
-}
-
-.bar-chart-bar3 {
-  width: 60%; /* Width of the actual bar */
-  /* margin: 0 auto; Removed as justify-content on wrapper handles centering */
-  border-radius: 5px 5px 0 0;
-  transition: height 0.3s ease-in-out;
-  position: absolute;
-  bottom: 0;
-}
-
-/* Colors for risk bars */
-.low-risk-bar3 {
-  background-color: green; /* Example green for Low */
-}
-
-.moderate-risk-bar3 {
-  background-color: orange; /* Example orange for Moderate */
-}
-
-.high-risk-bar3 {
-  background-color: red; /* Example red for High */
-}
-
-.bar-chart-value3 {
-  margin-top: 5px;
-  font-weight: bold;
-  color: var(--text-color);
-  text-align: center; /* Ensure value text is centered */
-}
-
-/* Pop-up Overlay Styles */
-.popup-overlay3 {
-  position: fixed; /* Fixes the overlay to the viewport */
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent dark background */
-  display: flex; /* Use flexbox to center the content */
-  justify-content: center; /* Center horizontally */
-  align-items: center; /* Center vertically */
-  z-index: 1000; /* Ensure it's above other content */
-}
-
-/* Pop-up Content Styles */
-.popup-content3 {
-  background-color: #ffffff; /* White background for the pop-up box */
-  padding: 30px;
-  border-radius: 12px; /* Rounded corners */
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2); /* Stronger shadow for depth */
-  text-align: center;
-  max-width: 400px; /* Max width for readability */
-  width: 90%; /* Responsive width */
-  position: relative;
-}
-
-.popup-content3 h3 {
-  font-size: 1.8em;
-  color: #333333;
-  margin-top: 0;
-  margin-bottom: 15px;
-}
-
-.popup-content3 p {
-  font-size: 1.1em;
-  color: #555555;
-  margin-bottom: 25px;
-  line-height: 1.5;
-}
-
-.popup-content3 button {
-  background-color: #007bff; /* Primary blue button */
-  color: #ffffff;
-  padding: 12px 25px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1em;
+.doctor-assigned-section h3 {
+  color: var(--text-dark);
+  font-size: 1.4em;
   font-weight: 600;
-  transition: background-color 0.3s ease, transform 0.2s ease;
+  margin-top: 0;
+  margin-bottom: 20px;
 }
 
-.popup-content3 button:hover {
-  background-color: #0056b3; /* Darker blue on hover */
-  transform: translateY(-1px); /* Slight lift effect */
+.doctors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
 }
 
-
-/* Appointment Schedule Section */
-.appointment-schedule-section {
+.doctor-card {
+  background-color: var(--background-white);
+  border: 1px solid var(--border-light);
   border-radius: 12px;
   padding: 20px;
-  margin-bottom: 0px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 2px 6px var(--shadow-light);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
 
+.doctor-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.doctor-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid var(--border-light);
+}
+
+.doctor-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.doctor-info {
+  flex: 1;
+}
+
+.doctor-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-light);
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.doctor-name {
+  margin: 0 0 5px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.doctor-specialty {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-medium);
+}
+
+.specialist-card {
+  border-left: 3px solid var(--primary-blue);
+}
+
+.placeholder-card {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+/* Appointment Schedule Tab - Full Width */
+.appointment-schedule-section {
+  background-color: var(--background-white);
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 2px 8px var(--shadow-light);
+  margin: 20px;
 }
 
 .appointment-schedule-section h3 {
-  margin: 0 0 20px 0;
-  font-size: 18px;
+  color: var(--text-dark);
+  font-size: 1.4em;
   font-weight: 600;
-  color: #2C3E50;
+  margin-top: 0;
+  margin-bottom: 20px;
 }
 
-.appointment-schedule-container {
+.dashboard-appointment-schedule-container {
   display: flex;
   gap: 20px;
   flex-wrap: wrap;
-}
-
-/* Dashboard Calendar Styles - Original */
-.dashboard-appointment-schedule-container {
-  display: flex;
-  gap: 30px;
-  flex-wrap: nowrap;
   align-items: flex-start;
+  justify-content: flex-start;
 }
 
 .dashboard-appointment-calendar-container {
   flex: 0 0 auto;
-  width: 280px;
-  min-width: 280px;
+  min-width: 200px;
+  max-width: 280px;
+}
+
+.dashboard-appointment-calendar-container .react-calendar {
+  font-size: 0.85em;
+  width: 280px
+}
+
+.dashboard-appointment-calendar-container .react-calendar__tile {
+  padding: 8px 4px;
+  font-size: 0.90em;
+}
+
+.dashboard-appointment-calendar-container .react-calendar__navigation button {
+  font-size: 0.9em;
+  min-width: 32px;
+}
+
+.dashboard-appointment-calendar-container .react-calendar__month-view__weekdays {
+  font-size: 0.75em;
 }
 
 .dashboard-appointment-details-list {
   flex: 1;
-  min-width: 250px;
-  max-width: 400px;
+  min-width: 200px;
+  max-width: 300px;
 }
 
 .dashboard-appointment-details-list h4 {
-  margin: 0 0 15px 0;
+  margin: 0 0 10px 0;
   font-size: 16px;
-  font-weight: 500;
-  color: #495057;
-}
-
-/* Calendar tile styling for appointments */
-.react-calendar__tile.dashboard-appointment-date {
-  background-color: #e3f2fd !important;
-  color: #1976d2 !important;
   font-weight: 600;
+  color: var(--text-dark);
 }
 
-.react-calendar__tile.dashboard-appointment-date:hover {
-  background-color: #bbdefb !important;
-}
-
-/* Dashboard Calendar Specific Styles */
-.dashboard-appointment-calendar-container .react-calendar {
-  width: 100%;
-  background-color: white;
-  border: 1px solid #e9ecef;
-  border-radius: 12px;
-  padding: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  font-family: inherit;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__tile {
-  max-width: 100%;
-  height: 34px;
-  padding: 0;
-  background: none;
-  text-align: center;
-  line-height: 34px;
-  font-size: 14px;
-  position: relative;
-  border: none;
-  color: #374151;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  margin: 1px;
-  border-radius: 6px;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__tile:enabled:hover,
-.dashboard-appointment-calendar-container .react-calendar__tile:enabled:focus {
-  background-color: #e5f3ff;
-  color: #1976d2;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__tile--now {
-  background: #1976d2;
-  color: white;
-  border-radius: 6px;
-  font-weight: 600;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__navigation {
-  display: flex;
-  height: 40px;
-  margin-bottom: 0;
-  background-color: transparent;
-  padding: 0;
-  align-items: center;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__navigation button {
-  min-width: 30px;
-  background: none;
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-  border-radius: 6px;
-  padding: 4px;
-  transition: all 0.2s ease;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__month-view__weekdays {
-  text-align: center;
-  text-transform: uppercase;
-  font-weight: 500;
-  font-size: 12px;
-  background-color: #f8f9fa;
-  margin: 0;
-  padding: 8px 0;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__month-view__weekdays__weekday {
-  padding: 8px 0;
-  color: #6c757d;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-/* Additional calendar fixes for Dashboard */
-.dashboard-appointment-calendar-container .react-calendar button {
-  margin: 0;
-  border: 0;
-  outline: none;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__month-view__days__day--weekend {
-  color: #dc3545;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__month-view__days__day--neighboringMonth {
-  color: #9ca3af;
-}
-
-/* Dashboard Appointment List Styles */
 .dashboard-appointment-list {
   list-style: none;
   padding: 0;
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 .dashboard-appointment-item {
-  background: white;
-  border-radius: 8px;
+  background-color: #f8f9fa;
+  border-left: 4px solid var(--primary-blue);
   padding: 12px;
-  border: 1px solid #e9ecef;
+  margin-bottom: 10px;
+  border-radius: 8px;
   transition: all 0.2s ease;
 }
 
 .dashboard-appointment-item:hover {
-  border-color: #1976d2;
-  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
-  transform: translateY(-1px);
+  transform: translateX(5px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .dashboard-appointment-date-time {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .dashboard-appointment-date-time strong {
-  color: #2C3E50;
   font-size: 14px;
-  font-weight: 600;
+  color: var(--text-dark);
 }
 
 .dashboard-appointment-time {
-  color: #6c757d;
   font-size: 13px;
+  color: var(--text-medium);
+  margin-left: 8px;
 }
 
 .dashboard-appointment-notes {
-  color: #495057;
   font-size: 13px;
+  color: var(--text-medium);
   line-height: 1.4;
 }
 
-/* No specialist message */
-.no-specialists-message {
+.no-appointments {
   text-align: center;
+  color: var(--text-light);
+  font-style: italic;
   padding: 20px;
-  color: #6c757d;
+}
+
+/* Patient Detail Appointment Tab - Separate Styles */
+.patient-appointment-two-column-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  align-items: start;
+}
+
+.patient-appointment-left-column {
+  background-color: var(--background-light);
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.patient-appointment-right-column {
+  background-color: var(--background-light);
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.patient-appointment-schedule-container {
+  display: flex;
+  gap: 20px;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.patient-appointment-calendar-container {
+  flex: 0 0 280px;
+  min-width: 280px;
+  max-width: 280px;
+
+  
+}
+
+.patient-appointment-calendar-container .react-calendar {
+  font-size: 0.85em;
+  width: 280px;
+}
+
+.patient-appointment-calendar-container .react-calendar__tile {
+  padding: 8px 4px;
+  font-size: 0.90em;
+}
+
+.patient-appointment-calendar-container .react-calendar__navigation button {
+  font-size: 0.9em;
+  min-width: 32px;
+}
+
+.patient-appointment-calendar-container .react-calendar__month-view__weekdays {
+  font-size: 0.75em;
+}
+
+.patient-appointment-details-list {
+  flex: 1;
+  min-width: 250px;
+  max-height: 350px;
+  display: flex;
+  flex-direction: column;
+}
+
+.patient-appointment-details-list h4 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.patient-appointment-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.patient-appointment-item {
+  background-color: #f8f9fa;
+  border-left: 4px solid var(--primary-blue);
+  padding: 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.patient-appointment-item:hover {
+  transform: translateX(5px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.patient-appointment-date-time {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.patient-appointment-date-time strong {
+  font-size: 14px;
+  color: var(--text-dark);
+}
+
+.patient-appointment-time {
+  font-size: 13px;
+  color: var(--text-medium);
+  margin-left: 8px;
+}
+
+.patient-appointment-notes {
+  font-size: 13px;
+  color: var(--text-medium);
+  line-height: 1.4;
+}
+
+/* Patient Appointment Status Table */
+.patient-appointment-table-container {
+  width: 100%;
+}
+
+.patient-appointment-table-container h4 {
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.appointment-table-wrapper {
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.patient-appointment-status-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.patient-appointment-status-table thead {
+  background-color: #f8f9fa;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.patient-appointment-status-table th {
+  padding: 12px 15px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-dark);
+  font-size: 14px;
+  border-bottom: 2px solid var(--border-light);
+}
+
+.patient-appointment-status-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 14px;
+  color: var(--text-medium);
+}
+
+.patient-appointment-status-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.patient-appointment-status-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.appointment-status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.appointment-status-badge.pending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.appointment-status-badge.confirmed {
+  background-color: #d1ecf1;
+  color: #0c5460;
+}
+
+.appointment-status-badge.completed {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.appointment-status-badge.cancelled {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.appointment-status-badge.rescheduled {
+  background-color: #e7f3ff;
+  color: #004085;
+}
+
+/* Health Metrics History Tab - Full Width */
+.health-metrics-history-section {
+  background-color: var(--background-white);
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 2px 8px var(--shadow-light);
+  margin: 20px;
+}
+
+.health-metrics-history-section h3 {
+  color: var(--text-dark);
+  font-size: 1.4em;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.health-metrics-table-container {
+  overflow-x: auto;
+}
+
+.health-metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.health-metrics-table thead {
+  background-color: #f8f9fa;
+}
+
+.health-metrics-table th {
+  padding: 12px 15px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-dark);
+  font-size: 14px;
+  border-bottom: 2px solid var(--border-light);
+  white-space: nowrap;
+}
+
+.health-metrics-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 14px;
+  color: var(--text-medium);
+}
+
+.health-metrics-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.metric-value {
+  font-weight: 500;
+  color: var(--text-dark);
+}
+
+.health-metrics-pagination {
+  margin-top: 20px;
+  display: flex;
+  justify-content: left;
+}
+
+.no-metrics-message {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-light);
   font-style: italic;
 }
 
-/* Placeholder card for no specialist */
-.placeholder-card {
-  opacity: 0.6;
-}
-
-.placeholder-card .doctor-name {
-  color: #6c757d;
-  font-style: italic;
-}
-
-/* Responsive design for appointment schedule */
-@media (max-width: 768px) {
-  .appointment-schedule-container {
-    flex-direction: column;
-  }
-  
-  .appointment-calendar-container,
-  .appointment-details-list {
-    min-width: 100%;
-  }
-}
-
-/* Responsive design for dashboard appointment schedule */
-@media (max-width: 768px) {
-  .dashboard-appointment-schedule-container {
-    flex-direction: column;
-    flex-wrap: wrap;
-  }
-  
-  .dashboard-appointment-calendar-container,
-  .dashboard-appointment-details-list {
-    min-width: 100%;
-    width: 100%;
-  }
-}
-
-/* Wound Gallery Styles */
+/* Wound Gallery Tab - Full Width (Enhance existing styles) */
 .wound-gallery-section {
   background-color: var(--background-white);
   border-radius: 12px;
   padding: 25px;
   box-shadow: 0 2px 8px var(--shadow-light);
-  margin-top: 25px;
+  margin: 20px;
 }
 
 .wound-gallery-section h3 {
@@ -2378,1139 +2364,49 @@ body {
   font-weight: 600;
   margin-top: 0;
   margin-bottom: 20px;
-  padding-bottom: 10px;
 }
 
-.wound-gallery-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-  max-height: 600px;
-  overflow-y: auto;
-  padding: 10px;
-}
-
-.wound-gallery-grid::-webkit-scrollbar {
-  width: 8px;
-}
-
-.wound-gallery-grid::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
-}
-
-.wound-gallery-grid::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 10px;
-}
-
-.wound-gallery-grid::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-.wound-gallery-card {
-  background-color: var(--background-white);
-  border: 1px solid var(--border-light);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 6px var(--shadow-light);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.wound-gallery-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.wound-photo-container {
-  position: relative;
-  width: 100%;
-  height: 200px;
-  overflow: hidden;
-  background-color: #f5f5f5;
-}
-
-.wound-photo-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.photo-expand-btn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background-color: rgba(255, 255, 255, 0.9);
-  border: none;
-  border-radius: 50%;
-  width: 35px;
-  height: 35px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-}
-
-.photo-expand-btn:hover {
-  background-color: var(--primary-blue);
-  color: white;
-  transform: scale(1.1);
-}
-
-.photo-expand-btn img {
-  width: 16px;
-  height: 16px;
-}
-
-.photo-info {
-  padding: 15px;
-}
-
-.photo-timestamp {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-bottom: 10px;
-  font-size: 13px;
-  color: #666;
-}
-
-.photo-date {
-  font-weight: 600;
-  color: var(--text-dark);
-}
-
-.photo-time {
-  color: #999;
-}
-
-.photo-submitter {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.submitter-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.submitter-info {
-  font-size: 13px;
-  color: #666;
-}
-
-.submitter-text {
-  color: #999;
-  font-size: 12px;
-}
-
-.photo-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.entry-btn,
-.treatment-plan-btn {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.entry-btn {
-  background-color: #f8f9fa;
-  color: #666;
-  cursor: default;
-}
-
-.entry-btn:hover {
-  background-color: #e9ecef;
-}
-
-.treatment-plan-btn {
-  background-color: var(--primary-blue);
-  color: white;
-  border-color: var(--primary-blue);
-}
-
-.treatment-plan-btn:hover {
-  background-color: #218838;
-  border-color: #1e7e34;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
-}
-
-.photo-notes {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #e0e0e0;
-  font-size: 12px;
-  color: #666;
-}
-
-.loading-message,
-.no-photos-message {
-  text-align: center;
-  padding: 40px;
-  color: #999;
-  font-style: italic;
-}
-
-/* Treatment Plan Actions - Summary Page */
-.treatment-plan-actions3 {
-  display: flex;
-  justify-content: flex-end;
-  gap: 15px;
-  margin-top: 10px;
-  padding: 10px 0;
-}
-
-.send-button3,
-.print-button3 {
-  padding: 10px 20px;
-  font-size: 15px;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.send-button3 {
-  background: linear-gradient(135deg, #1FAAED 0%, #1890d5 100%);
-  color: white;
-}
-
-.send-button3:hover {
-  background: linear-gradient(135deg, #1890d5 0%, #1678bc 100%);
-  box-shadow: 0 4px 8px rgba(31, 170, 237, 0.3);
-  transform: translateY(-2px);
-}
-
-.send-button3:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(31, 170, 237, 0.2);
-}
-
-.print-button3 {
-  background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
-  color: white;
-}
-
-.print-button3:hover {
-  background: linear-gradient(135deg, #5a6268 0%, #4e555b 100%);
-  box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
-  transform: translateY(-2px);
-}
-
-.print-button3:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(108, 117, 125, 0.2);
-}
-
-
-/* Responsive design for smaller screens */
+/* Responsive adjustments for full-width sections */
 @media (max-width: 768px) {
-  .treatment-plan-actions3 {
+  .current-medications-section,
+  .doctor-assigned-section,
+  .appointment-schedule-section,
+  .health-metrics-history-section,
+  .wound-gallery-section {
+    margin: 15px 10px;
+    padding: 20px;
+  }
+
+  .medications-table,
+  .health-metrics-table {
+    font-size: 12px;
+  }
+
+  .medications-table th,
+  .medications-table td,
+  .health-metrics-table th,
+  .health-metrics-table td {
+    padding: 8px 10px;
+  }
+
+  .doctors-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-appointment-schedule-container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+
+
+  .medication-input-group3 {
     flex-direction: column;
     align-items: stretch;
   }
-  
-  .send-button3,
-  .print-button3 {
-    width: 100%;
-    justify-content: center;
-  }
-}
 
-/* Photo Expansion Modal */
-.photo-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.85);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 2000;
-  padding: 20px;
-}
-
-.photo-modal-content {
-  background-color: var(--background-white);
-  border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
-  max-width: 800px;
-  max-height: 90vh;
-  overflow-y: auto;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 30px;
-}
-
-.photo-modal-close {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  background: none;
-  border: none;
-  font-size: 28px;
-  color: var(--text-medium);
-  cursor: pointer;
-  transition: color 0.3s ease;
-  z-index: 10;
-}
-
-.photo-modal-close:hover {
-  color: var(--danger-color);
-}
-
-.expanded-photo-image {
-  max-width: 100%;
-  max-height: 60vh;
-  width: auto;
-  height: auto;
-  border-radius: 8px;
-  box-shadow: 0 4px 15px var(--shadow-medium);
-  margin-bottom: 20px;
-}
-
-.expanded-photo-info {
-  width: 100%;
-  text-align: left;
-  padding: 20px;
-  background-color: var(--background-light);
-  border-radius: 8px;
-}
-
-.expanded-photo-info h4 {
-  color: var(--primary-blue);
-  margin-top: 0;
-  margin-bottom: 15px;
-  font-size: 1.3em;
-  border-bottom: 2px solid var(--border-light);
-  padding-bottom: 10px;
-}
-
-.expanded-photo-info p {
-  margin: 10px 0;
-  font-size: 1em;
-  color: var(--text-dark);
-  line-height: 1.6;
-}
-
-.expanded-photo-info p strong {
-  color: var(--text-medium);
-  margin-right: 8px;
-}
-
-/* History Charts Section Styles */
-.history-charts-section {
-  background-color: var(--card-bg);
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px var(--shadow-light);
-  margin-bottom: 20px;
-}
-
-.history-charts-section h3 {
-  color: var(--text-dark);
-  margin-top: 0;
-  margin-bottom: 0px;
-  font-weight: 600;
-  font-size: 1.3em;
-  padding-bottom: 10px;
-}
-
-/* Individual chart containers */
-.blood-glucose-chart-container,
-.blood-pressure-chart-container,
-.risk-classification-chart-container {
-  margin-bottom: 20px;
-  background-color: var(--background-light);
-  border-radius: 8px;
-  padding: 10px;
-  border: 1px solid var(--border-light);
-}
-
-.blood-glucose-chart-container h4,
-.blood-pressure-chart-container h4,
-.risk-classification-chart-container h4 {
-  color: var(--text-medium);
-  margin-top: 0;
-  margin-bottom: 15px;
-  font-size: 1.1em;
-  font-weight: 600;
-}
-
-/* Risk Classification Legend Styles */
-.risk-legend-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-  margin-bottom: 15px;
-  padding: 10px;
-  background-color: var(--background-white);
-  border-radius: 6px;
-  justify-content: center;
-}
-
-.risk-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9em;
-  color: var(--text-dark);
-}
-
-.risk-legend-color {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.risk-legend-color.low-risk {
-  background-color: rgba(34, 197, 94, 0.8);
-}
-
-.risk-legend-color.moderate-risk {
-  background-color: rgba(255, 193, 7, 0.8);
-}
-
-.risk-legend-color.high-risk {
-  background-color: rgba(244, 67, 54, 0.8);
-}
-
-.risk-legend-color.ppd-risk {
-  background-color: rgba(103, 101, 105, 0.8);
-}
-
-/* Chart wrapper to ensure proper sizing */
-.chart-wrapper {
-  position: relative;
-  height: 300px;
-  width: 100%;
-  background-color: var(--background-white);
-  border-radius: 6px;
-  padding: 10px;
-}
-
-/* Time Filter Buttons for Charts */
-.time-filter-buttons {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.time-filter-btn {
-  padding: 6px 16px;
-  border: 1px solid var(--border-medium);
-  background-color: var(--background-white);
-  color: var(--text-medium);
-  border-radius: 6px;
-  font-size: 0.85em;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-
-.time-filter-btn:hover {
-  background-color: var(--background-light);
-  border-color: var(--primary-blue);
-  color: var(--primary-blue);
-}
-
-.time-filter-btn.active {
-  background-color: var(--primary-blue);
-  color: var(--background-white);
-  border-color: var(--primary-blue);
-  font-weight: 600;
-  box-shadow: 0 2px 4px rgba(31, 170, 237, 0.3);
-}
-
-.time-filter-btn.active:hover {
-  background-color: #1a8fcc;
-  border-color: #1a8fcc;
-}
-
-/* Responsive chart adjustments */
-@media (max-width: 768px) {
-  .chart-wrapper {
-    height: 250px;
-  }
-  
-  .risk-legend-container {
-    gap: 10px;
-  }
-  
-  .blood-glucose-chart-container,
-  .blood-pressure-chart-container,
-  .risk-classification-chart-container {
-    padding: 10px;
-  }
-  
-  /* Health metrics table responsive styling */
-  .health-metrics-table {
-    font-size: 11px;
-  }
-  
-  .health-metrics-table th,
-  .health-metrics-table td {
-    padding: 8px 6px;
-  }
-  
-  .health-metrics-table th:first-child,
-  .health-metrics-table td:first-child {
-    min-width: 140px;
-    padding-right: 12px;
-  }
-  
-  .health-metrics-table th:nth-child(n+2),
-  .health-metrics-table td:nth-child(n+2) {
-    min-width: 90px;
-    padding-left: 8px;
-    padding-right: 8px;
-  }
-}
-
-@media (max-width: 480px) {
-  /* Health metrics table for very small screens */
-  .health-metrics-table {
-    font-size: 10px;
-  }
-  
-  .health-metrics-table th,
-  .health-metrics-table td {
-    padding: 6px 4px;
-  }
-  
-  .health-metrics-table th:first-child,
-  .health-metrics-table td:first-child {
-    min-width: 120px;
-    padding-right: 8px;
-  }
-  
-  .health-metrics-table th:nth-child(n+2),
-  .health-metrics-table td:nth-child(n+2) {
-    min-width: 70px;
-    padding-left: 4px;
-    padding-right: 4px;
-  }
-  
-  .health-metrics-table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-}
-
-/* Button Icon Styles */
-.button-icon {
-  width: 16px;
-  height: 16px;
-  display: inline-block;
-  vertical-align: middle;
-}
-
-.button-icon.back-icon {
-  margin-right: 8px;
-}
-
-/* New styles for the risk classification chart */
-.risk-chart-card3 {
-  grid-column: span 1; /* Make it span across two columns for better visibility */
-  display: flex;
-  flex-direction: column;
-  align-items: center; /* This centers the content horizontally within the card */
-  margin-top: 0px; /* Add margin to push it below other widgets if needed by grid flow */
-}
-
-.bar-chart-container3 {
-  display: flex;
-  justify-content: space-around;
-  align-items: flex-end; /* Bars grow upwards from the bottom */
-  width: 100%;
-  height: 200px; /* Fixed height for the chart area */
-  padding: 10px;
-  background-color: var(--background-white);
-  border-radius: var(--border-radius);
-  box-shadow: var(--card-shadow);
-  /* margin-top: 20px; Removed as it's now on the card itself */
-}
-
-.bar-chart-item3 {
-  display: flex;
-  flex-direction: column;
-  align-items: center; /* This centers the label, bar, and value horizontally within each bar item */
-  width: 30%; /* Adjust width for spacing between bars */
-  height: 100%; /* Take full height of the container */
-  justify-content: flex-end; /* Align content to the bottom */
-}
-
-.bar-chart-label3 {
-  font-size: 0.9em;
-  color: var(--text-color-light);
-  margin-bottom: 5px;
-  text-align: center; /* Ensure label text is centered */
-}
-
-.bar-chart-bar-wrapper3 {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center; /* Center the bar within its wrapper */
-  width: 100%;
-  height: 100%; /* Bar wrapper takes full height */
-  position: relative;
-}
-
-.bar-chart-bar3 {
-  width: 60%; /* Width of the actual bar */
-  /* margin: 0 auto; Removed as justify-content on wrapper handles centering */
-  border-radius: 5px 5px 0 0;
-  transition: height 0.3s ease-in-out;
-  position: absolute;
-  bottom: 0;
-}
-
-/* Colors for risk bars */
-.low-risk-bar3 {
-  background-color: green; /* Example green for Low */
-}
-
-.moderate-risk-bar3 {
-  background-color: orange; /* Example orange for Moderate */
-}
-
-.high-risk-bar3 {
-  background-color: red; /* Example red for High */
-}
-
-.bar-chart-value3 {
-  margin-top: 5px;
-  font-weight: bold;
-  color: var(--text-color);
-  text-align: center; /* Ensure value text is centered */
-}
-
-/* Pop-up Overlay Styles */
-.popup-overlay3 {
-  position: fixed; /* Fixes the overlay to the viewport */
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent dark background */
-  display: flex; /* Use flexbox to center the content */
-  justify-content: center; /* Center horizontally */
-  align-items: center; /* Center vertically */
-  z-index: 1000; /* Ensure it's above other content */
-}
-
-/* Pop-up Content Styles */
-.popup-content3 {
-  background-color: #ffffff; /* White background for the pop-up box */
-  padding: 30px;
-  border-radius: 12px; /* Rounded corners */
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2); /* Stronger shadow for depth */
-  text-align: center;
-  max-width: 400px; /* Max width for readability */
-  width: 90%; /* Responsive width */
-  position: relative;
-}
-
-.popup-content3 h3 {
-  font-size: 1.8em;
-  color: #333333;
-  margin-top: 0;
-  margin-bottom: 15px;
-}
-
-.popup-content3 p {
-  font-size: 1.1em;
-  color: #555555;
-  margin-bottom: 25px;
-  line-height: 1.5;
-}
-
-.popup-content3 button {
-  background-color: #007bff; /* Primary blue button */
-  color: #ffffff;
-  padding: 12px 25px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1em;
-  font-weight: 600;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-}
-
-.popup-content3 button:hover {
-  background-color: #0056b3; /* Darker blue on hover */
-  transform: translateY(-1px); /* Slight lift effect */
-}
-
-
-/* Appointment Schedule Section */
-.appointment-schedule-section {
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 0px;
-
-}
-
-.appointment-schedule-section h3 {
-  margin: 0 0 20px 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #2C3E50;
-}
-
-.appointment-schedule-container {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-/* Dashboard Calendar Styles - Original */
-.dashboard-appointment-schedule-container {
-  display: flex;
-  gap: 30px;
-  flex-wrap: nowrap;
-  align-items: flex-start;
-}
-
-.dashboard-appointment-calendar-container {
-  flex: 0 0 auto;
-  width: 280px;
-  min-width: 280px;
-}
-
-.dashboard-appointment-details-list {
-  flex: 1;
-  min-width: 250px;
-  max-width: 400px;
-}
-
-.dashboard-appointment-details-list h4 {
-  margin: 0 0 15px 0;
-  font-size: 16px;
-  font-weight: 500;
-  color: #495057;
-}
-
-/* Calendar tile styling for appointments */
-.react-calendar__tile.dashboard-appointment-date {
-  background-color: #e3f2fd !important;
-  color: #1976d2 !important;
-  font-weight: 600;
-}
-
-.react-calendar__tile.dashboard-appointment-date:hover {
-  background-color: #bbdefb !important;
-}
-
-/* Dashboard Calendar Specific Styles */
-.dashboard-appointment-calendar-container .react-calendar {
-  width: 100%;
-  background-color: white;
-  border: 1px solid #e9ecef;
-  border-radius: 12px;
-  padding: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  font-family: inherit;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__tile {
-  max-width: 100%;
-  height: 34px;
-  padding: 0;
-  background: none;
-  text-align: center;
-  line-height: 34px;
-  font-size: 14px;
-  position: relative;
-  border: none;
-  color: #374151;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  margin: 1px;
-  border-radius: 6px;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__tile:enabled:hover,
-.dashboard-appointment-calendar-container .react-calendar__tile:enabled:focus {
-  background-color: #e5f3ff;
-  color: #1976d2;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__tile--now {
-  background: #1976d2;
-  color: white;
-  border-radius: 6px;
-  font-weight: 600;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__navigation {
-  display: flex;
-  height: 40px;
-  margin-bottom: 0;
-  background-color: transparent;
-  padding: 0;
-  align-items: center;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__navigation button {
-  min-width: 30px;
-  background: none;
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-  border-radius: 6px;
-  padding: 4px;
-  transition: all 0.2s ease;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__month-view__weekdays {
-  text-align: center;
-  text-transform: uppercase;
-  font-weight: 500;
-  font-size: 12px;
-  background-color: #f8f9fa;
-  margin: 0;
-  padding: 8px 0;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__month-view__weekdays__weekday {
-  padding: 8px 0;
-  color: #6c757d;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-/* Additional calendar fixes for Dashboard */
-.dashboard-appointment-calendar-container .react-calendar button {
-  margin: 0;
-  border: 0;
-  outline: none;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__month-view__days__day--weekend {
-  color: #dc3545;
-}
-
-.dashboard-appointment-calendar-container .react-calendar__month-view__days__day--neighboringMonth {
-  color: #9ca3af;
-}
-
-/* Dashboard Appointment List Styles */
-.dashboard-appointment-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.dashboard-appointment-item {
-  background: white;
-  border-radius: 8px;
-  padding: 12px;
-  border: 1px solid #e9ecef;
-  transition: all 0.2s ease;
-}
-
-.dashboard-appointment-item:hover {
-  border-color: #1976d2;
-  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
-  transform: translateY(-1px);
-}
-
-.dashboard-appointment-date-time {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.dashboard-appointment-date-time strong {
-  color: #2C3E50;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.dashboard-appointment-time {
-  color: #6c757d;
-  font-size: 13px;
-}
-
-.dashboard-appointment-notes {
-  color: #495057;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-/* No specialist message */
-.no-specialists-message {
-  text-align: center;
-  padding: 20px;
-  color: #6c757d;
-  font-style: italic;
-}
-
-/* Placeholder card for no specialist */
-.placeholder-card {
-  opacity: 0.6;
-}
-
-.placeholder-card .doctor-name {
-  color: #6c757d;
-  font-style: italic;
-}
-
-/* Responsive design for appointment schedule */
-@media (max-width: 768px) {
-  .appointment-schedule-container {
-    flex-direction: column;
-  }
-  
-  .appointment-calendar-container,
-  .appointment-details-list {
+  .medication-input3 {
     min-width: 100%;
-  }
-}
-
-/* Responsive design for dashboard appointment schedule */
-@media (max-width: 768px) {
-  .dashboard-appointment-schedule-container {
-    flex-direction: column;
-    flex-wrap: wrap;
-  }
-  
-  .dashboard-appointment-calendar-container,
-  .dashboard-appointment-details-list {
-    min-width: 100%;
-    width: 100%;
-  }
-}
-
-/* History Charts Section Styles */
-.history-charts-section {
-  background-color: var(--card-bg);
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px var(--shadow-light);
-  margin-bottom: 10px;
-}
-
-.history-charts-section h3 {
-  color: var(--text-dark);
-  margin-top: 0;
-  margin-bottom: 0px;
-  font-weight: 600;
-  font-size: 1.3em;
-  padding-bottom: 0px;
-}
-
-/* Individual chart containers */
-.blood-glucose-chart-container,
-.blood-pressure-chart-container,
-.risk-classification-chart-container {
-  margin-bottom: 10px;
-  background-color: var(--background-light);
-  border-radius: 8px;
-  padding: 10px;
-  border: 1px solid var(--border-light);
-}
-
-.blood-glucose-chart-container h4,
-.blood-pressure-chart-container h4,
-.risk-classification-chart-container h4 {
-  color: var(--text-medium);
-  margin-top: 0;
-  margin-bottom: 10px;
-  font-size: 1.1em;
-  font-weight: 600;
-}
-
-/* Risk Classification Legend Styles */
-.risk-legend-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 10px;
-  padding: 10px;
-  background-color: var(--background-white);
-  border-radius: 6px;
-  justify-content: center;
-}
-
-.risk-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9em;
-  color: var(--text-dark);
-}
-
-.risk-legend-color {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.risk-legend-color.low-risk {
-  background-color: rgba(34, 197, 94, 0.8);
-}
-
-.risk-legend-color.moderate-risk {
-  background-color: rgba(255, 193, 7, 0.8);
-}
-
-.risk-legend-color.high-risk {
-  background-color: rgba(244, 67, 54, 0.8);
-}
-
-.risk-legend-color.ppd-risk {
-  background-color: rgba(103, 101, 105, 0.8);
-}
-
-/* Chart wrapper to ensure proper sizing */
-.chart-wrapper {
-  position: relative;
-  height: 200px;
-  width: 100%;
-  background-color: var(--background-white);
-  border-radius: 6px;
-  padding: 10px;
-}
-
-/* Time Filter Buttons for Charts */
-.time-filter-buttons {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.time-filter-btn {
-  padding: 6px 16px;
-  border: 1px solid var(--border-medium);
-  background-color: var(--background-white);
-  color: var(--text-medium);
-  border-radius: 6px;
-  font-size: 0.85em;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-
-.time-filter-btn:hover {
-  background-color: var(--background-light);
-  border-color: var(--primary-blue);
-  color: var(--primary-blue);
-}
-
-.time-filter-btn.active {
-  background-color: var(--primary-blue);
-  color: var(--background-white);
-  border-color: var(--primary-blue);
-  font-weight: 600;
-  box-shadow: 0 2px 4px rgba(31, 170, 237, 0.3);
-}
-
-.time-filter-btn.active:hover {
-  background-color: #1a8fcc;
-  border-color: #1a8fcc;
-}
-
-/* Responsive chart adjustments */
-@media (max-width: 768px) {
-  .chart-wrapper {
-    height: 250px;
-  }
-  
-  .risk-legend-container {
-    gap: 10px;
-  }
-  
-  .blood-glucose-chart-container,
-  .blood-pressure-chart-container,
-  .risk-classification-chart-container {
-    padding: 10px;
-  }
-  
-  /* Health metrics table responsive styling */
-  .health-metrics-table {
-    font-size: 11px;
-  }
-  
-  .health-metrics-table th,
-  .health-metrics-table td {
-    padding: 8px 6px;
-  }
-  
-  .health-metrics-table th:first-child,
-  .health-metrics-table td:first-child {
-    min-width: 140px;
-    padding-right: 12px;
-  }
-  
-  .health-metrics-table th:nth-child(n+2),
-  .health-metrics-table td:nth-child(n+2) {
-    min-width: 90px;
-    padding-left: 8px;
-    padding-right: 8px;
-  }
-}
-
-@media (max-width: 480px) {
-  /* Health metrics table for very small screens */
-  .health-metrics-table {
-    font-size: 10px;
-  }
-  
-  .health-metrics-table th,
-  .health-metrics-table td {
-    padding: 6px 4px;
-  }
-  
-  .health-metrics-table th:first-child,
-  .health-metrics-table td:first-child {
-    min-width: 120px;
-    padding-right: 8px;
-  }
-  
-  .health-metrics-table th:nth-child(n+2),
-  .health-metrics-table td:nth-child(n+2) {
-    min-width: 70px;
-    padding-left: 4px;
-    padding-right: 4px;
-  }
-  
-  .health-metrics-table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
   }
 }
 
