@@ -666,6 +666,9 @@ const Dashboard = ({ user, onLogout }) => {
   const [riskTimeFilter, setRiskTimeFilter] = useState('week');
   const [riskScoreTimeFilter, setRiskScoreTimeFilter] = useState('week');
 
+  // Doctor status state
+  const [doctorIsIn, setDoctorIsIn] = useState(false);
+
 
   // Filter patient metrics based on selected risk filter
   const filteredPatientMetrics = React.useMemo(() => {
@@ -748,6 +751,51 @@ const Dashboard = ({ user, onLogout }) => {
     [filteredPatientMetrics, riskScoreTimeFilter, filterMetricsByTimePeriod]
   );
 
+  // Fetch doctor status from database
+  const fetchDoctorStatus = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("doctors")
+        .select("doctor_is_in")
+        .eq("doctor_id", user.doctor_id)
+        .single();
+
+      if (error) throw error;
+      
+      if (data) {
+        setDoctorIsIn(data.doctor_is_in || false);
+      }
+    } catch (err) {
+      console.error("Error fetching doctor status:", err);
+    }
+  };
+
+  // Toggle doctor status in database
+  const toggleDoctorStatus = async () => {
+    const newStatus = !doctorIsIn;
+    
+    try {
+      const { error } = await supabase
+        .from("doctors")
+        .update({ doctor_is_in: newStatus })
+        .eq("doctor_id", user.doctor_id);
+
+      if (error) throw error;
+      
+      setDoctorIsIn(newStatus);
+      
+      // Optional: Show a success message
+      console.log(`Doctor status updated to: ${newStatus ? 'In' : 'Out'}`);
+    } catch (err) {
+      console.error("Error updating doctor status:", err);
+      alert("Failed to update status. Please try again.");
+    }
+  };
+
+  // Fetch doctor status on component mount
+  useEffect(() => {
+    fetchDoctorStatus();
+  }, [user.doctor_id]);
 
   useEffect(() => {
     console.log("useEffect triggered - activePage:", activePage, "selectedPatient?.patient_id:", selectedPatient?.patient_id);
@@ -4671,30 +4719,6 @@ const renderReportsContent = () => {
               </div>
             </div>
             
-            {/* Laboratory Result Section */}
-            <div className="laboratory-results-section">
-              <h3>Laboratory Results (Latest)</h3>
-              {latestLab ? (
-                <>
-                  <p><strong>Date Submitted:</strong> {new Date(latestLab.date_submitted).toLocaleDateString()}</p>
-                  <p><strong>Hba1c:</strong> {latestLab.Hba1c || 'N/A'}</p>
-                  <p><strong>UCR:</strong> {latestLab.ucr || 'N/A'}</p>
-                  <p><strong>GOT (AST):</strong> {latestLab.got_ast || 'N/A'}</p>
-                  <p><strong>GPT (ALT):</strong> {latestLab.gpt_alt || 'N/A'}</p>
-                  <p><strong>Cholesterol:</strong> {latestLab.cholesterol || 'N/A'}</p>
-                  <p><strong>Triglycerides:</strong> {latestLab.triglycerides || 'N/A'}</p>
-                  <p><strong>HDL Cholesterol:</strong> {latestLab.hdl_cholesterol || 'N/A'}</p>
-                  <p><strong>LDL Cholesterol:</strong> {latestLab.ldl_cholesterol || 'N/A'}</p>
-                  <p><strong>UREA:</strong> {latestLab.urea || 'N/A'}</p>
-                  <p><strong>BUN:</strong> {latestLab.bun || 'N/A'}</p>
-                  <p><strong>URIC:</strong> {latestLab.uric || 'N/A'}</p>
-                  <p><strong>EGFR:</strong> {latestLab.egfr || 'N/A'}</p>
-                </>
-              ) : (
-                <p>No lab results available for this patient.</p>
-              )}
-            </div>
-            
             {/* Latest Health Metrics Section */}
             <div className="latest-health-metrics-section">
               <h3>Latest Health Metrics</h3>
@@ -5302,288 +5326,365 @@ const renderReportsContent = () => {
             {/* Patient Profile Tab - Right Column Content */}
             {patientDetailTab === "profile" && (
             <>
-            {/* Doctor Assigned Section */}
-            <div className="doctor-assigned-section">
-              <div className="doctors-grid">
-                {/* Assigned Doctor Card */}
-                <div className="doctor-card">
+            {/* Laboratory Result Section */}
+            <div className="laboratory-results-section">
+              <h3>Laboratory Results (Latest)</h3>
+              {latestLab ? (
+                <>
+                  <div className="lab-date-submitted">
+                    <strong>Date Submitted:</strong> {new Date(latestLab.date_submitted).toLocaleDateString()}
+                  </div>
+                  <div className="lab-results-grid">
+                    <div className="lab-result-item">
+                      <span className="lab-label">Hba1c:</span>
+                      <span className="lab-value">{latestLab.Hba1c || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">UCR:</span>
+                      <span className="lab-value">{latestLab.ucr || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">GOT (AST):</span>
+                      <span className="lab-value">{latestLab.got_ast || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">GPT (ALT):</span>
+                      <span className="lab-value">{latestLab.gpt_alt || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">Cholesterol:</span>
+                      <span className="lab-value">{latestLab.cholesterol || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">Triglycerides:</span>
+                      <span className="lab-value">{latestLab.triglycerides || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">HDL:</span>
+                      <span className="lab-value">{latestLab.hdl_cholesterol || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">LDL:</span>
+                      <span className="lab-value">{latestLab.ldl_cholesterol || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">UREA:</span>
+                      <span className="lab-value">{latestLab.urea || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">BUN:</span>
+                      <span className="lab-value">{latestLab.bun || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">URIC:</span>
+                      <span className="lab-value">{latestLab.uric || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">EGFR:</span>
+                      <span className="lab-value">{latestLab.egfr || 'N/A'}</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p>No lab results available for this patient.</p>
+              )}
+            </div>
+            </>
+            )}
+          </div>
+        </div>
+
+        {/* Medication Tab - Full Width */}
+        {patientDetailTab === "medication" && (
+        <div className="current-medications-section" style={{gridColumn: '1 / -1'}}>
+          <div className="medications-table-container">
+            <label>Current Medications:</label>
+            <table className="medications-table">
+              <thead>
+                <tr>
+                  <th>Drug Name</th>
+                  <th>Dosage</th>
+                  <th>Frequency</th>
+                  <th>Prescribed by</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {patientMedications.length > 0 ? (
+                  patientMedications.map((med, idx) => (
+                    <tr key={med.id || idx}>
+                      {editingMedicationId === med.id ? (
+                        <>
+                          <td>
+                            <input
+                              type="text"
+                              name="name"
+                              value={editMedicationData.name}
+                              onChange={handleEditMedicationInputChange}
+                              className="med-input"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              name="dosage"
+                              value={editMedicationData.dosage}
+                              onChange={handleEditMedicationInputChange}
+                              className="med-input"
+                            />
+                          </td>
+                          <td>
+                            <div className="medication-checkbox-group-edit3">
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  name="timeOfDay"
+                                  value="morning"
+                                  checked={editMedicationFrequencyData.timeOfDay.includes('morning')}
+                                  onChange={handleEditMedicationFrequencyChange}
+                                /> M
+                              </label>
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  name="timeOfDay"
+                                  value="noon"
+                                  checked={editMedicationFrequencyData.timeOfDay.includes('noon')}
+                                  onChange={handleEditMedicationFrequencyChange}
+                                /> N
+                              </label>
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  name="timeOfDay"
+                                  value="dinner"
+                                  checked={editMedicationFrequencyData.timeOfDay.includes('dinner')}
+                                  onChange={handleEditMedicationFrequencyChange}
+                                /> D
+                              </label>
+                            </div>
+                          </td>
+                          <td>
+                            <input
+                              type="date"
+                              name="startDate"
+                              value={editMedicationFrequencyData.startDate}
+                              onChange={handleEditMedicationFrequencyChange}
+                              className="med-input"
+                            />
+                          </td>
+                          <td className="med-actions">
+                            <button
+                              className="action-button3 save-button3"
+                              onClick={() => handleSaveMedication(med.id)}
+                            >
+                              Save
+                            </button>
+                            <button
+                              className="action-button3 cancel-button3"
+                              onClick={handleCancelEdit}
+                            >
+                              Cancel
+                            </button>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td><input type="text" className="med-input" value={med.name || ''} readOnly /></td>
+                          <td><input type="text" className="med-input" value={med.dosage || ''} readOnly /></td>
+                          <td><input type="text" className="med-input" value={
+                            med.medication_frequencies && med.medication_frequencies.length > 0 ?
+                              med.medication_frequencies.map((freq) => freq.time_of_day.join(', ')).join('; ')
+                              : 'N/A'
+                          } readOnly /></td>
+                          <td><input type="text" className="med-input" value={
+                            (med.doctors && med.doctors.first_name) ? 
+                              `${med.doctors.first_name} ${med.doctors.last_name}` : 
+                              'Doctor'
+                          } readOnly /></td>
+                          <td className="med-actions">
+                            <button
+                              type="button"
+                              className="edit-medication-button3"
+                              onClick={() => handleEditClick(med)}
+                              title="Edit medication"
+                            >
+                              <img src="../picture/edit.png" alt="Edit" className="button-icon" />
+                            </button>
+                            <button
+                              type="button"
+                              className="remove-medication-button3"
+                              onClick={() => handleRemoveMedication(med.id)}
+                              title="Remove medication"
+                            >
+                              <img src="../picture/minus.svg" alt="Remove" className="button-icon" />
+                            </button>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td><input type="text" className="med-input" placeholder="No medications" readOnly /></td>
+                    <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
+                    <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
+                    <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
+                    <td className="med-actions">
+                      <button type="button" className="add-med-button" title="Add medication">
+                        <img src="/picture/add.svg" alt="Add" />
+                      </button>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Add New Medication Form */}
+          <div className="medication-input-group3">
+            <input
+              type="text"
+              name="name"
+              placeholder="Medication Name"
+              value={newMedication.name}
+              onChange={handleNewMedicationInputChange}
+              className="medication-input3"
+            />
+            <input
+              type="text"
+              name="dosage"
+              placeholder="Dosage"
+              value={newMedication.dosage}
+              onChange={handleNewMedicationInputChange}
+              className="medication-input3"
+            />
+            <div className="medication-checkbox-group3">
+              <label>
+                <input
+                  type="checkbox"
+                  name="timeOfDay"
+                  value="morning"
+                  checked={newMedicationFrequency.timeOfDay.includes('morning')}
+                  onChange={handleNewMedicationFrequencyChange}
+                /> Morning
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  name="timeOfDay"
+                  value="noon"
+                  checked={newMedicationFrequency.timeOfDay.includes('noon')}
+                  onChange={handleNewMedicationFrequencyChange}
+                /> Noon
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  name="timeOfDay"
+                  value="dinner"
+                  checked={newMedicationFrequency.timeOfDay.includes('dinner')}
+                  onChange={handleNewMedicationFrequencyChange}
+                /> Dinner
+              </label>
+            </div>
+            <input
+              type="date"
+              name="startDate"
+              value={newMedicationFrequency.startDate}
+              onChange={handleNewMedicationFrequencyChange}
+              className="medication-input3"
+            />
+            <button onClick={handleAddMedication} className="add-medication-button3">Add Medication</button>
+          </div>
+        </div>
+        )}
+
+        {/* Team Care Tab - Full Width */}
+        {patientDetailTab === "teamcare" && (
+        <div className="doctor-assigned-section" style={{gridColumn: '1 / -1'}}>
+          <h3>Team Care</h3>
+          <div className="doctors-grid">
+            {/* Assigned Doctor Card */}
+            <div className="doctor-card">
+              <div className="doctor-avatar">
+                <img 
+                  src="../picture/secretary.png" 
+                  alt="Doctor Avatar"
+                />
+              </div>
+              <div className="doctor-info">
+                <span className="doctor-label">Assigned Doctor:</span>
+                <h4 className="doctor-name">
+                  {loading ? 'Loading...' : 
+                    selectedPatient?.doctors 
+                      ? `${selectedPatient.doctors.first_name} ${selectedPatient.doctors.last_name}` 
+                      : user ? `${user.first_name} ${user.last_name}` : 'Dr. Name'}
+                </h4>
+                <p className="doctor-specialty">
+                  {loading ? 'Loading...' : 
+                    selectedPatient?.doctors?.specialization || user?.specialization || 'General Surgeon'}
+                </p>
+              </div>
+            </div>
+
+            {/* Assigned Specialists Cards */}
+            {loading ? (
+              <div className="doctor-card specialist-card">
+                <div className="doctor-info">
+                  <span className="doctor-label">Loading Specialists...</span>
+                </div>
+              </div>
+            ) : currentPatientSpecialists.length > 0 ? (
+              currentPatientSpecialists.map((specialist, index) => (
+                <div key={specialist.id || index} className="doctor-card specialist-card">
                   <div className="doctor-avatar">
                     <img 
                       src="../picture/secretary.png" 
-                      alt="Doctor Avatar"
+                      alt="Specialist Avatar"
                     />
                   </div>
                   <div className="doctor-info">
-                    <span className="doctor-label">Assigned Doctor:</span>
+                    <span className="doctor-label">Specialist Doctor</span>
                     <h4 className="doctor-name">
-                      {loading ? 'Loading...' : 
-                        selectedPatient?.doctors 
-                          ? `${selectedPatient.doctors.first_name} ${selectedPatient.doctors.last_name}` 
-                          : user ? `${user.first_name} ${user.last_name}` : 'Dr. Name'}
+                      {specialist.doctors 
+                        ? `${specialist.doctors.first_name} ${specialist.doctors.last_name}` 
+                        : 'Unknown Doctor'}
                     </h4>
                     <p className="doctor-specialty">
-                      {loading ? 'Loading...' : 
-                        selectedPatient?.doctors?.specialization || user?.specialization || 'General Surgeon'}
+                      {specialist.doctors?.specialization || 'General'}
                     </p>
                   </div>
                 </div>
-
-                {/* Assigned Specialists Cards */}
-                {loading ? (
-                  <div className="doctor-card specialist-card">
-                    <div className="doctor-info">
-                      <span className="doctor-label">Loading Specialists...</span>
-                    </div>
-                  </div>
-                ) : currentPatientSpecialists.length > 0 ? (
-                  currentPatientSpecialists.map((specialist, index) => (
-                    <div key={specialist.id || index} className="doctor-card specialist-card">
-                      <div className="doctor-avatar">
-                        <img 
-                          src="../picture/secretary.png" 
-                          alt="Specialist Avatar"
-                        />
-                      </div>
-                      <div className="doctor-info">
-                        <span className="doctor-label">Specialist Doctor</span>
-                        <h4 className="doctor-name">
-                          {specialist.doctors 
-                            ? `${specialist.doctors.first_name} ${specialist.doctors.last_name}` 
-                            : 'Unknown Doctor'}
-                        </h4>
-                        <p className="doctor-specialty">
-                          {specialist.doctors?.specialization || 'General'}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="doctor-card specialist-card placeholder-card">
-                    <div className="doctor-avatar">
-                      <img 
-                        src="../picture/secretary.png" 
-                        alt="No Specialist"
-                      />
-                    </div>
-                    <div className="doctor-info">
-                      <span className="doctor-label">Specialist Doctor</span>
-                      <h4 className="doctor-name">No Specialist Assigned</h4>
-                      <p className="doctor-specialty">-</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Current Medications Section - Doctor-specific functionality preserved */}
-            <div className="current-medications-section">
-              <div className="medications-table-container">
-                <label>Current Medications:</label>
-                <table className="medications-table">
-                  <thead>
-                    <tr>
-                      <th>Drug Name</th>
-                      <th>Dosage</th>
-                      <th>Frequency</th>
-                      <th>Prescribed by</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {patientMedications.length > 0 ? (
-                      patientMedications.map((med, idx) => (
-                        <tr key={med.id || idx}>
-                          {editingMedicationId === med.id ? (
-                            <>
-                              <td>
-                                <input
-                                  type="text"
-                                  name="name"
-                                  value={editMedicationData.name}
-                                  onChange={handleEditMedicationInputChange}
-                                  className="med-input"
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="text"
-                                  name="dosage"
-                                  value={editMedicationData.dosage}
-                                  onChange={handleEditMedicationInputChange}
-                                  className="med-input"
-                                />
-                              </td>
-                              <td>
-                                <div className="medication-checkbox-group-edit3">
-                                  <label>
-                                    <input
-                                      type="checkbox"
-                                      name="timeOfDay"
-                                      value="morning"
-                                      checked={editMedicationFrequencyData.timeOfDay.includes('morning')}
-                                      onChange={handleEditMedicationFrequencyChange}
-                                    /> M
-                                  </label>
-                                  <label>
-                                    <input
-                                      type="checkbox"
-                                      name="timeOfDay"
-                                      value="noon"
-                                      checked={editMedicationFrequencyData.timeOfDay.includes('noon')}
-                                      onChange={handleEditMedicationFrequencyChange}
-                                    /> N
-                                  </label>
-                                  <label>
-                                    <input
-                                      type="checkbox"
-                                      name="timeOfDay"
-                                      value="dinner"
-                                      checked={editMedicationFrequencyData.timeOfDay.includes('dinner')}
-                                      onChange={handleEditMedicationFrequencyChange}
-                                    /> D
-                                  </label>
-                                </div>
-                              </td>
-                              <td>
-                                <input
-                                  type="date"
-                                  name="startDate"
-                                  value={editMedicationFrequencyData.startDate}
-                                  onChange={handleEditMedicationFrequencyChange}
-                                  className="med-input"
-                                />
-                              </td>
-                              <td className="med-actions">
-                                <button
-                                  className="action-button3 save-button3"
-                                  onClick={() => handleSaveMedication(med.id)}
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  className="action-button3 cancel-button3"
-                                  onClick={handleCancelEdit}
-                                >
-                                  Cancel
-                                </button>
-                              </td>
-                            </>
-                          ) : (
-                            <>
-                              <td><input type="text" className="med-input" value={med.name || ''} readOnly /></td>
-                              <td><input type="text" className="med-input" value={med.dosage || ''} readOnly /></td>
-                              <td><input type="text" className="med-input" value={
-                                med.medication_frequencies && med.medication_frequencies.length > 0 ?
-                                  med.medication_frequencies.map((freq) => freq.time_of_day.join(', ')).join('; ')
-                                  : 'N/A'
-                              } readOnly /></td>
-                              <td><input type="text" className="med-input" value={
-                                (med.doctors && med.doctors.first_name) ? 
-                                  `${med.doctors.first_name} ${med.doctors.last_name}` : 
-                                  'Doctor'
-                              } readOnly /></td>
-                              <td className="med-actions">
-                                <button
-                                  type="button"
-                                  className="edit-medication-button3"
-                                  onClick={() => handleEditClick(med)}
-                                  title="Edit medication"
-                                >
-                                  <img src="../picture/edit.png" alt="Edit" className="button-icon" />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="remove-medication-button3"
-                                  onClick={() => handleRemoveMedication(med.id)}
-                                  title="Remove medication"
-                                >
-                                  <img src="../picture/minus.svg" alt="Remove" className="button-icon" />
-                                </button>
-                              </td>
-                            </>
-                          )}
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td><input type="text" className="med-input" placeholder="No medications" readOnly /></td>
-                        <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
-                        <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
-                        <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
-                        <td className="med-actions">
-                          <button type="button" className="add-med-button" title="Add medication">
-                            <img src="/picture/add.svg" alt="Add" />
-                          </button>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              
-              {/* Add New Medication Form - Doctor-specific functionality */}
-              <div className="medication-input-group3">
-                <input
-                  type="text"
-                  name="name"
-                  placeholder="Medication Name"
-                  value={newMedication.name}
-                  onChange={handleNewMedicationInputChange}
-                  className="medication-input3"
-                />
-                <input
-                  type="text"
-                  name="dosage"
-                  placeholder="Dosage"
-                  value={newMedication.dosage}
-                  onChange={handleNewMedicationInputChange}
-                  className="medication-input3"
-                />
-                <div className="medication-checkbox-group3">
-                  <label>
-                    <input
-                      type="checkbox"
-                      name="timeOfDay"
-                      value="morning"
-                      checked={newMedicationFrequency.timeOfDay.includes('morning')}
-                      onChange={handleNewMedicationFrequencyChange}
-                    /> Morning
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      name="timeOfDay"
-                      value="noon"
-                      checked={newMedicationFrequency.timeOfDay.includes('noon')}
-                      onChange={handleNewMedicationFrequencyChange}
-                    /> Noon
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      name="timeOfDay"
-                      value="dinner"
-                      checked={newMedicationFrequency.timeOfDay.includes('dinner')}
-                      onChange={handleNewMedicationFrequencyChange}
-                    /> Dinner
-                  </label>
+              ))
+            ) : (
+              <div className="doctor-card specialist-card placeholder-card">
+                <div className="doctor-avatar">
+                  <img 
+                    src="../picture/secretary.png" 
+                    alt="No Specialist"
+                  />
                 </div>
-                <input
-                  type="date"
-                  name="startDate"
-                  value={newMedicationFrequency.startDate}
-                  onChange={handleNewMedicationFrequencyChange}
-                  className="medication-input3"
-                />
-                <button onClick={handleAddMedication} className="add-medication-button3">Add Medication</button>
+                <div className="doctor-info">
+                  <span className="doctor-label">Specialist Doctor</span>
+                  <h4 className="doctor-name">No Specialist Assigned</h4>
+                  <p className="doctor-specialty">-</p>
+                </div>
               </div>
-            </div>
+            )}
+          </div>
+        </div>
+        )}
 
-            {/* Appointment Schedule Section */}
-            <div className="appointment-schedule-section">
-              <h3>Appointment Schedule</h3>
-              <div className="dashboard-appointment-schedule-container">
-                <div className="dashboard-appointment-calendar-container">
+        {/* Appointment Tab - Full Width */}
+        {patientDetailTab === "appointment" && (
+        <div className="appointment-schedule-section" style={{gridColumn: '1 / -1'}}>
+          <h3>Appointment Schedule</h3>
+          <div className="patient-appointment-two-column-layout">
+            {/* Left Column: Calendar with Appointment Details */}
+            <div className="patient-appointment-left-column">
+              <div className="patient-appointment-schedule-container">
+                <div className="patient-appointment-calendar-container">
                   <Calendar
                     value={calendarDate}
                     onChange={setCalendarDate}
@@ -5598,7 +5699,7 @@ const renderReportsContent = () => {
                             appointmentDate.getFullYear() === date.getFullYear()
                           );
                         });
-                        return hasAppointment ? 'dashboard-appointment-date' : null;
+                        return hasAppointment ? 'patient-appointment-date' : null;
                       }
                     }}
                     tileContent={({ date, view }) => {
@@ -5616,64 +5717,97 @@ const renderReportsContent = () => {
                   />
                 </div>
                 
-                {/* Appointment Details List */}
-                <div className="dashboard-appointment-details-list">
-                  <h4>
-                    {(() => {
-                      const now = new Date();
-                      const futureAppointments = patientAppointments.filter(appointment => 
-                        new Date(appointment.appointment_datetime) > now
-                      );
-                      return futureAppointments.length > 0 ? 'Upcoming Appointments' : 'Recent Appointments';
-                    })()}
-                  </h4>
+                <div className="patient-appointment-details-list">
+                  <h4>Upcoming Appointments</h4>
                   {(() => {
                     const now = new Date();
-                    const futureAppointments = patientAppointments.filter(appointment => 
-                      new Date(appointment.appointment_datetime) > now
+                    const upcomingAppointments = patientAppointments
+                      .filter(appointment => new Date(appointment.appointment_datetime) >= now)
+                      .sort((a, b) => new Date(a.appointment_datetime) - new Date(b.appointment_datetime));
+                    
+                    return upcomingAppointments.length > 0 ? (
+                      <ul className="patient-appointment-list">
+                        {upcomingAppointments.map((appointment, idx) => (
+                          <li key={idx} className="patient-appointment-item">
+                            <div className="patient-appointment-date-time">
+                              <strong>{formatDateToReadable(appointment.appointment_datetime.split('T')[0])}</strong>
+                              <span className="patient-appointment-time">
+                                {formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}
+                              </span>
+                            </div>
+                            {appointment.notes && (
+                              <p className="patient-appointment-notes">{appointment.notes}</p>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="no-appointments">No upcoming appointments.</p>
                     );
-                    
-                    let appointmentsToShow = [];
-                    if (futureAppointments.length > 0) {
-                      appointmentsToShow = futureAppointments.slice(0, 3);
-                    } else {
-                      // Show 3 most recent appointments
-                      appointmentsToShow = patientAppointments
-                        .sort((a, b) => new Date(b.appointment_datetime) - new Date(a.appointment_datetime))
-                        .slice(0, 3);
-                    }
-                    
-                    if (appointmentsToShow.length > 0) {
-                      return (
-                        <ul className="dashboard-appointment-list">
-                          {appointmentsToShow.map((appointment, idx) => (
-                            <li key={idx} className="dashboard-appointment-item">
-                              <div className="dashboard-appointment-date-time">
-                                <strong>{formatDateToReadable(appointment.appointment_datetime.split('T')[0])}</strong>
-                                <span className="dashboard-appointment-time">{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</span>
-                              </div>
-                              <div className="dashboard-appointment-notes">
-                                {appointment.notes || 'No notes'}
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      );
-                    } else {
-                      return <p className="no-appointments">No appointments scheduled for this patient.</p>;
-                    }
                   })()}
                 </div>
               </div>
             </div>
-            </>
-            )}
+            
+            {/* Right Column: Appointment Status Table */}
+            <div className="patient-appointment-right-column">
+              <div className="patient-appointment-table-container">
+                <h4>Appointment Status</h4>
+                {patientAppointments.length > 0 ? (
+                  <>
+                    <div className="appointment-table-wrapper">
+                      <table className="patient-appointment-status-table">
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(() => {
+                            const sortedAppointments = [...patientAppointments].sort((a, b) => 
+                              new Date(b.appointment_datetime) - new Date(a.appointment_datetime)
+                            );
+                            const startIndex = (currentPageAppointments - 1) * APPOINTMENTS_PER_PAGE;
+                            const endIndex = startIndex + APPOINTMENTS_PER_PAGE;
+                            const paginatedAppointments = sortedAppointments.slice(startIndex, endIndex);
+                            
+                            return paginatedAppointments.map((appointment, idx) => (
+                              <tr key={idx}>
+                                <td>{formatDateToReadable(appointment.appointment_datetime.split('T')[0])}</td>
+                                <td>{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</td>
+                                <td>
+                                  <span className={`appointment-status-badge ${appointment.appointment_state ? appointment.appointment_state.toLowerCase().replace(/\s+/g, '-') : 'pending'}`}>
+                                    {appointment.appointment_state || 'Pending'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ));
+                          })()}
+                        </tbody>
+                      </table>
+                    </div>
+                    <Pagination
+                      currentPage={currentPageAppointments}
+                      totalPages={Math.ceil(patientAppointments.length / APPOINTMENTS_PER_PAGE)}
+                      onPageChange={setCurrentPageAppointments}
+                      itemsPerPage={APPOINTMENTS_PER_PAGE}
+                      totalItems={patientAppointments.length}
+                    />
+                  </>
+                ) : (
+                  <p className="no-appointments">No appointments scheduled for this patient.</p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
+        )}
 
-        {/* Health Metrics History Section - Full Width for Charts Tab */}
-        {patientDetailTab === "charts" && (
-        <div className="health-metrics-history-section">
+        {/* Tables Tab - Full Width */}
+        {patientDetailTab === "tables" && (
+        <div className="health-metrics-history-section" style={{gridColumn: '1 / -1'}}>
           <h3>Health Metrics History</h3>
           <div className="health-metrics-table-container">
             {allPatientHealthMetrics.length > 0 ? (
@@ -5734,9 +5868,9 @@ const renderReportsContent = () => {
         </div>
         )}
         
-        {/* Enhanced Wound Gallery Section - Only in Profile Tab */}
-        {patientDetailTab === "profile" && (
-        <div className="wound-gallery-section">
+        {/* Wound Gallery Tab - Full Width */}
+        {patientDetailTab === "woundgallery" && (
+        <div className="wound-gallery-section" style={{gridColumn: '1 / -1'}}>
           <h3>Wound Gallery</h3>
           <div className="wound-gallery-grid">
             {woundPhotosLoading ? (
@@ -5862,7 +5996,22 @@ const renderReportsContent = () => {
 
       <main className="content-area-full-width3">
         {activePage === "dashboard" && (
-          <h1 className="welcomeh1">Welcome, Dr. {user.first_name} 👋</h1>
+          <div className="dashboard-header-row">
+            <h1 className="welcomeh1">Welcome, Dr. {user.first_name} 👋</h1>
+            <div className="doctor-status-compact">
+              <p className={`status-text-compact ${doctorIsIn ? 'status-in' : 'status-out'}`}>
+                {doctorIsIn ? '🟢 In' : '🔴 Out'}
+              </p>
+              <label className="status-switch-compact">
+                <input 
+                  type="checkbox" 
+                  checked={doctorIsIn}
+                  onChange={toggleDoctorStatus}
+                />
+                <span className="status-slider-compact"></span>
+              </label>
+            </div>
+          </div>
         )}
         {activePage === "dashboard" && renderDashboardContent()}
         {activePage === "patient-profile" && selectedPatient?.patient_id && renderPatientProfile()}
