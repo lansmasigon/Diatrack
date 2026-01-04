@@ -647,6 +647,9 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   const [currentPageHealthMetrics, setCurrentPageHealthMetrics] = useState(1); // New state for health metrics pagination
   const HEALTH_METRICS_PER_PAGE = 7; // Define how many health metrics per page
   
+  const [currentPagePatientDetailAppointments, setCurrentPagePatientDetailAppointments] = useState(1); // For patient detail view appointments
+  const PATIENT_DETAIL_APPOINTMENTS_PER_PAGE = 6; // Define how many appointments per page in patient detail view
+  
   // Risk filter states
   const [selectedRiskFilter, setSelectedRiskFilter] = useState('all'); // For patient list
   const [selectedLabRiskFilter, setSelectedLabRiskFilter] = useState('all'); // For lab entry search
@@ -4550,6 +4553,18 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                     </div>
                                 </div>
                             </div>
+                            
+                            {/* Latest Health Metrics Section */}
+                            <div className="latest-health-metrics-section">
+                                <h3>Latest Health Metrics</h3>
+                                <p><strong>Blood Glucose Level:</strong> {patientHealthMetrics.bloodGlucoseLevel} {patientHealthMetrics.bloodGlucoseLevel !== 'N/A' && patientHealthMetrics.bloodGlucoseLevel !== 'Error' ? 'mg/dL' : ''}</p>
+                                <p><strong>Blood Pressure:</strong> {patientHealthMetrics.bloodPressure} {patientHealthMetrics.bloodPressure !== 'N/A' && patientHealthMetrics.bloodPressure !== 'Error' ? 'mmHg' : ''}</p>
+                                <p><strong>Risk Classification:</strong> 
+                                    <span className={`risk-classification-${(selectedPatientForDetail.risk_classification || 'n-a').toLowerCase()}`}>
+                                        {selectedPatientForDetail.risk_classification || 'N/A'}
+                                    </span>
+                                </p>
+                            </div>
                             </>
                             )}
 
@@ -4841,29 +4856,59 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             {/* Laboratory Result Section */}
                             <div className="laboratory-results-section">
                                 <h3>Laboratory Results (Latest)</h3>
-                                <div className="laboratory-results-grid">
-                                    <div><strong>Date Submitted:</strong><br />{formatDateToReadable(lastLabDate)}</div>
-                                    <div><strong>Hba1c:</strong><br />{patientLabResults.Hba1c}</div>
-                                    <div><strong>UCR:</strong><br />{patientLabResults.UCR}</div>
-                                    <div><strong>GOT (AST):</strong><br />{patientLabResults.gotAst}</div>
-                                    <div><strong>GPT (ALT):</strong><br />{patientLabResults.gptAlt}</div>
-                                    <div><strong>Cholesterol:</strong><br />{patientLabResults.cholesterol}</div>
-                                    <div><strong>Triglycerides:</strong><br />{patientLabResults.triglycerides}</div>
-                                    <div><strong>HDL Cholesterol:</strong><br />{patientLabResults.hdlCholesterol}</div>
-                                    <div><strong>LDL Cholesterol:</strong><br />{patientLabResults.ldlCholesterol}</div>
-                                    <div><strong>UREA:</strong><br />{patientLabResults.UREA}</div>
-                                    <div><strong>BUN:</strong><br />{patientLabResults.BUN}</div>
-                                    <div><strong>URIC:</strong><br />{patientLabResults.URIC}</div>
-                                    <div><strong>EGFR:</strong><br />{patientLabResults.EGFR}</div>
+                                <div className="lab-date-submitted">
+                                    <strong>Date Submitted:</strong> {formatDateToReadable(lastLabDate)}
                                 </div>
-                            </div>
-                            
-                            {/* Latest Health Metrics Section */}
-                            <div className="latest-health-metrics-section">
-                                <h3>Latest Health Metrics</h3>
-                                <p><strong>Blood Glucose Level:</strong> {patientHealthMetrics.bloodGlucoseLevel} {patientHealthMetrics.bloodGlucoseLevel !== 'N/A' && patientHealthMetrics.bloodGlucoseLevel !== 'Error' ? 'mg/dL' : ''}</p>
-                                <p><strong>Blood Pressure:</strong> {patientHealthMetrics.bloodPressure} {patientHealthMetrics.bloodPressure !== 'N/A' && patientHealthMetrics.bloodPressure !== 'Error' ? 'mmHg' : ''}</p>
-                                <p><strong>Risk Classification:</strong> {selectedPatientForDetail.risk_classification || 'N/A'}</p>
+                                <div className="lab-results-grid">
+                                    <div className="lab-result-item">
+                                        <span className="lab-label">Hba1c:</span>
+                                        <span className="lab-value">{patientLabResults.Hba1c || 'N/A'}</span>
+                                    </div>
+                                    <div className="lab-result-item">
+                                        <span className="lab-label">UCR:</span>
+                                        <span className="lab-value">{patientLabResults.UCR || 'N/A'}</span>
+                                    </div>
+                                    <div className="lab-result-item">
+                                        <span className="lab-label">GOT (AST):</span>
+                                        <span className="lab-value">{patientLabResults.gotAst || 'N/A'}</span>
+                                    </div>
+                                    <div className="lab-result-item">
+                                        <span className="lab-label">GPT (ALT):</span>
+                                        <span className="lab-value">{patientLabResults.gptAlt || 'N/A'}</span>
+                                    </div>
+                                    <div className="lab-result-item">
+                                        <span className="lab-label">Cholesterol:</span>
+                                        <span className="lab-value">{patientLabResults.cholesterol || 'N/A'}</span>
+                                    </div>
+                                    <div className="lab-result-item">
+                                        <span className="lab-label">Triglycerides:</span>
+                                        <span className="lab-value">{patientLabResults.triglycerides || 'N/A'}</span>
+                                    </div>
+                                    <div className="lab-result-item">
+                                        <span className="lab-label">HDL:</span>
+                                        <span className="lab-value">{patientLabResults.hdlCholesterol || 'N/A'}</span>
+                                    </div>
+                                    <div className="lab-result-item">
+                                        <span className="lab-label">LDL:</span>
+                                        <span className="lab-value">{patientLabResults.ldlCholesterol || 'N/A'}</span>
+                                    </div>
+                                    <div className="lab-result-item">
+                                        <span className="lab-label">UREA:</span>
+                                        <span className="lab-value">{patientLabResults.UREA || 'N/A'}</span>
+                                    </div>
+                                    <div className="lab-result-item">
+                                        <span className="lab-label">BUN:</span>
+                                        <span className="lab-value">{patientLabResults.BUN || 'N/A'}</span>
+                                    </div>
+                                    <div className="lab-result-item">
+                                        <span className="lab-label">URIC:</span>
+                                        <span className="lab-value">{patientLabResults.URIC || 'N/A'}</span>
+                                    </div>
+                                    <div className="lab-result-item">
+                                        <span className="lab-label">EGFR:</span>
+                                        <span className="lab-value">{patientLabResults.EGFR || 'N/A'}</span>
+                                    </div>
+                                </div>
                             </div>
                     </>
                     )}
@@ -5296,98 +5341,135 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             </>
                             )}
 
-                            {/* Appointment Tab - Right Column Content */}
+                            {/* Appointment Tab - Full Width */}
                             {patientDetailTab === "appointment" && (
-                            <>
-                            {/* Appointment Schedule Section */}
-                            <div className="appointment-schedule-section">
+                            <div className="appointment-schedule-section" style={{gridColumn: '1 / -1'}}>
                                 <h3>Appointment Schedule</h3>
-                                <div className="appointment-schedule-container">
-                                  <div className="appointment-calendar-container">
-                                    <Calendar
-                                      value={new Date()}
-                                      tileClassName={({ date, view }) => {
-                                        if (view === 'month') {
-                                          // Check if this date has an appointment
-                                          const hasAppointment = patientAppointments.some(appointment => {
-                                            const appointmentDate = new Date(appointment.appointment_datetime);
-                                            return (
-                                              appointmentDate.getDate() === date.getDate() &&
-                                              appointmentDate.getMonth() === date.getMonth() &&
-                                              appointmentDate.getFullYear() === date.getFullYear()
-                                            );
-                                          });
-                                          return hasAppointment ? 'appointment-date' : null;
-                                        }
-                                      }}
-                                      tileContent={({ date, view }) => {
-                                        if (view === 'month') {
-                                          const dayAppointments = patientAppointments.filter(appointment => {
-                                            const appointmentDate = new Date(appointment.appointment_datetime);
-                                            return (
-                                              appointmentDate.getDate() === date.getDate() &&
-                                              appointmentDate.getMonth() === date.getMonth() &&
-                                              appointmentDate.getFullYear() === date.getFullYear()
-                                            );
-                                          });
-                                  
-                                        }
-                                      }}
-                                    />
-                                  </div>
-                                  
-                                  {/* Appointment Details List */}
-                                  <div className="appointment-details-list">
-                                    <h4>
-                                      {(() => {
-                                        const now = new Date();
-                                        const futureAppointments = patientAppointments.filter(appointment => 
-                                          new Date(appointment.appointment_datetime) > now
-                                        );
-                                        return futureAppointments.length > 0 ? 'Upcoming Appointments' : 'Recent Appointments';
-                                      })()}
-                                    </h4>
-                                    {(() => {
-                                      const now = new Date();
-                                      const futureAppointments = patientAppointments.filter(appointment => 
-                                        new Date(appointment.appointment_datetime) > now
-                                      );
-                                      
-                                      let appointmentsToShow = [];
-                                      if (futureAppointments.length > 0) {
-                                        appointmentsToShow = futureAppointments.slice(0, 3);
-                                      } else {
-                                        // Show 3 most recent appointments
-                                        appointmentsToShow = patientAppointments
-                                          .sort((a, b) => new Date(b.appointment_datetime) - new Date(a.appointment_datetime))
-                                          .slice(0, 3);
-                                      }
-                                      
-                                      if (appointmentsToShow.length > 0) {
-                                        return (
-                                          <ul className="appointment-list">
-                                            {appointmentsToShow.map((appointment, idx) => (
-                                              <li key={idx} className="appointment-item">
-                                                <div className="appointment-date-time">
-                                                  <strong>{formatDateToReadable(appointment.appointment_datetime.split('T')[0])}</strong>
-                                                  <span className="appointment-time">{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</span>
-                                                </div>
-                                                <div className="appointment-notes">
-                                                  {appointment.notes || 'No notes'}
-                                                </div>
-                                              </li>
-                                            ))}
-                                          </ul>
-                                        );
-                                      } else {
-                                        return <p className="no-appointments">No appointments scheduled for this patient.</p>;
-                                      }
-                                    })()}
-                                  </div>
+                                <div className="patient-appointment-two-column-layout">
+                                    {/* Left Column: Calendar with Appointment Details */}
+                                    <div className="patient-appointment-left-column">
+                                        <div className="patient-appointment-schedule-container">
+                                            <div className="patient-appointment-calendar-container">
+                                                <Calendar
+                                                    value={calendarDate}
+                                                    onChange={setCalendarDate}
+                                                    tileClassName={({ date, view }) => {
+                                                        if (view === 'month') {
+                                                            // Check if this date has an appointment
+                                                            const hasAppointment = patientAppointments.some(appointment => {
+                                                                const appointmentDate = new Date(appointment.appointment_datetime);
+                                                                return (
+                                                                    appointmentDate.getDate() === date.getDate() &&
+                                                                    appointmentDate.getMonth() === date.getMonth() &&
+                                                                    appointmentDate.getFullYear() === date.getFullYear()
+                                                                );
+                                                            });
+                                                            return hasAppointment ? 'patient-appointment-date' : null;
+                                                        }
+                                                    }}
+                                                    tileContent={({ date, view }) => {
+                                                        if (view === 'month') {
+                                                            const dayAppointments = patientAppointments.filter(appointment => {
+                                                                const appointmentDate = new Date(appointment.appointment_datetime);
+                                                                return (
+                                                                    appointmentDate.getDate() === date.getDate() &&
+                                                                    appointmentDate.getMonth() === date.getMonth() &&
+                                                                    appointmentDate.getFullYear() === date.getFullYear()
+                                                                );
+                                                            });
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
+                                            
+                                            <div className="patient-appointment-details-list">
+                                                <h4>Upcoming Appointments</h4>
+                                                {(() => {
+                                                    const now = new Date();
+                                                    const upcomingAppointments = patientAppointments
+                                                        .filter(appointment => new Date(appointment.appointment_datetime) >= now)
+                                                        .sort((a, b) => new Date(a.appointment_datetime) - new Date(b.appointment_datetime));
+                                                    
+                                                    return upcomingAppointments.length > 0 ? (
+                                                        <ul className="patient-appointment-list">
+                                                            {upcomingAppointments.map((appointment, idx) => (
+                                                                <li key={idx} className="patient-appointment-item">
+                                                                    <div className="patient-appointment-date-time">
+                                                                        <strong>{formatDateToReadable(appointment.appointment_datetime.split('T')[0])}</strong>
+                                                                        <span className="patient-appointment-time">
+                                                                            {formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}
+                                                                        </span>
+                                                                    </div>
+                                                                    {appointment.notes && (
+                                                                        <p className="patient-appointment-notes">{appointment.notes}</p>
+                                                                    )}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    ) : (
+                                                        <p className="no-appointments">No upcoming appointments.</p>
+                                                    );
+                                                })()}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Right Column: Appointment Status Table */}
+                                    <div className="patient-appointment-right-column">
+                                        <div className="patient-appointment-table-container">
+                                            <h4>Appointment Status</h4>
+                                            {patientAppointments.length > 0 ? (
+                                                <>
+                                                    <div className="appointment-table-wrapper">
+                                                        <table className="patient-appointment-status-table">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Date</th>
+                                                                    <th>Time</th>
+                                                                    <th>Status</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {(() => {
+                                                                    const sortedAppointments = [...patientAppointments].sort((a, b) => 
+                                                                        new Date(b.appointment_datetime) - new Date(a.appointment_datetime)
+                                                                    );
+                                                                    const startIndex = (currentPagePatientDetailAppointments - 1) * PATIENT_DETAIL_APPOINTMENTS_PER_PAGE;
+                                                                    const endIndex = startIndex + PATIENT_DETAIL_APPOINTMENTS_PER_PAGE;
+                                                                    const paginatedAppointments = sortedAppointments.slice(startIndex, endIndex);
+                                                                    
+                                                                    return paginatedAppointments.map((appointment, idx) => (
+                                                                        <tr key={idx}>
+                                                                            <td>{formatDateToReadable(appointment.appointment_datetime.split('T')[0])}</td>
+                                                                            <td>{formatTimeTo12Hour(appointment.appointment_datetime.substring(11, 16))}</td>
+                                                                            <td>
+                                                                                <span className={`appointment-status-badge ${appointment.appointment_state ? appointment.appointment_state.toLowerCase().replace(/\s+/g, '-') : 'pending'}`}>
+                                                                                    {appointment.appointment_state || 'Pending'}
+                                                                                </span>
+                                                                            </td>
+                                                                        </tr>
+                                                                    ));
+                                                                })()}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                    <Pagination
+                                                        currentPage={currentPagePatientDetailAppointments}
+                                                        totalPages={Math.ceil(patientAppointments.length / PATIENT_DETAIL_APPOINTMENTS_PER_PAGE)}
+                                                        onPageChange={setCurrentPagePatientDetailAppointments}
+                                                        itemsPerPage={PATIENT_DETAIL_APPOINTMENTS_PER_PAGE}
+                                                        totalItems={patientAppointments.length}
+                                                    />
+                                                </>
+                                            ) : (
+                                                <p className="no-appointments">No appointments scheduled for this patient.</p>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            </>
                             )}
+
                         </div>
 
                         {/* Health Metrics History Table - Full Width Footer for Tables Tab */}

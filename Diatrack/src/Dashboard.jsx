@@ -4719,30 +4719,6 @@ const renderReportsContent = () => {
               </div>
             </div>
             
-            {/* Laboratory Result Section */}
-            <div className="laboratory-results-section">
-              <h3>Laboratory Results (Latest)</h3>
-              {latestLab ? (
-                <>
-                  <p><strong>Date Submitted:</strong> {new Date(latestLab.date_submitted).toLocaleDateString()}</p>
-                  <p><strong>Hba1c:</strong> {latestLab.Hba1c || 'N/A'}</p>
-                  <p><strong>UCR:</strong> {latestLab.ucr || 'N/A'}</p>
-                  <p><strong>GOT (AST):</strong> {latestLab.got_ast || 'N/A'}</p>
-                  <p><strong>GPT (ALT):</strong> {latestLab.gpt_alt || 'N/A'}</p>
-                  <p><strong>Cholesterol:</strong> {latestLab.cholesterol || 'N/A'}</p>
-                  <p><strong>Triglycerides:</strong> {latestLab.triglycerides || 'N/A'}</p>
-                  <p><strong>HDL Cholesterol:</strong> {latestLab.hdl_cholesterol || 'N/A'}</p>
-                  <p><strong>LDL Cholesterol:</strong> {latestLab.ldl_cholesterol || 'N/A'}</p>
-                  <p><strong>UREA:</strong> {latestLab.urea || 'N/A'}</p>
-                  <p><strong>BUN:</strong> {latestLab.bun || 'N/A'}</p>
-                  <p><strong>URIC:</strong> {latestLab.uric || 'N/A'}</p>
-                  <p><strong>EGFR:</strong> {latestLab.egfr || 'N/A'}</p>
-                </>
-              ) : (
-                <p>No lab results available for this patient.</p>
-              )}
-            </div>
-            
             {/* Latest Health Metrics Section */}
             <div className="latest-health-metrics-section">
               <h3>Latest Health Metrics</h3>
@@ -5347,9 +5323,72 @@ const renderReportsContent = () => {
             </>
             )}
 
-            {/* Patient Profile Tab - Right Column Content - Now empty */}
+            {/* Patient Profile Tab - Right Column Content */}
             {patientDetailTab === "profile" && (
             <>
+            {/* Laboratory Result Section */}
+            <div className="laboratory-results-section">
+              <h3>Laboratory Results (Latest)</h3>
+              {latestLab ? (
+                <>
+                  <div className="lab-date-submitted">
+                    <strong>Date Submitted:</strong> {new Date(latestLab.date_submitted).toLocaleDateString()}
+                  </div>
+                  <div className="lab-results-grid">
+                    <div className="lab-result-item">
+                      <span className="lab-label">Hba1c:</span>
+                      <span className="lab-value">{latestLab.Hba1c || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">UCR:</span>
+                      <span className="lab-value">{latestLab.ucr || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">GOT (AST):</span>
+                      <span className="lab-value">{latestLab.got_ast || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">GPT (ALT):</span>
+                      <span className="lab-value">{latestLab.gpt_alt || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">Cholesterol:</span>
+                      <span className="lab-value">{latestLab.cholesterol || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">Triglycerides:</span>
+                      <span className="lab-value">{latestLab.triglycerides || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">HDL:</span>
+                      <span className="lab-value">{latestLab.hdl_cholesterol || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">LDL:</span>
+                      <span className="lab-value">{latestLab.ldl_cholesterol || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">UREA:</span>
+                      <span className="lab-value">{latestLab.urea || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">BUN:</span>
+                      <span className="lab-value">{latestLab.bun || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">URIC:</span>
+                      <span className="lab-value">{latestLab.uric || 'N/A'}</span>
+                    </div>
+                    <div className="lab-result-item">
+                      <span className="lab-label">EGFR:</span>
+                      <span className="lab-value">{latestLab.egfr || 'N/A'}</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p>No lab results available for this patient.</p>
+              )}
+            </div>
             </>
             )}
           </div>

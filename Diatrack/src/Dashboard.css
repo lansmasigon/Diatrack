@@ -2410,3 +2410,141 @@ body {
   }
 }
 
+/* Laboratory Results Section - 6 Column Grid */
+.laboratory-results-section {
+  background-color: var(--background-white);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px var(--shadow-light);
+  margin-bottom: 20px;
+}
+
+.laboratory-results-section h3 {
+  color: var(--text-dark);
+  font-size: 1.2em;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 15px;
+  border-bottom: 2px solid var(--primary-blue);
+  padding-bottom: 10px;
+}
+
+.lab-date-submitted {
+  margin-bottom: 20px;
+  padding: 10px 15px;
+  background-color: var(--background-light);
+  border-radius: 8px;
+  font-size: 0.95em;
+  color: var(--text-medium);
+}
+
+.lab-date-submitted strong {
+  color: var(--text-dark);
+  font-weight: 600;
+}
+
+.lab-results-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.lab-result-item {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  background-color: var(--background-light);
+  border-radius: 8px;
+  border-left: 3px solid var(--primary-blue);
+  transition: all 0.3s ease;
+}
+
+.lab-result-item:hover {
+  background-color: #e3f2fd;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px var(--shadow-light);
+}
+
+.lab-label {
+  font-size: 0.85em;
+  color: var(--text-medium);
+  font-weight: 500;
+  margin-bottom: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lab-value {
+  font-size: 1.1em;
+  color: var(--text-dark);
+  font-weight: 600;
+}
+
+/* Latest Health Metrics Section */
+.latest-health-metrics-section {
+  background-color: var(--background-white);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px var(--shadow-light);
+}
+
+.latest-health-metrics-section h3 {
+  color: var(--text-dark);
+  font-size: 1.2em;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 15px;
+  border-bottom: 2px solid var(--primary-blue);
+  padding-bottom: 10px;
+}
+
+.latest-health-metrics-section p {
+  margin: 10px 0;
+  padding: 10px 15px;
+  background-color: var(--background-light);
+  border-radius: 8px;
+  font-size: 0.95em;
+}
+
+.latest-health-metrics-section strong {
+  color: var(--text-dark);
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+/* Responsive adjustments for lab results */
+@media (max-width: 1400px) {
+  .lab-results-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .lab-results-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .lab-results-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .lab-result-item {
+    padding: 10px;
+  }
+  
+  .laboratory-results-section,
+  .latest-health-metrics-section {
+    padding: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .lab-results-grid {
+    grid-template-columns: 1fr;
+  }
+}

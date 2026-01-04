@@ -89,7 +89,7 @@ const RiskFilter = ({
     }
     
     if (sortOrder && sortOrder !== 'desc') {
-      return sortOrder === 'asc' ? 'Oldest Created' : 'All Patients';
+      return sortOrder === 'asc' ? 'Oldest First' : 'All Patients';
     }
     
     return 'All Patients';
@@ -181,25 +181,25 @@ const RiskFilter = ({
               {showCounts && <span className="filter-count">({counts.ppd})</span>}
             </div>
 
-            {/* Sort Order - Newest Created First */}
+            {/* Sort Order - Newest First */}
             {onSortOrderChange && (
               <div 
                 className={`filter-dropdown-item ${sortOrder === 'desc' ? 'selected' : ''}`}
                 onClick={() => handleOptionSelect('sort', 'desc')}
               >
                 <span className="status-icon">🔽</span>
-                <span className="filter-option-text">Newest Created</span>
+                <span className="filter-option-text">Newest First</span>
               </div>
             )}
             
-            {/* Sort Order - Oldest Created First */}
+            {/* Sort Order - Oldest First */}
             {onSortOrderChange && (
               <div 
                 className={`filter-dropdown-item ${sortOrder === 'asc' ? 'selected' : ''}`}
                 onClick={() => handleOptionSelect('sort', 'asc')}
               >
                 <span className="status-icon">🔼</span>
-                <span className="filter-option-text">Oldest Created</span>
+                <span className="filter-option-text">Oldest First</span>
               </div>
             )}
 
