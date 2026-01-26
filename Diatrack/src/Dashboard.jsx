@@ -3871,7 +3871,7 @@ const renderReportsContent = () => {
             formData.append('file', imageBlob, 'wound_image.jpg');
 
             // Call the API
-            const response = await fetch('https://faultily-flighty-joellen.ngrok-free.dev/predict', {
+            const response = await fetch('https://yongnotgio12-diatrack.hf.space/api/v1/dfu/predict', {
                 method: 'POST',
                 body: formData,
             });
