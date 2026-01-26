@@ -607,6 +607,10 @@ const Dashboard = ({ user, onLogout }) => {
   const [currentPagePatients, setCurrentPagePatients] = useState(1);
   const PATIENTS_PER_PAGE = 10;
   
+  // DiaSight pagination states
+  const [currentPageDiaSight, setCurrentPageDiaSight] = useState(1);
+  const DIASIGHT_PATIENTS_PER_PAGE = 7;
+  
   // Health metrics submission tracking
   const [healthMetricsSubmissions, setHealthMetricsSubmissions] = useState({});
 
@@ -800,7 +804,7 @@ const Dashboard = ({ user, onLogout }) => {
   useEffect(() => {
     console.log("useEffect triggered - activePage:", activePage, "selectedPatient?.patient_id:", selectedPatient?.patient_id);
     
-    if (activePage === "dashboard" || activePage === "patient-list") {
+    if (activePage === "dashboard" || activePage === "patient-list" || activePage === "diasight") {
       fetchPatients();
     }
     if (activePage === "dashboard" || activePage === "appointments" || activePage === "reports") { // Added 'reports' here
@@ -2351,6 +2355,143 @@ const Dashboard = ({ user, onLogout }) => {
     return Math.ceil(allPatientHealthMetrics.length / HEALTH_METRICS_PER_PAGE);
   };
 
+  // Render DiaSight Patient List
+  const renderDiaSight = () => {
+    // Get filtered and paginated patients for DiaSight
+    const getFilteredDiaSightPatients = () => {
+      return patients.filter((patient) =>
+        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    };
+
+    const getPaginatedDiaSightPatients = () => {
+      const filtered = getFilteredDiaSightPatients();
+      const startIndex = (currentPageDiaSight - 1) * DIASIGHT_PATIENTS_PER_PAGE;
+      const endIndex = startIndex + DIASIGHT_PATIENTS_PER_PAGE;
+      return filtered.slice(startIndex, endIndex);
+    };
+
+    const getTotalDiaSightPages = () => {
+      const filtered = getFilteredDiaSightPatients();
+      return Math.ceil(filtered.length / DIASIGHT_PATIENTS_PER_PAGE);
+    };
+
+    const paginatedPatients = getPaginatedDiaSightPatients();
+    const totalPages = getTotalDiaSightPages();
+
+    return (
+      <div className="patient-list-section">
+        <h2>DiaSight - Patient Analysis</h2>
+        <div className="search-and-filter-row">
+          <div className="search-bar">
+            <input
+              type="text"
+              placeholder="Search patients by name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="patient-search-input"
+            />
+            <img src="../picture/search.svg" alt="Search" className="search-icon" />
+          </div>
+        </div>
+        
+        <div className="diasight-table-wrapper">
+          <div className="diasight-content-container">
+            <table className="diasight-patient-table">
+            <thead>
+              <tr>
+                <th className="diasight-patient-name-header">Patient Name</th>
+                <th>Lab Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedPatients.length > 0 ? (
+                paginatedPatients.map((patient) => {
+                  const labStatus = getLabStatus(patient.latest_lab_result);
+                  const isAwaiting = labStatus === 'Awaiting';
+                  
+                  return (
+                    <tr key={patient.patient_id}>
+                      <td className="diasight-patient-name-cell">
+                        <div className="diasight-patient-name-container">
+                          <img 
+                            src={patient.patient_picture || "../picture/secretary.png"} 
+                            alt="Patient Avatar" 
+                            className="patient-avatar-table"
+                            onError={(e) => e.target.src = "../picture/secretary.png"}
+                          />
+                          <span className="patient-name-text">{patient.first_name} {patient.last_name}</span>
+                        </div>
+                      </td>
+                      <td 
+                        className={
+                          labStatus === 'Submitted' ? 'lab-status-complete' :
+                          labStatus === 'Awaiting' ? 'lab-status-awaiting' : 
+                          'lab-status-awaiting'
+                        }
+                      >
+                        {labStatus === 'Awaiting' ? '❌Awaiting' : 
+                         labStatus === 'Submitted' ? '✅Submitted' : 
+                         labStatus}
+                      </td>
+                      <td className="patient-actions-cell">
+                        <button 
+                          className="view-button" 
+                          onClick={() => handleViewClick(patient)}
+                          style={{ marginRight: '8px' }}
+                        >
+                          👁️ View
+                        </button>
+                        <button 
+                          className="toggle-phase-button"
+                          onClick={() => {
+                            if (!isAwaiting) {
+                              // Run DiaSight action - you can implement this later
+                              console.log('Run DiaSight for patient:', patient.patient_id);
+                              alert(`Running DiaSight analysis for ${patient.first_name} ${patient.last_name}`);
+                            }
+                          }}
+                          disabled={isAwaiting}
+                          style={{
+                            opacity: isAwaiting ? 0.5 : 1,
+                            cursor: isAwaiting ? 'not-allowed' : 'pointer'
+                          }}
+                          title={isAwaiting ? 'Lab results must be submitted before running DiaSight analysis' : 'Run DiaSight analysis'}
+                        >
+                          ▶️ Run
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="3" style={{ textAlign: 'center' }}>No patients found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="diasight-pagination">
+              <Pagination
+                currentPage={currentPageDiaSight}
+                totalPages={totalPages}
+                onPageChange={setCurrentPageDiaSight}
+                itemsPerPage={DIASIGHT_PATIENTS_PER_PAGE}
+                totalItems={getFilteredDiaSightPatients().length}
+                showPageInfo={true}
+              />
+            </div>
+          )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderPatientList = () => {
     const paginatedPatients = getPaginatedPatients();
     const patientRiskCounts = getPatientRiskCounts();
@@ -3502,7 +3643,7 @@ const handleDoneAppointmentClick = async (appointment) => {
           <div className="quick-links">
             <h3>Quick links</h3>
             <div className="quick-links-grid">
-              <div className="quick-link-item" onClick={() => window.open('https://diasight.vercel.app/dashboard', '_blank', 'noopener,noreferrer')}>
+              <div className="quick-link-item" onClick={() => setActivePage("diasight")}>
                 <div className="quick-link-icon patient-list">
                   <img src="../picture/diasight.svg" alt="DiaSight" className="quick-link-image" style={{ width: '70px', height: '70px' }} />
                 </div>
@@ -6016,6 +6157,7 @@ const renderReportsContent = () => {
         {activePage === "dashboard" && renderDashboardContent()}
         {activePage === "patient-profile" && selectedPatient?.patient_id && renderPatientProfile()}
         {activePage === "patient-list" && renderPatientList()}
+        {activePage === "diasight" && renderDiaSight()}
         {activePage === "appointments" && renderAppointmentsSection()}
         {activePage === "reports" && !showReportTable && renderReportsSection()}
         {activePage === "reports" && showReportTable && renderReportTable()}

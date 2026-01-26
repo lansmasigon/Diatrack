@@ -2065,7 +2065,7 @@ body {
   text-align: center;
   color: var(--text-light);
   font-style: italic;
-  padding: 20px;
+  padding: 10px;
 }
 
 /* Patient Detail Appointment Tab - Separate Styles */
@@ -2424,14 +2424,11 @@ body {
   font-size: 1.2em;
   font-weight: 600;
   margin-top: 0;
-  margin-bottom: 15px;
-  border-bottom: 2px solid var(--primary-blue);
-  padding-bottom: 10px;
 }
 
 .lab-date-submitted {
   margin-bottom: 20px;
-  padding: 10px 15px;
+  padding: 5px 5px;
   background-color: var(--background-light);
   border-radius: 8px;
   font-size: 0.95em;
@@ -2440,14 +2437,14 @@ body {
 
 .lab-date-submitted strong {
   color: var(--text-dark);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .lab-results-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 15px;
-  margin-top: 15px;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .lab-result-item {
@@ -2456,7 +2453,6 @@ body {
   padding: 12px;
   background-color: var(--background-light);
   border-radius: 8px;
-  border-left: 3px solid var(--primary-blue);
   transition: all 0.3s ease;
 }
 
@@ -2495,22 +2491,20 @@ body {
   font-size: 1.2em;
   font-weight: 600;
   margin-top: 0;
-  margin-bottom: 15px;
-  border-bottom: 2px solid var(--primary-blue);
-  padding-bottom: 10px;
 }
 
 .latest-health-metrics-section p {
   margin: 10px 0;
-  padding: 10px 15px;
+  padding: 5px 5px;
   background-color: var(--background-light);
   border-radius: 8px;
   font-size: 0.95em;
+  font-weight: 500;
 }
 
 .latest-health-metrics-section strong {
   color: var(--text-dark);
-  font-weight: 600;
+  font-weight: 500;
   margin-right: 8px;
 }
 
@@ -2547,4 +2541,86 @@ body {
   .lab-results-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ========================================
+   DiaSight Page Styles
+   ======================================== */
+
+/* DiaSight table wrapper - centers the table */
+.diasight-table-wrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+/* DiaSight content container - holds table and pagination */
+.diasight-content-container {
+  width: 100%;
+  max-width: 1000px;
+}
+
+/* DiaSight table - unique styles to avoid conflicts */
+.diasight-patient-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 8px;
+  overflow: hidden;
+  text-align: center;
+}
+
+.diasight-patient-table thead {
+  background-color: var(--background-light);
+}
+
+.diasight-patient-table th {
+  padding: 10px 10px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 0.95em;
+  color: var(--text-medium);
+}
+
+/* Patient Name column header - left aligned */
+.diasight-patient-table th.diasight-patient-name-header {
+  text-align: center;
+  padding-right: 5px;
+}
+
+.diasight-patient-table td {
+  color: var(--text-dark);
+  text-align: center;
+  font-size: 0.9em;
+  padding: 5px 10px;
+}
+
+/* Patient Name cell - left aligned */
+.diasight-patient-table td.diasight-patient-name-cell {
+  text-align: left;
+  padding-right: 0px;
+  width: 30%;
+  max-width: 300px;
+}
+
+/* Lab Status cell - centered */
+.diasight-patient-table td.lab-status-cell {
+  width: 35%;
+  text-align: center;
+}
+
+/* Actions cell - centered with reduced width */
+.diasight-patient-table td.patient-actions-cell {
+  width: 30%;
+  text-align: center;
+}
+
+/* Patient name container styling */
+.diasight-patient-name-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.diasight-patient-table tr:last-child td {
+  border-bottom: none;
 }

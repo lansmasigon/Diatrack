@@ -1,25 +1,25 @@
 /* Global Pagination Styles - Reusable Component */
 .pagination-container {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     margin-top: 15px;
     padding: 15px 0;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
 }
 
 /* Page Information Styling */
 .page-info {
     color: #666;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 500;
     order: 2;
 }
 
 .pagination {
   display: flex;
-  gap: 1px;
+  gap: 0px;
   align-items: center;
   justify-content: center;
   order: 1;
@@ -27,16 +27,16 @@
 
 /* Pagination Button Base Styles */
 .pagination-btn {
-  padding: 6px 10px;
+  padding: 4px 8px;
   border: 1px solid #e0e0e0;
   background-color: white;
   color: #666;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 32px;
-  height: 32px;
+  min-width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -46,9 +46,13 @@
   border-radius: 0;
 }
 
+.page-info{
+  padding-right: 50px;
+}
+
 /* Page Number Button Styles */
 .pagination-btn.page-number {
-  min-width: 32px;
+  min-width: 28px;
   padding: 0;
   font-weight: 500;
 }
@@ -63,7 +67,7 @@
 .pagination-btn.prev-btn {
   border-top-left-radius: 4px;
   border-bottom-left-radius: 4px;
-  padding: 6px 12px;
+  padding: 4px 10px;
   font-weight: 500;
   border-color: none ;
   border: 1px solid #e0e0e0;
@@ -73,7 +77,7 @@
 .pagination-btn.next-btn {
   border-top-right-radius: 4px;
   border-bottom-right-radius: 4px;
-  padding: 6px 12px;
+  padding: 4px 10px;
   font-weight: 500;
 }
 
@@ -118,20 +122,20 @@
 
 /* Ellipsis Styling */
 .pagination-ellipsis {
-  padding: 6px 6px;
+  padding: 4px 4px;
   color: #999;
   font-weight: 500;
   user-select: none;
   display: flex;
   align-items: center;
-  height: 32px;
-  font-size: 12px;
+  height: 28px;
+  font-size: 11px;
 }
 
 /* Icon Styling */
 .pagination-icon {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   object-fit: contain;
 }
 
