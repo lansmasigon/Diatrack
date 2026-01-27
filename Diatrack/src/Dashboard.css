@@ -2624,3 +2624,518 @@ body {
 .diasight-patient-table tr:last-child td {
   border-bottom: none;
 }
+
+/* ========================================
+   DiaSight Results Section Styles
+   ======================================== */
+
+.diasight-results-section {
+  background-color: var(--background-white);
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 2px 8px var(--shadow-light);
+}
+
+.diasight-results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.diasight-results-header h3 {
+  color: var(--text-dark);
+  font-size: 1.3em;
+  font-weight: 600;
+  margin: 0;
+}
+
+.run-diasight-button {
+  background-color: var(--primary-blue);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95em;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.run-diasight-button:hover:not(:disabled) {
+  background-color: #1789c2;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(31, 170, 237, 0.3);
+}
+
+.run-diasight-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Latest Result Card */
+.diasight-latest-result {
+  margin-bottom: 30px;
+}
+
+.diasight-latest-result h4 {
+  color: var(--text-dark);
+  font-size: 1.1em;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.diasight-result-card {
+  background-color: var(--background-light);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid var(--border-light);
+}
+
+.diasight-prediction-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 25px;
+  border-radius: 10px;
+  border: 2px solid;
+  margin-bottom: 20px;
+}
+
+.diasight-prediction-badge .prediction-label {
+  font-size: 1em;
+  color: var(--text-medium);
+  font-weight: 500;
+}
+
+.diasight-prediction-badge .prediction-value {
+  font-size: 1.4em;
+  font-weight: 700;
+}
+
+.diasight-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.diasight-metric-item {
+  background-color: var(--background-white);
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+  text-align: center;
+}
+
+.diasight-metric-item .metric-label {
+  display: block;
+  font-size: 0.8em;
+  color: var(--text-light);
+  margin-bottom: 4px;
+}
+
+.diasight-metric-item .metric-value {
+  display: block;
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+/* Progression Section */
+.diasight-progression-section {
+  margin-bottom: 30px;
+}
+
+.diasight-progression-section h4 {
+  color: var(--text-dark);
+  font-size: 1.1em;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+/* History Table */
+.diasight-history-section {
+  margin-top: 20px;
+}
+
+.diasight-history-section h4 {
+  color: var(--text-dark);
+  font-size: 1.1em;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.diasight-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--background-white);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px var(--shadow-light);
+}
+
+.diasight-history-table th,
+.diasight-history-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.diasight-history-table th {
+  background-color: var(--background-light);
+  font-weight: 600;
+  color: var(--text-medium);
+  font-size: 0.9em;
+}
+
+.diasight-history-table td {
+  color: var(--text-dark);
+  font-size: 0.9em;
+}
+
+.diasight-history-table tr:last-child td {
+  border-bottom: none;
+}
+
+.diasight-history-table tr:hover {
+  background-color: var(--background-light);
+}
+
+/* DR Prediction Badge */
+.dr-prediction-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-weight: 600;
+  font-size: 0.85em;
+}
+
+.dr-prediction-badge.dr-no-dr {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.dr-prediction-badge.dr-mild {
+  background-color: rgba(255, 193, 7, 0.15);
+  color: #d4a206;
+}
+
+.dr-prediction-badge.dr-moderate {
+  background-color: rgba(255, 152, 0, 0.15);
+  color: #ff9800;
+}
+
+.dr-prediction-badge.dr-severe {
+  background-color: rgba(244, 67, 54, 0.15);
+  color: #f44336;
+}
+
+.dr-prediction-badge.dr-proliferative {
+  background-color: rgba(156, 39, 176, 0.15);
+  color: #9c27b0;
+}
+
+/* No Results State */
+.no-diasight-results {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-light);
+}
+
+.no-diasight-results .no-results-icon {
+  font-size: 4em;
+  margin-bottom: 15px;
+}
+
+.no-diasight-results p {
+  font-size: 1.1em;
+  margin: 5px 0;
+}
+
+.no-diasight-results .no-results-hint {
+  font-size: 0.9em;
+  color: var(--text-light);
+  margin-top: 10px;
+}
+
+/* ========================================
+   DiaSight Modal Styles
+   ======================================== */
+
+.diasight-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.diasight-modal-content {
+  background-color: var(--background-white);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.diasight-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  border-bottom: 1px solid var(--border-light);
+  background-color: var(--background-light);
+  border-radius: 16px 16px 0 0;
+}
+
+.diasight-modal-header h3 {
+  margin: 0;
+  font-size: 1.3em;
+  color: var(--text-dark);
+  font-weight: 600;
+}
+
+.diasight-modal-body {
+  padding: 25px;
+}
+
+.patient-info-banner {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background-color: var(--background-light);
+  border-radius: 10px;
+  margin-bottom: 25px;
+}
+
+.patient-avatar-modal {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.patient-modal-details h4 {
+  margin: 0 0 5px 0;
+  font-size: 1.1em;
+  color: var(--text-dark);
+}
+
+.patient-modal-details .analysis-timestamp {
+  font-size: 0.85em;
+  color: var(--text-light);
+}
+
+.diasight-result-main {
+  margin-bottom: 20px;
+}
+
+.prediction-result-box {
+  padding: 25px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.prediction-result-box .prediction-title {
+  font-size: 0.9em;
+  color: var(--text-medium);
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.prediction-result-box .prediction-main-result {
+  font-size: 2em;
+  font-weight: 700;
+}
+
+.diasight-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+.diasight-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background-color: var(--background-light);
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+}
+
+.diasight-stat-card .stat-icon {
+  font-size: 1.3em;
+}
+
+.diasight-stat-card .stat-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.diasight-stat-card .stat-label {
+  font-size: 0.8em;
+  color: var(--text-light);
+}
+
+.diasight-stat-card .stat-value {
+  font-size: 1.2em;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+/* Probability Distribution */
+.probability-distribution {
+  background-color: var(--background-light);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.probability-distribution h4 {
+  margin: 0 0 15px 0;
+  font-size: 1em;
+  color: var(--text-dark);
+  font-weight: 600;
+}
+
+.probability-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.probability-item {
+  display: grid;
+  grid-template-columns: 100px 1fr 60px;
+  align-items: center;
+  gap: 10px;
+}
+
+.probability-label {
+  font-size: 0.9em;
+  color: var(--text-medium);
+  font-weight: 500;
+}
+
+.probability-bar-container {
+  height: 10px;
+  background-color: var(--border-light);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.probability-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.5s ease;
+}
+
+.probability-value {
+  font-size: 0.9em;
+  color: var(--text-dark);
+  font-weight: 600;
+  text-align: right;
+}
+
+/* Modal Actions */
+.diasight-modal-actions {
+  display: flex;
+  gap: 15px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-light);
+}
+
+.view-patient-button {
+  flex: 1;
+  padding: 12px 20px;
+  background-color: var(--primary-blue);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95em;
+  transition: all 0.3s ease;
+}
+
+.view-patient-button:hover {
+  background-color: #1789c2;
+}
+
+.close-modal-button {
+  padding: 12px 30px;
+  background-color: var(--background-light);
+  color: var(--text-dark);
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.95em;
+  transition: all 0.3s ease;
+}
+
+.close-modal-button:hover {
+  background-color: var(--border-light);
+}
+
+/* DiaSight Run Button Animation */
+.diasight-run-button {
+  transition: all 0.3s ease;
+}
+
+.diasight-run-button:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .diasight-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .diasight-modal-content {
+    width: 95%;
+    margin: 10px;
+  }
+  
+  .probability-item {
+    grid-template-columns: 80px 1fr 50px;
+  }
+  
+  .diasight-results-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .run-diasight-button {
+    width: 100%;
+    justify-content: center;
+  }
+}

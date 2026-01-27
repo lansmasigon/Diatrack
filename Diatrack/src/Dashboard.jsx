@@ -565,6 +565,13 @@ const Dashboard = ({ user, onLogout }) => {
   const [isSavingAnalysis, setIsSavingAnalysis] = useState(false);
   const [analysisSaved, setAnalysisSaved] = useState(false);
 
+  // States for DiaSight DR detection
+  const [isRunningDiaSight, setIsRunningDiaSight] = useState(false);
+  const [diaSightRunningPatientId, setDiaSightRunningPatientId] = useState(null);
+  const [diaSightResults, setDiaSightResults] = useState(null);
+  const [showDiaSightModal, setShowDiaSightModal] = useState(false);
+  const [diaSightError, setDiaSightError] = useState(null);
+
   // Dashboard analytics states
   const [totalPatientsCount, setTotalPatientsCount] = useState(0);
   const [pendingLabResultsCount, setPendingLabResultsCount] = useState(0);
@@ -1676,6 +1683,167 @@ const Dashboard = ({ user, onLogout }) => {
     }
   };
 
+  // DiaSight DR Detection API call
+  const handleRunDiaSight = async (patient) => {
+    setIsRunningDiaSight(true);
+    setDiaSightRunningPatientId(patient.patient_id);
+    setDiaSightError(null);
+    setDiaSightResults(null);
+    
+    try {
+      // Fetch patient's latest lab results
+      const { data: latestLab, error: labError } = await supabase
+        .from('patient_labs')
+        .select('*')
+        .eq('patient_id', patient.patient_id)
+        .order('date_submitted', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (labError) {
+        throw new Error('Failed to fetch patient lab results');
+      }
+
+      if (!latestLab) {
+        throw new Error('No lab results found for this patient');
+      }
+
+      // Calculate age from date_of_birth
+      let age = 0;
+      if (patient.date_of_birth) {
+        const birthDate = new Date(patient.date_of_birth);
+        const today = new Date();
+        age = Math.floor((today - birthDate) / (365.25 * 24 * 60 * 60 * 1000));
+      }
+
+      // Fetch latest health metrics for blood pressure
+      const { data: latestMetrics, error: metricsError } = await supabase
+        .from('health_metrics')
+        .select('bp_systolic, bp_diastolic')
+        .eq('patient_id', patient.patient_id)
+        .order('submission_date', { ascending: false })
+        .limit(1);
+
+      let sbp = 0, dbp = 0;
+      if (!metricsError && latestMetrics && latestMetrics.length > 0) {
+        sbp = latestMetrics[0].bp_systolic || 0;
+        dbp = latestMetrics[0].bp_diastolic || 0;
+      }
+
+      // Prepare the request body for the ML model
+      const requestBody = {
+        age: age,
+        hb1ac: latestLab.Hba1c || 0,
+        duration: patient.diabetes_duration || 0,
+        egfr: latestLab.egfr || 0,
+        ldl: latestLab.ldl_cholesterol || 0,
+        hdl: latestLab.hdl_cholesterol || 0,
+        chol: latestLab.cholesterol || 0,
+        sbp: sbp,
+        dbp: dbp,
+        hbp: patient.hypertensive ? 1 : 0,
+        sex: patient.gender?.toLowerCase() === 'male' ? 1 : 0,
+        uric: latestLab.uric || 0,
+        bun: latestLab.bun || 0,
+        urea: latestLab.urea || 0,
+        trig: latestLab.triglycerides || 0,
+        ucr: latestLab.ucr || 0,
+        alt: latestLab.gpt_alt || 0,
+        ast: latestLab.got_ast || 0,
+        additionalProp1: {}
+      };
+
+      console.log('DiaSight API Request:', requestBody);
+
+      // Call the DiaSight ML API
+      const response = await fetch('https://yongnotgio12-diatrack.hf.space/api/v1/diasight/predict', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('DiaSight API Response:', result);
+
+      // Create the result object to store (optimized - only essential fields)
+      const drResult = {
+        timestamp: new Date().toISOString(),
+        prediction: result.prediction,
+        confidence: result.confidence,
+        risk_score: result.risk_score
+      };
+
+      // Fetch current dr_class array and diasight_time array
+      const { data: currentLab, error: fetchError } = await supabase
+        .from('patient_labs')
+        .select('dr_class, diasight_time, lab_id')
+        .eq('patient_id', patient.patient_id)
+        .order('date_submitted', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (fetchError) {
+        throw new Error('Failed to fetch current lab data');
+      }
+
+      // Append new result to existing arrays
+      const updatedDrClass = currentLab.dr_class ? [...currentLab.dr_class, drResult] : [drResult];
+      const updatedDiasightTime = currentLab.diasight_time ? [...currentLab.diasight_time, new Date().toISOString()] : [new Date().toISOString()];
+
+      // Update the patient_labs table
+      const { error: updateError } = await supabase
+        .from('patient_labs')
+        .update({
+          dr_class: updatedDrClass,
+          diasight_time: updatedDiasightTime
+        })
+        .eq('lab_id', currentLab.lab_id);
+
+      if (updateError) {
+        throw new Error('Failed to save DiaSight results');
+      }
+
+      // Set the results for display
+      setDiaSightResults({
+        patient: patient,
+        result: drResult,
+        probabilities: result.probabilities, // Keep for modal display
+        allResults: updatedDrClass
+      });
+      setShowDiaSightModal(true);
+
+      // Log the action
+      await logPatientDataChange(
+        'doctor',
+        user.doctor_id,
+        `${user.first_name} ${user.last_name}`,
+        patient.patient_id,
+        'diasight_analysis',
+        'create',
+        null,
+        `DiaSight DR detection run - Prediction: ${result.prediction}, Confidence: ${(result.confidence * 100).toFixed(1)}%`,
+        'DiaSight - Patient Analysis'
+      );
+
+      // Refresh patient data
+      fetchPatients();
+
+    } catch (err) {
+      console.error('DiaSight Error:', err);
+      setDiaSightError(err.message);
+      alert(`DiaSight Analysis Error: ${err.message}`);
+    } finally {
+      setIsRunningDiaSight(false);
+      setDiaSightRunningPatientId(null);
+    }
+  };
+
   const handleNewMedicationInputChange = (e) => {
     const { name, value } = e.target;
     setNewMedication({ ...newMedication, [name]: value });
@@ -2444,22 +2612,20 @@ const Dashboard = ({ user, onLogout }) => {
                           👁️ View
                         </button>
                         <button 
-                          className="toggle-phase-button"
+                          className="toggle-phase-button diasight-run-button"
                           onClick={() => {
-                            if (!isAwaiting) {
-                              // Run DiaSight action - you can implement this later
-                              console.log('Run DiaSight for patient:', patient.patient_id);
-                              alert(`Running DiaSight analysis for ${patient.first_name} ${patient.last_name}`);
+                            if (!isAwaiting && !isRunningDiaSight) {
+                              handleRunDiaSight(patient);
                             }
                           }}
-                          disabled={isAwaiting}
+                          disabled={isAwaiting || (isRunningDiaSight && diaSightRunningPatientId === patient.patient_id)}
                           style={{
-                            opacity: isAwaiting ? 0.5 : 1,
-                            cursor: isAwaiting ? 'not-allowed' : 'pointer'
+                            opacity: isAwaiting || (isRunningDiaSight && diaSightRunningPatientId === patient.patient_id) ? 0.5 : 1,
+                            cursor: isAwaiting || (isRunningDiaSight && diaSightRunningPatientId === patient.patient_id) ? 'not-allowed' : 'pointer'
                           }}
-                          title={isAwaiting ? 'Lab results must be submitted before running DiaSight analysis' : 'Run DiaSight analysis'}
+                          title={isAwaiting ? 'Lab results must be submitted before running DiaSight analysis' : 'Run DiaSight DR detection analysis'}
                         >
-                          ▶️ Run
+                          {isRunningDiaSight && diaSightRunningPatientId === patient.patient_id ? '⏳ Running...' : '▶️ Run'}
                         </button>
                       </td>
                     </tr>
@@ -4773,6 +4939,12 @@ const renderReportsContent = () => {
             >
               Tables
             </button>
+            <button 
+              className={`patient-nav-button ${patientDetailTab === "diasight" ? "active" : ""}`}
+              onClick={() => setPatientDetailTab("diasight")}
+            >
+              DiaSight
+            </button>
           </div>
         </div>
         <div className="patient-details-content-container">
@@ -6008,6 +6180,237 @@ const renderReportsContent = () => {
           </div>
         </div>
         )}
+
+        {/* DiaSight Tab - Full Width */}
+        {patientDetailTab === "diasight" && (
+        <div className="diasight-results-section" style={{gridColumn: '1 / -1'}}>
+          <div className="diasight-results-header">
+            <h3>DiaSight - Diabetic Retinopathy Detection</h3>
+            <button 
+              className="run-diasight-button"
+              onClick={() => handleRunDiaSight(selectedPatient)}
+              disabled={isRunningDiaSight || !patientLabs[0] || getLabStatus(patientLabs[0]) === 'Awaiting'}
+              style={{
+                opacity: isRunningDiaSight || !patientLabs[0] || getLabStatus(patientLabs[0]) === 'Awaiting' ? 0.5 : 1,
+                cursor: isRunningDiaSight || !patientLabs[0] || getLabStatus(patientLabs[0]) === 'Awaiting' ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {isRunningDiaSight ? '⏳ Running Analysis...' : '▶️ Run New Analysis'}
+            </button>
+          </div>
+          
+          {/* Latest Result Card */}
+          {(() => {
+            // Parse DR results - handle both JSON strings and objects from database
+            const rawDrClass = patientLabs[0]?.dr_class || [];
+            const drResults = rawDrClass.map(item => {
+              // If it's a string, parse it as JSON
+              if (typeof item === 'string') {
+                try {
+                  return JSON.parse(item);
+                } catch (e) {
+                  console.error('Failed to parse DR result:', e);
+                  return null;
+                }
+              }
+              // If it's already an object, return it
+              return item;
+            }).filter(item => item && item.prediction && item.timestamp);
+            
+            if (drResults.length > 0) {
+              const latestResult = drResults[drResults.length - 1];
+              
+              // Helper function to get color based on prediction
+              const getPredictionColor = (prediction) => {
+                if (!prediction) return '#9c27b0';
+                const pred = prediction.toLowerCase();
+                if (pred.includes('no dr') || pred === 'no dr') return '#22c55e';
+                if (pred.includes('mild')) return '#ffc107';
+                if (pred.includes('moderate')) return '#ff9800';
+                if (pred.includes('severe') || pred.includes('proliferative')) return '#f44336';
+                return '#9c27b0';
+              };
+              
+              const getPredictionBgColor = (prediction) => {
+                const color = getPredictionColor(prediction);
+                return color.replace(')', ', 0.1)').replace('rgb', 'rgba').replace('#', '');
+              };
+              
+              return (
+                <>
+                  <div className="diasight-latest-result">
+                    <h4>Latest Analysis Result</h4>
+                    <div className="diasight-result-card">
+                      <div className="diasight-metrics-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                        <div className="diasight-metric-item" style={{
+                          backgroundColor: `${getPredictionColor(latestResult.prediction)}15`,
+                          borderColor: getPredictionColor(latestResult.prediction),
+                          borderWidth: '2px',
+                          borderStyle: 'solid'
+                        }}>
+                          <span className="metric-label">Prediction</span>
+                          <span className="metric-value" style={{
+                            color: getPredictionColor(latestResult.prediction),
+                            fontWeight: 'bold'
+                          }}>
+                            {latestResult.prediction || 'N/A'}
+                          </span>
+                        </div>
+                        <div className="diasight-metric-item">
+                          <span className="metric-label">Confidence</span>
+                          <span className="metric-value">
+                            {latestResult.confidence != null && !isNaN(latestResult.confidence) 
+                              ? `${(latestResult.confidence * 100).toFixed(1)}%` 
+                              : 'N/A'}
+                          </span>
+                        </div>
+                        <div className="diasight-metric-item">
+                          <span className="metric-label">Risk Score</span>
+                          <span className="metric-value">
+                            {latestResult.risk_score != null && !isNaN(latestResult.risk_score) 
+                              ? latestResult.risk_score.toFixed(1)
+                              : 'N/A'}
+                          </span>
+                        </div>
+                        <div className="diasight-metric-item">
+                          <span className="metric-label">Analysis Date</span>
+                          <span className="metric-value">
+                            {latestResult.timestamp 
+                              ? new Date(latestResult.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                              : 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Progression Chart */}
+                  {drResults.length > 1 && (
+                    <div className="diasight-progression-section">
+                      <h4>DR Progression Over Time</h4>
+                      <div className="chart-wrapper" style={{ height: '300px' }}>
+                        <Line
+                          data={{
+                            labels: drResults.map(result => 
+                              result.timestamp 
+                                ? new Date(result.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                                : 'N/A'
+                            ),
+                            datasets: [
+                              {
+                                label: 'Risk Score',
+                                data: drResults.map(result => 
+                                  result.risk_score != null ? result.risk_score : 0
+                                ),
+                                borderColor: 'rgba(59, 130, 246, 1)',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                                pointBackgroundColor: drResults.map(result => getPredictionColor(result.prediction)),
+                                pointRadius: 8,
+                                pointHoverRadius: 10,
+                              }
+                            ]
+                          }}
+                          options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                              legend: {
+                                display: false
+                              },
+                              tooltip: {
+                                callbacks: {
+                                  label: function(context) {
+                                    const result = drResults[context.dataIndex];
+                                    return [
+                                      `Prediction: ${result.prediction || 'N/A'}`,
+                                      `Risk Score: ${result.risk_score != null ? result.risk_score.toFixed(1) : 'N/A'}`,
+                                      `Confidence: ${result.confidence != null ? (result.confidence * 100).toFixed(1) + '%' : 'N/A'}`
+                                    ];
+                                  }
+                                }
+                              }
+                            },
+                            scales: {
+                              y: {
+                                beginAtZero: true,
+                                max: 100,
+                                title: {
+                                  display: true,
+                                  text: 'Risk Score'
+                                }
+                              },
+                              x: {
+                                title: {
+                                  display: true,
+                                  text: 'Date'
+                                }
+                              }
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* History Table */}
+                  <div className="diasight-history-section">
+                    <h4>Analysis History ({drResults.length} records)</h4>
+                    <table className="diasight-history-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Prediction</th>
+                          <th>Confidence</th>
+                          <th>Risk Score</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...drResults].reverse().map((result, index) => (
+                          <tr key={index}>
+                            <td>
+                              {result.timestamp 
+                                ? new Date(result.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                : 'N/A'}
+                            </td>
+                            <td>
+                              <span className="dr-prediction-badge" style={{
+                                backgroundColor: `${getPredictionColor(result.prediction)}20`,
+                                color: getPredictionColor(result.prediction)
+                              }}>
+                                {result.prediction || 'N/A'}
+                              </span>
+                            </td>
+                            <td>
+                              {result.confidence != null && !isNaN(result.confidence) 
+                                ? `${(result.confidence * 100).toFixed(1)}%` 
+                                : 'N/A'}
+                            </td>
+                            <td>
+                              {result.risk_score != null && !isNaN(result.risk_score) 
+                                ? result.risk_score.toFixed(1)
+                                : 'N/A'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              );
+            } else {
+              return (
+                <div className="no-diasight-results">
+                  <div className="no-results-icon">🔬</div>
+                  <p>No DiaSight analysis has been run for this patient yet.</p>
+                  <p className="no-results-hint">Click "Run New Analysis" to perform a diabetic retinopathy detection.</p>
+                </div>
+              );
+            }
+          })()}
+        </div>
+        )}
         
         {/* Wound Gallery Tab - Full Width */}
         {patientDetailTab === "woundgallery" && (
@@ -6230,6 +6633,138 @@ const renderReportsContent = () => {
           ) : (
             <p>{isLoadingAnalysis ? 'Analyzing...' : 'Diagnosis results will be displayed here...'}</p>
           )}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* DiaSight Results Modal */}
+{showDiaSightModal && diaSightResults && (
+  <div className="diasight-modal-overlay" onClick={() => setShowDiaSightModal(false)}>
+    <div className="diasight-modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="diasight-modal-header">
+        <h3>🔬 DiaSight Analysis Complete</h3>
+        <button className="close-button3" onClick={() => setShowDiaSightModal(false)}>
+          &times;
+        </button>
+      </div>
+      <div className="diasight-modal-body">
+        <div className="patient-info-banner">
+          <img 
+            src={diaSightResults.patient.patient_picture || "../picture/secretary.png"} 
+            alt="Patient" 
+            className="patient-avatar-modal"
+            onError={(e) => e.target.src = "../picture/secretary.png"}
+          />
+          <div className="patient-modal-details">
+            <h4>{diaSightResults.patient.first_name} {diaSightResults.patient.last_name}</h4>
+            <span className="analysis-timestamp">
+              Analysis performed on {new Date(diaSightResults.result.timestamp).toLocaleString()}
+            </span>
+          </div>
+        </div>
+
+        <div className="diasight-result-main">
+          <div className="diasight-stats-grid">
+            {(() => {
+              const getPredColor = (prediction) => {
+                if (!prediction) return '#9c27b0';
+                const pred = prediction.toLowerCase();
+                if (pred.includes('no dr') || pred === 'no dr') return '#22c55e';
+                if (pred.includes('mild')) return '#ffc107';
+                if (pred.includes('moderate')) return '#ff9800';
+                if (pred.includes('severe') || pred.includes('proliferative')) return '#f44336';
+                return '#9c27b0';
+              };
+              const color = getPredColor(diaSightResults.result.prediction);
+              return (
+                <div className="diasight-stat-card" style={{
+                  backgroundColor: `${color}15`,
+                  borderLeft: `3px solid ${color}`
+                }}>
+                  <div className="stat-icon" style={{ color }}>🔬</div>
+                  <div className="stat-content">
+                    <span className="stat-label">Prediction</span>
+                    <span className="stat-value" style={{ color }}>
+                      {diaSightResults.result.prediction}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+            <div className="diasight-stat-card">
+              <div className="stat-icon">📊</div>
+              <div className="stat-content">
+                <span className="stat-label">Confidence</span>
+                <span className="stat-value">{(diaSightResults.result.confidence * 100).toFixed(1)}%</span>
+              </div>
+            </div>
+            <div className="diasight-stat-card">
+              <div className="stat-icon">⚠️</div>
+              <div className="stat-content">
+                <span className="stat-label">Risk Score</span>
+                <span className="stat-value">{diaSightResults.result.risk_score?.toFixed(1) || 'N/A'}</span>
+              </div>
+            </div>
+            <div className="diasight-stat-card">
+              <div className="stat-icon">🔢</div>
+              <div className="stat-content">
+                <span className="stat-label">Analysis Count</span>
+                <span className="stat-value">{diaSightResults.allResults?.length || 1}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Probability Distribution */}
+          {diaSightResults.probabilities && (
+            <div className="probability-distribution">
+              <h4>Classification Probabilities</h4>
+              <div className="probability-bars">
+                {Object.entries(diaSightResults.probabilities).map(([className, prob]) => {
+                  const getColor = (name) => {
+                    const n = name.toLowerCase();
+                    if (n.includes('no dr') || n === 'no dr') return '#22c55e';
+                    if (n.includes('mild')) return '#ffc107';
+                    if (n.includes('moderate')) return '#ff9800';
+                    if (n.includes('severe') || n.includes('proliferative')) return '#f44336';
+                    return '#9c27b0';
+                  };
+                  return (
+                    <div key={className} className="probability-item">
+                      <span className="probability-label">{className}</span>
+                      <div className="probability-bar-container">
+                        <div 
+                          className="probability-bar-fill"
+                          style={{
+                            width: `${prob * 100}%`,
+                            backgroundColor: getColor(className)
+                          }}
+                        />
+                      </div>
+                      <span className="probability-value">{(prob * 100).toFixed(1)}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="diasight-modal-actions">
+          <button 
+            className="view-patient-button"
+            onClick={() => {
+              setShowDiaSightModal(false);
+              handleViewClick(diaSightResults.patient);
+              setPatientDetailTab("diasight");
+            }}
+          >
+            View Patient DiaSight History
+          </button>
+          <button className="close-modal-button" onClick={() => setShowDiaSightModal(false)}>
+            Close
+          </button>
         </div>
       </div>
     </div>
