@@ -5959,109 +5959,112 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
               )}
 
               {activePage === "appointments" && (
-                <div className="appointments-section">
-                  <h2>{editingAppointmentId ? "Edit Appointment" : "Schedule New Appointment"}</h2>
+                <>
+                  {/* Schedule New Appointment Section */}
+                  <div className="appointments-section">
+                    <h2>{editingAppointmentId ? "Edit Appointment" : "Schedule New Appointment"}</h2>
 
-                  <div className="form-columns"> {/* New wrapper for two-column layout */}
-                    <div className="form-group">
-                      <label>Select Doctor:</label>
-                      <select value={appointmentForm.doctorId} onChange={(e) => handleAppointmentChange("doctorId", e.target.value)}>
-                        <option value="">Select Doctor</option>
-                        {linkedDoctors.map(doc => (
-                          <option key={doc.doctor_id} value={doc.doctor_id}>{doc.doctor_name}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <div className="form-columns"> {/* New wrapper for two-column layout */}
+                      <div className="form-group">
+                        <label>Select Doctor:</label>
+                        <select value={appointmentForm.doctorId} onChange={(e) => handleAppointmentChange("doctorId", e.target.value)}>
+                          <option value="">Select Doctor</option>
+                          {linkedDoctors.map(doc => (
+                            <option key={doc.doctor_id} value={doc.doctor_id}>{doc.doctor_name}</option>
+                          ))}
+                        </select>
+                      </div>
 
-                    <div className="form-group">
-                      <label>Select Patient:</label>
-                      <select value={appointmentForm.patientId} onChange={(e) => handleAppointmentChange("patientId", e.target.value)}>
-                        <option value="">Select Patient</option>
-                        {patients.map(pat => (
-                          <option key={pat.patient_id} value={pat.patient_id}>{pat.first_name} {pat.last_name}</option>
-                        ))}
-                      </select>
-                    </div>
+                      <div className="form-group">
+                        <label>Select Patient:</label>
+                        <select value={appointmentForm.patientId} onChange={(e) => handleAppointmentChange("patientId", e.target.value)}>
+                          <option value="">Select Patient</option>
+                          {patients.map(pat => (
+                            <option key={pat.patient_id} value={pat.patient_id}>{pat.first_name} {pat.last_name}</option>
+                          ))}
+                        </select>
+                      </div>
 
-                    <div className="form-group">
-                      <label>Date:</label>
-                      <input type="date" value={appointmentForm.date} onChange={(e) => handleAppointmentChange("date", e.target.value)} />
-                      {/* Show warning if selected doctor is unavailable on selected date */}
-                      {appointmentForm.doctorId && appointmentForm.date && !isDoctorAvailableOnDate(appointmentForm.doctorId, appointmentForm.date) && (
-                        <p style={{ color: '#D91341', fontSize: '12px', marginTop: '5px', marginBottom: '0' }}>
-                          ⚠️ Selected doctor is not available on this date
-                        </p>
-                      )}
-                    </div>
-                    <div className="form-group">
-                      <label>Time:</label>
-                      <input type="time" value={appointmentForm.time} onChange={(e) => handleAppointmentChange("time", e.target.value)} />
-                    </div>
-                  </div> {/* End of form-columns wrapper */}
+                      <div className="form-group">
+                        <label>Date:</label>
+                        <input type="date" value={appointmentForm.date} onChange={(e) => handleAppointmentChange("date", e.target.value)} />
+                        {/* Show warning if selected doctor is unavailable on selected date */}
+                        {appointmentForm.doctorId && appointmentForm.date && !isDoctorAvailableOnDate(appointmentForm.doctorId, appointmentForm.date) && (
+                          <p style={{ color: '#D91341', fontSize: '12px', marginTop: '5px', marginBottom: '0' }}>
+                            ⚠️ Selected doctor is not available on this date
+                          </p>
+                        )}
+                      </div>
+                      <div className="form-group">
+                        <label>Time:</label>
+                        <input type="time" value={appointmentForm.time} onChange={(e) => handleAppointmentChange("time", e.target.value)} />
+                      </div>
+                    </div> {/* End of form-columns wrapper */}
 
-                  {/* Show upcoming unavailable dates for selected doctor */}
-                  {appointmentForm.doctorId && (
-                    (() => {
-                      const unavailableDatesForDoctor = doctorUnavailableDates.filter(
-                        d => d.doctor_id === appointmentForm.doctorId
-                      );
-                      if (unavailableDatesForDoctor.length > 0) {
-                        return (
-                          <div style={{ 
-                            backgroundColor: '#fff3cd', 
-                            border: '1px solid #ffc107', 
-                            borderRadius: '5px', 
-                            padding: '10px', 
-                            marginBottom: '15px' 
-                          }}>
-                            <strong style={{ color: '#856404' }}>⚠️ Doctor Unavailable Dates:</strong>
-                            <ul style={{ margin: '5px 0 0 20px', padding: 0, color: '#856404' }}>
-                              {unavailableDatesForDoctor.slice(0, 5).map(d => (
-                                <li key={d.id} style={{ fontSize: '13px' }}>
-                                  {new Date(d.unavailable_date + 'T00:00:00').toLocaleDateString('en-US', { 
-                                    weekday: 'short', month: 'short', day: 'numeric' 
-                                  })}
-                                  {d.reason && ` - ${d.reason}`}
-                                </li>
-                              ))}
-                              {unavailableDatesForDoctor.length > 5 && (
-                                <li style={{ fontSize: '13px', fontStyle: 'italic' }}>
-                                  ...and {unavailableDatesForDoctor.length - 5} more
-                                </li>
-                              )}
-                            </ul>
-                          </div>
+                    {/* Show upcoming unavailable dates for selected doctor */}
+                    {appointmentForm.doctorId && (
+                      (() => {
+                        const unavailableDatesForDoctor = doctorUnavailableDates.filter(
+                          d => d.doctor_id === appointmentForm.doctorId
                         );
-                      }
-                      return null;
-                    })()
-                  )}
+                        if (unavailableDatesForDoctor.length > 0) {
+                          return (
+                            <div style={{ 
+                              backgroundColor: '#fff3cd', 
+                              border: '1px solid #ffc107', 
+                              borderRadius: '5px', 
+                              padding: '10px', 
+                              marginBottom: '15px' 
+                            }}>
+                              <strong style={{ color: '#856404' }}>⚠️ Doctor Unavailable Dates:</strong>
+                              <ul style={{ margin: '5px 0 0 20px', padding: 0, color: '#856404' }}>
+                                {unavailableDatesForDoctor.slice(0, 5).map(d => (
+                                  <li key={d.id} style={{ fontSize: '13px' }}>
+                                    {new Date(d.unavailable_date + 'T00:00:00').toLocaleDateString('en-US', { 
+                                      weekday: 'short', month: 'short', day: 'numeric' 
+                                    })}
+                                    {d.reason && ` - ${d.reason}`}
+                                  </li>
+                                ))}
+                                {unavailableDatesForDoctor.length > 5 && (
+                                  <li style={{ fontSize: '13px', fontStyle: 'italic' }}>
+                                    ...and {unavailableDatesForDoctor.length - 5} more
+                                  </li>
+                                )}
+                              </ul>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()
+                    )}
 
-                  <div className="form-group full-width"> {/* Added full-width class here */}
-                    <label>Notes:</label>
-                    <textarea placeholder="Notes" value={appointmentForm.notes} onChange={(e) => handleAppointmentChange("notes", e.target.value)} />
+                    <div className="form-group full-width"> {/* Added full-width class here */}
+                      <label>Notes:</label>
+                      <textarea placeholder="Notes" value={appointmentForm.notes} onChange={(e) => handleAppointmentChange("notes", e.target.value)} />
+                    </div>
+
+                    <div className="button-group"> {/* New wrapper for buttons */}
+                        <button onClick={createAppointment}>{editingAppointmentId ? "Update Appointment" : "Schedule Appointment"}</button>
+                        {editingAppointmentId && (
+                            <button
+                                className="cancel-button"
+                                onClick={() => {
+                                    setEditingAppointmentId(null);
+                                    setAppointmentForm({ doctorId: "", patientId: "", date: "", time: "", notes: "" });
+                                    setActivePage("appointments");
+                                }}
+                            >
+                                Cancel Edit
+                            </button>
+                        )}
+                    </div> {/* End of button-group wrapper */}
+
+                    {message && <p className="form-message">{message}</p>}
                   </div>
 
-                  <div className="button-group"> {/* New wrapper for buttons */}
-                      <button onClick={createAppointment}>{editingAppointmentId ? "Update Appointment" : "Schedule Appointment"}</button>
-                      {editingAppointmentId && (
-                          <button
-                              className="cancel-button"
-                              onClick={() => {
-                                  setEditingAppointmentId(null);
-                                  setAppointmentForm({ doctorId: "", patientId: "", date: "", time: "", notes: "" });
-                                  setActivePage("appointments");
-                              }}
-                          >
-                              Cancel Edit
-                          </button>
-                      )}
-                  </div> {/* End of button-group wrapper */}
-
-                  {message && <p className="form-message">{message}</p>}
-
                   {/* Doctor Availability Management Section */}
-                  <div className="doctor-availability-section" style={{ marginTop: '30px', borderTop: '1px solid #e0e0e0', paddingTop: '20px' }}>
+                  <div className="doctor-availability-section">
                     <div className="availability-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                       <h3 style={{ margin: 0 }}>Doctor Availability Management</h3>
                       <button 
@@ -6201,7 +6204,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       )}
                     </div>
                   </div>
-                </div>
+                </>
               )}
 
               {activePage === "lab-result-entry" && (

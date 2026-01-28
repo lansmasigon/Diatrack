@@ -103,6 +103,46 @@ const Header = ({
     }
   };
 
+  // Mark all notifications as read
+  const markAllNotificationsAsRead = async () => {
+    if (!user) {
+      console.log("No user found");
+      return;
+    }
+
+    // Determine user ID and type based on role
+    let userId, userType;
+    if (userRole === 'Secretary' && user.secretary_id) {
+      userId = user.secretary_id;
+      userType = 'secretary';
+    } else if (userRole === 'Doctor' && user.doctor_id) {
+      userId = user.doctor_id;
+      userType = 'doctor';
+    } else if (user.admin_id) {
+      userId = user.admin_id;
+      userType = 'admin';
+    } else {
+      console.log("Could not determine user ID and type. User:", user, "Role:", userRole);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("user_id", userId)
+      .eq("user_role", userType)
+      .eq("is_read", false);
+
+    if (error) {
+      console.error("Error marking all notifications as read:", error.message);
+    } else {
+      // Update local state - mark all as read
+      setNotifications(notifications.map(notif => ({ ...notif, is_read: true })));
+      // Reset unread count
+      setUnreadCount(0);
+    }
+  };
+
   // Handle notification click
   const handleNotificationClick = async (notif) => {
     // Mark as read if unread
@@ -332,9 +372,20 @@ const Header = ({
             <div className="popup-content notifications-popup" onClick={(e) => e.stopPropagation()}>
               <div className="popup-header">
                 <h3>Notifications</h3>
-                <button className="close-btn" onClick={() => setShowUsersPopup(false)}>
-                  <img src="../picture/close.png" alt="Close" className="close-icon" />
-                </button>
+                <div className="popup-header-actions">
+                  {unreadCount > 0 && (
+                    <button 
+                      className="read-all-btn" 
+                      onClick={markAllNotificationsAsRead}
+                      title="Mark all as read"
+                    >
+                      Read All
+                    </button>
+                  )}
+                  <button className="close-btn" onClick={() => setShowUsersPopup(false)}>
+                    <img src="../picture/close.png" alt="Close" className="close-icon" />
+                  </button>
+                </div>
               </div>
               <div className="notifications-list">
                 {loadingNotifications ? (
