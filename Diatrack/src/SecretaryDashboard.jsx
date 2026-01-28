@@ -694,6 +694,15 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     patientWeight: "",
     bmi: ""
   });
+
+  // State for doctor unavailable dates
+  const [doctorUnavailableDates, setDoctorUnavailableDates] = useState([]);
+  const [unavailabilityForm, setUnavailabilityForm] = useState({
+    doctorId: "",
+    date: "",
+    reason: ""
+  });
+  const [showUnavailabilityForm, setShowUnavailabilityForm] = useState(false);
   
   useEffect(() => {
     const fetchUpcomingAppointments = async () => {
@@ -1164,9 +1173,11 @@ const SecretaryDashboard = ({ user, onLogout }) => {
   useEffect(() => {
     if (linkedDoctors.length > 0 && user && user.secretary_id) {
       fetchPatients();
+      fetchDoctorUnavailableDates(); // Fetch unavailable dates when doctors are linked
     } else if (linkedDoctors.length === 0 && user && user.secretary_id) {
       // Reset all patient-related states if no doctors are linked
       setPatients([]);
+      setDoctorUnavailableDates([]); // Reset unavailable dates
       setTotalPatientsCount(0);
       setPreOpCount(0);
       setPostOpCount(0);
@@ -2364,6 +2375,149 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
   }
 };
 
+  // Fetch doctor unavailable dates
+  const fetchDoctorUnavailableDates = async () => {
+    const doctorIds = linkedDoctors.map(d => d.doctor_id);
+    if (doctorIds.length === 0) {
+      setDoctorUnavailableDates([]);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("doctor_unavailable_dates")
+        .select(`
+          *,
+          doctors (first_name, last_name, specialization)
+        `)
+        .in("doctor_id", doctorIds)
+        .gte("unavailable_date", new Date().toISOString().split('T')[0]) // Only future dates
+        .order("unavailable_date", { ascending: true });
+
+      if (error) throw error;
+      setDoctorUnavailableDates(data || []);
+      console.log("Fetched doctor unavailable dates:", data);
+    } catch (error) {
+      console.error("Error fetching doctor unavailable dates:", error);
+      setMessage(`Error fetching unavailable dates: ${error.message}`);
+    }
+  };
+
+  // Add a new unavailable date for a doctor
+  const addDoctorUnavailableDate = async () => {
+    if (!unavailabilityForm.doctorId || !unavailabilityForm.date) {
+      setMessage("Please select a doctor and date.");
+      return;
+    }
+
+    // Check if date is not in the past
+    const today = new Date().toISOString().split('T')[0];
+    if (unavailabilityForm.date < today) {
+      setMessage("Cannot mark past dates as unavailable.");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("doctor_unavailable_dates")
+        .insert({
+          doctor_id: unavailabilityForm.doctorId,
+          secretary_id: user.secretary_id,
+          unavailable_date: unavailabilityForm.date,
+          reason: unavailabilityForm.reason || null
+        })
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === '23505') { // Unique constraint violation
+          setMessage("This doctor is already marked unavailable on this date.");
+          return;
+        }
+        throw error;
+      }
+
+      // Log the action
+      const doctor = linkedDoctors.find(d => d.doctor_id === unavailabilityForm.doctorId);
+      const doctorName = doctor ? doctor.doctor_name : 'Unknown Doctor';
+      
+      await logSystemAction(
+        'secretary',
+        user.secretary_id,
+        `${user.first_name} ${user.last_name}`,
+        'appointments',
+        'create',
+        `Marked ${doctorName} unavailable on ${unavailabilityForm.date}${unavailabilityForm.reason ? ` - Reason: ${unavailabilityForm.reason}` : ''}`,
+        'Secretary Dashboard - Doctor Availability'
+      );
+
+      setMessage("Doctor marked as unavailable successfully!");
+      setUnavailabilityForm({ doctorId: "", date: "", reason: "" });
+      setShowUnavailabilityForm(false);
+      fetchDoctorUnavailableDates();
+    } catch (error) {
+      console.error("Error marking doctor unavailable:", error);
+      setMessage(`Error marking doctor unavailable: ${error.message}`);
+    }
+  };
+
+  // Remove an unavailable date
+  const removeDoctorUnavailableDate = async (unavailableId) => {
+    if (!window.confirm("Are you sure you want to remove this unavailable date?")) return;
+
+    try {
+      // Get the record first for logging
+      const recordToDelete = doctorUnavailableDates.find(d => d.id === unavailableId);
+
+      const { error } = await supabase
+        .from("doctor_unavailable_dates")
+        .delete()
+        .eq("id", unavailableId)
+        .eq("secretary_id", user.secretary_id); // Ensure only the creator can remove
+
+      if (error) throw error;
+
+      // Log the action
+      if (recordToDelete) {
+        const doctorName = recordToDelete.doctors 
+          ? `${recordToDelete.doctors.first_name} ${recordToDelete.doctors.last_name}` 
+          : 'Unknown Doctor';
+        
+        await logSystemAction(
+          'secretary',
+          user.secretary_id,
+          `${user.first_name} ${user.last_name}`,
+          'appointments',
+          'delete',
+          `Removed unavailable date for ${doctorName} on ${recordToDelete.unavailable_date}`,
+          'Secretary Dashboard - Doctor Availability'
+        );
+      }
+
+      setMessage("Unavailable date removed successfully!");
+      fetchDoctorUnavailableDates();
+    } catch (error) {
+      console.error("Error removing unavailable date:", error);
+      setMessage(`Error removing unavailable date: ${error.message}`);
+    }
+  };
+
+  // Check if a doctor is available on a specific date
+  const isDoctorAvailableOnDate = (doctorId, dateString) => {
+    return !doctorUnavailableDates.some(
+      unavailable => 
+        unavailable.doctor_id === doctorId && 
+        unavailable.unavailable_date === dateString
+    );
+  };
+
+  // Get unavailable dates for a specific doctor (for calendar highlighting)
+  const getUnavailableDatesForDoctor = (doctorId) => {
+    return doctorUnavailableDates
+      .filter(unavailable => unavailable.doctor_id === doctorId)
+      .map(unavailable => unavailable.unavailable_date);
+  };
+
   const handleInputChange = (field, value) => {
     setPatientForm(prev => ({ ...prev, [field]: value }));
   };
@@ -2718,6 +2872,14 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
   const createAppointment = async () => {
     if (!appointmentForm.doctorId || !appointmentForm.patientId || !appointmentForm.date || !appointmentForm.time) {
       setMessage("Please fill in all required appointment fields.");
+      return;
+    }
+
+    // Check if doctor is available on the selected date
+    if (!isDoctorAvailableOnDate(appointmentForm.doctorId, appointmentForm.date)) {
+      const doctor = linkedDoctors.find(d => d.doctor_id === appointmentForm.doctorId);
+      const doctorName = doctor ? doctor.doctor_name : 'The selected doctor';
+      setMessage(`${doctorName} is not available on ${appointmentForm.date}. Please select a different date.`);
       return;
     }
 
@@ -3834,6 +3996,9 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         }}
                         tileClassName={({ date, view }) => {
                           if (view === 'month') {
+                            const dateStr = date.toISOString().split('T')[0];
+                            const classes = [];
+                            
                             // Check if this date has an appointment - use allAppointments to show all
                             const hasAppointment = allAppointments.some(appointment => {
                               // Parse the appointment date string (YYYY-MM-DD format from substring)
@@ -3848,11 +4013,20 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               );
                               return matches;
                             });
-                            return hasAppointment ? 'dashboard-appointment-date' : null;
+                            if (hasAppointment) classes.push('dashboard-appointment-date');
+                            
+                            // Check if any doctor is unavailable on this date
+                            const hasUnavailable = doctorUnavailableDates.some(unavailable => 
+                              unavailable.unavailable_date === dateStr
+                            );
+                            if (hasUnavailable) classes.push('doctor-unavailable-date');
+                            
+                            return classes.length > 0 ? classes.join(' ') : null;
                           }
                         }}
                         tileContent={({ date, view }) => {
                           if (view === 'month') {
+                            const dateStr = date.toISOString().split('T')[0];
                             const dayAppointments = allAppointments.filter(appointment => {
                               // Parse the appointment date string (YYYY-MM-DD format from substring)
                               const appointmentDateStr = appointment.appointment_datetime.substring(0, 10);
@@ -3865,16 +4039,91 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 date.getFullYear() === year
                               );
                             });
-                            if (dayAppointments.length > 0) {
-                              return (
-                                <div className="appointment-indicator">
-                                  <span className="appointment-count">{dayAppointments.length}</span>
-                                </div>
-                              );
-                            }
+                            
+                            // Check for unavailable doctors on this date
+                            const unavailableDoctorsOnDate = doctorUnavailableDates.filter(
+                              unavailable => unavailable.unavailable_date === dateStr
+                            );
+                            
+                            return (
+                              <div className="calendar-tile-content">
+                                {dayAppointments.length > 0 && (
+                                  <div className="appointment-indicator">
+                                    <span className="appointment-count">{dayAppointments.length}</span>
+                                  </div>
+                                )}
+                                {unavailableDoctorsOnDate.length > 0 && (
+                                  <div className="unavailable-indicator" title={`${unavailableDoctorsOnDate.length} doctor(s) unavailable`}>
+                                    <span className="unavailable-marker"></span>
+                                  </div>
+                                )}
+                              </div>
+                            );
                           }
                         }}
                       />
+                      
+                      {/* Upcoming Unavailable Dates - Below Calendar */}
+                      {doctorUnavailableDates.length > 0 && (
+                        <div className="dashboard-unavailable-dates-section" style={{ marginTop: '15px' }}>
+                          <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: '600', color: '#333' }}>Upcoming Unavailable Dates</h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {doctorUnavailableDates.slice(0, 3).map(unavailable => (
+                              <div 
+                                key={unavailable.id} 
+                                className="unavailable-date-card"
+                                style={{ 
+                                  backgroundColor: 'white', 
+                                  border: '1px solid #e0e0e0', 
+                                  borderRadius: '10px', 
+                                  padding: '10px 12px',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                                }}
+                              >
+                                <div>
+                                  <strong style={{ color: '#333', fontSize: '13px' }}>
+                                    Dr. {unavailable.doctors?.first_name} {unavailable.doctors?.last_name}
+                                  </strong>
+                                  <p style={{ margin: '2px 0 0 0', color: '#D91341', fontWeight: '500', fontSize: '12px' }}>
+                                    📅 {new Date(unavailable.unavailable_date + 'T00:00:00').toLocaleDateString('en-US', { 
+                                      weekday: 'long', 
+                                      month: 'long', 
+                                      day: 'numeric',
+                                      year: 'numeric'
+                                    })}
+                                  </p>
+                                </div>
+                                <button 
+                                  onClick={() => removeDoctorUnavailableDate(unavailable.id)}
+                                  style={{ 
+                                    backgroundColor: '#dc3545',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    width: '22px',
+                                    height: '22px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    lineHeight: '1',
+                                    flexShrink: 0
+                                  }}
+                                  title="Remove unavailable date"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                            {doctorUnavailableDates.length > 3 && (
+                              <p style={{ color: '#666', fontSize: '11px', fontStyle: 'italic', textAlign: 'center', margin: '3px 0 0 0' }}>
+                                +{doctorUnavailableDates.length - 3} more
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     
                     {/* Appointment Details List */}
@@ -3901,7 +4150,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           // Show 3 most recent appointments
                           appointmentsToShow = allAppointments
                             .sort((a, b) => new Date(b.appointment_datetime) - new Date(a.appointment_datetime))
-                            .slice(0, 3);
+                            .slice(0, 2);
                         }
                         
                         if (appointmentsToShow.length > 0) {
@@ -5737,12 +5986,56 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     <div className="form-group">
                       <label>Date:</label>
                       <input type="date" value={appointmentForm.date} onChange={(e) => handleAppointmentChange("date", e.target.value)} />
+                      {/* Show warning if selected doctor is unavailable on selected date */}
+                      {appointmentForm.doctorId && appointmentForm.date && !isDoctorAvailableOnDate(appointmentForm.doctorId, appointmentForm.date) && (
+                        <p style={{ color: '#D91341', fontSize: '12px', marginTop: '5px', marginBottom: '0' }}>
+                          ⚠️ Selected doctor is not available on this date
+                        </p>
+                      )}
                     </div>
                     <div className="form-group">
                       <label>Time:</label>
                       <input type="time" value={appointmentForm.time} onChange={(e) => handleAppointmentChange("time", e.target.value)} />
                     </div>
                   </div> {/* End of form-columns wrapper */}
+
+                  {/* Show upcoming unavailable dates for selected doctor */}
+                  {appointmentForm.doctorId && (
+                    (() => {
+                      const unavailableDatesForDoctor = doctorUnavailableDates.filter(
+                        d => d.doctor_id === appointmentForm.doctorId
+                      );
+                      if (unavailableDatesForDoctor.length > 0) {
+                        return (
+                          <div style={{ 
+                            backgroundColor: '#fff3cd', 
+                            border: '1px solid #ffc107', 
+                            borderRadius: '5px', 
+                            padding: '10px', 
+                            marginBottom: '15px' 
+                          }}>
+                            <strong style={{ color: '#856404' }}>⚠️ Doctor Unavailable Dates:</strong>
+                            <ul style={{ margin: '5px 0 0 20px', padding: 0, color: '#856404' }}>
+                              {unavailableDatesForDoctor.slice(0, 5).map(d => (
+                                <li key={d.id} style={{ fontSize: '13px' }}>
+                                  {new Date(d.unavailable_date + 'T00:00:00').toLocaleDateString('en-US', { 
+                                    weekday: 'short', month: 'short', day: 'numeric' 
+                                  })}
+                                  {d.reason && ` - ${d.reason}`}
+                                </li>
+                              ))}
+                              {unavailableDatesForDoctor.length > 5 && (
+                                <li style={{ fontSize: '13px', fontStyle: 'italic' }}>
+                                  ...and {unavailableDatesForDoctor.length - 5} more
+                                </li>
+                              )}
+                            </ul>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()
+                  )}
 
                   <div className="form-group full-width"> {/* Added full-width class here */}
                     <label>Notes:</label>
@@ -5766,6 +6059,148 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   </div> {/* End of button-group wrapper */}
 
                   {message && <p className="form-message">{message}</p>}
+
+                  {/* Doctor Availability Management Section */}
+                  <div className="doctor-availability-section" style={{ marginTop: '30px', borderTop: '1px solid #e0e0e0', paddingTop: '20px' }}>
+                    <div className="availability-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                      <h3 style={{ margin: 0 }}>Doctor Availability Management</h3>
+                      <button 
+                        className="action-button"
+                        onClick={() => setShowUnavailabilityForm(!showUnavailabilityForm)}
+                        style={{ 
+                          backgroundColor: showUnavailabilityForm ? '#6c757d' : '#1FAAED',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 16px',
+                          borderRadius: '5px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {showUnavailabilityForm ? 'Cancel' : '+ Mark Date Unavailable'}
+                      </button>
+                    </div>
+
+                    {showUnavailabilityForm && (
+                      <div className="unavailability-form" style={{ 
+                        backgroundColor: '#f8f9fa', 
+                        padding: '20px', 
+                        borderRadius: '8px', 
+                        marginBottom: '20px' 
+                      }}>
+                        <div className="form-columns" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px' }}>
+                          <div className="form-group">
+                            <label>Select Doctor:</label>
+                            <select 
+                              value={unavailabilityForm.doctorId} 
+                              onChange={(e) => setUnavailabilityForm({...unavailabilityForm, doctorId: e.target.value})}
+                              style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+                            >
+                              <option value="">Select Doctor</option>
+                              {linkedDoctors.map(doc => (
+                                <option key={doc.doctor_id} value={doc.doctor_id}>{doc.doctor_name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="form-group">
+                            <label>Date:</label>
+                            <input 
+                              type="date" 
+                              value={unavailabilityForm.date} 
+                              onChange={(e) => setUnavailabilityForm({...unavailabilityForm, date: e.target.value})}
+                              min={new Date().toISOString().split('T')[0]}
+                              style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Reason (Optional):</label>
+                            <input 
+                              type="text" 
+                              value={unavailabilityForm.reason} 
+                              onChange={(e) => setUnavailabilityForm({...unavailabilityForm, reason: e.target.value})}
+                              placeholder="e.g., Vacation, Conference..."
+                              style={{ width: '100%', padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
+                            />
+                          </div>
+                        </div>
+                        <button 
+                          onClick={addDoctorUnavailableDate}
+                          style={{ 
+                            marginTop: '15px',
+                            backgroundColor: '#D91341',
+                            color: 'white',
+                            border: 'none',
+                            padding: '10px 20px',
+                            borderRadius: '5px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Mark Unavailable
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Unavailable Dates List */}
+                    <div className="unavailable-dates-list">
+                      <h4 style={{ marginBottom: '10px' }}>Upcoming Unavailable Dates</h4>
+                      {doctorUnavailableDates.length === 0 ? (
+                        <p style={{ color: '#666', fontStyle: 'italic' }}>No unavailable dates marked.</p>
+                      ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '15px' }}>
+                          {doctorUnavailableDates.map(unavailable => (
+                            <div 
+                              key={unavailable.id} 
+                              className="unavailable-date-card"
+                              style={{ 
+                                backgroundColor: 'white', 
+                                border: '1px solid #ddd', 
+                                borderRadius: '8px', 
+                                padding: '15px',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <div>
+                                  <strong style={{ color: '#333' }}>
+                                    Dr. {unavailable.doctors?.first_name} {unavailable.doctors?.last_name}
+                                  </strong>
+                                  <p style={{ margin: '5px 0', color: '#D91341', fontWeight: '500' }}>
+                                    📅 {new Date(unavailable.unavailable_date + 'T00:00:00').toLocaleDateString('en-US', { 
+                                      weekday: 'long', 
+                                      year: 'numeric', 
+                                      month: 'long', 
+                                      day: 'numeric' 
+                                    })}
+                                  </p>
+                                  {unavailable.reason && (
+                                    <p style={{ margin: '5px 0', color: '#666', fontSize: '14px' }}>
+                                      Reason: {unavailable.reason}
+                                    </p>
+                                  )}
+                                </div>
+                                <button 
+                                  onClick={() => removeDoctorUnavailableDate(unavailable.id)}
+                                  style={{ 
+                                    backgroundColor: '#dc3545',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    width: '25px',
+                                    height: '25px',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    lineHeight: '1'
+                                  }}
+                                  title="Remove unavailable date"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
