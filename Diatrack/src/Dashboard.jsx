@@ -6542,19 +6542,6 @@ const renderReportsContent = () => {
         {activePage === "dashboard" && (
           <div className="dashboard-header-row">
             <h1 className="welcomeh1">Welcome, Dr. {user.first_name} 👋</h1>
-            <div className="doctor-status-compact">
-              <p className={`status-text-compact ${doctorIsIn ? 'status-in' : 'status-out'}`}>
-                {doctorIsIn ? '🟢 In' : '🔴 Out'}
-              </p>
-              <label className="status-switch-compact">
-                <input 
-                  type="checkbox" 
-                  checked={doctorIsIn}
-                  onChange={toggleDoctorStatus}
-                />
-                <span className="status-slider-compact"></span>
-              </label>
-            </div>
           </div>
         )}
         {activePage === "dashboard" && renderDashboardContent()}

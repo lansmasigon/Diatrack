@@ -3996,7 +3996,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         }}
                         tileClassName={({ date, view }) => {
                           if (view === 'month') {
-                            const dateStr = date.toISOString().split('T')[0];
+                            // Format date as YYYY-MM-DD using local timezone (not UTC)
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const dateStr = `${year}-${month}-${day}`;
                             const classes = [];
                             
                             // Check if this date has an appointment - use allAppointments to show all
@@ -4026,7 +4030,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         }}
                         tileContent={({ date, view }) => {
                           if (view === 'month') {
-                            const dateStr = date.toISOString().split('T')[0];
+                            // Format date as YYYY-MM-DD using local timezone (not UTC)
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const dateStr = `${year}-${month}-${day}`;
                             const dayAppointments = allAppointments.filter(appointment => {
                               // Parse the appointment date string (YYYY-MM-DD format from substring)
                               const appointmentDateStr = appointment.appointment_datetime.substring(0, 10);
@@ -4047,14 +4055,13 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             
                             return (
                               <div className="calendar-tile-content">
-                                {dayAppointments.length > 0 && (
-                                  <div className="appointment-indicator">
-                                    <span className="appointment-count">{dayAppointments.length}</span>
+                                {unavailableDoctorsOnDate.length > 0 && (
+                                  <div className="unavailable-emoji-indicator" title={`${unavailableDoctorsOnDate.length} doctor(s) unavailable`}>
+                                    ⛔
                                   </div>
                                 )}
-                                {unavailableDoctorsOnDate.length > 0 && (
-                                  <div className="unavailable-indicator" title={`${unavailableDoctorsOnDate.length} doctor(s) unavailable`}>
-                                    <span className="unavailable-marker"></span>
+                                {dayAppointments.length > 0 && (
+                                  <div className="appointment-dot-indicator" title={`${dayAppointments.length} appointment(s)`}>
                                   </div>
                                 )}
                               </div>
