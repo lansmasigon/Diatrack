@@ -5349,7 +5349,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                     </div>
 
                     {/* Risk Score Over Time Chart */}
-                    <div className="blood-glucose-chart-container">
+                    <div className="blood-glucose-chart-container risk-score-chart-container">
                       <div className="chart-header">
                         <h4>Risk Score Over Time</h4>
                         <div className="time-filter-buttons">
