@@ -4,6 +4,7 @@ import { logAppointmentEvent, logPatientDataChange, logSystemAction } from "./au
 import Pagination from "./components/Pagination";
 import RiskFilter from "./components/RiskFilter";
 import Header from "./components/Header";
+import { SecretaryReportsOverview, SecretaryReportDetailView } from "./components/Reports";
 import "./SecretaryDashboard.css";
 import logo from "../picture/logo.png"; // Import the logo image
 import Calendar from 'react-calendar';
@@ -125,7 +126,7 @@ const getClassificationDisplay = (patient) => {
   // Shorten phase names
   const phaseDisplay = phase === 'Pre-Operative' ? 'Pre-Op' : phase === 'Post-Operative' ? 'Post-Op' : phase;
   
-  // If lab status is Awaiting, show ⛔ with phase
+  // If lab status is Awaiting, show â›” with phase
   if (labStatus === '❌Awaiting') {
     return `⛔${phaseDisplay}`;
   }
@@ -804,7 +805,7 @@ const SecretaryDashboard = ({ user, onLogout }) => {
     
     const doctorIds = linkedDoctors.map(d => d.doctor_id);
     if (doctorIds.length === 0) {
-      console.log("❌ No linked doctors found for lab submission history");
+      console.log("âŒ No linked doctors found for lab submission history");
       setPendingLabHistory({ labels: [], data: [] });
       return;
     }
@@ -1851,7 +1852,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       }
   
       // Pending Lab Results (including N/A)
-      if (patient.lab_status === '❌Awaiting' || patient.lab_status === 'N/A') {
+      if (patient.lab_status === 'âŒAwaiting' || patient.lab_status === 'N/A') {
         pendingLabs++;
       }
     });
@@ -3070,7 +3071,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       if (patientNotificationSuccess && doctorNotificationSuccess) {
         setMessage(`✅ Notifications sent successfully to ${patient.first_name} ${patient.last_name} and their doctor.`);
       } else {
-        setMessage(`⚠️ Some notifications may have failed to send. Please try again.`);
+        setMessage(`❌ Some notifications may have failed to send. Please try again.`);
       }
 
       // Clear the message after 5 seconds
@@ -3078,7 +3079,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
 
     } catch (error) {
       console.error('Error flagging patient:', error);
-      setMessage(`❌ Error sending notifications: ${error.message}`);
+      setMessage(`âŒ Error sending notifications: ${error.message}`);
       setTimeout(() => setMessage(""), 5000);
     }
   };
@@ -3098,7 +3099,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
     let labStatusMatch = true;
     if (selectedLabStatusFilter !== 'all') {
       if (selectedLabStatusFilter === 'awaiting') {
-        labStatusMatch = pat.lab_status === '❌Awaiting';
+        labStatusMatch = pat.lab_status === '⏳Awaiting';
       } else if (selectedLabStatusFilter === 'submitted') {
         labStatusMatch = pat.lab_status === '✅Submitted';
       }
@@ -3804,7 +3805,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       <div className="main-content">
         {activePage === "dashboard" && ( // MODIFIED: Only show header actions on dashboard
           <div className="dashboard-header-section">
-            <h2 className="welcome-message">Welcome Back, {user ? user.first_name : 'Maria'} 👋</h2>
+            <h2 className="welcome-message">Welcome Back, {user ? user.first_name : 'Maria'}👋</h2>
             <div className="header-actions">
               <div className="search-bar">
                 <input type="text" placeholder="Search for patients here" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
@@ -4095,7 +4096,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                     Dr. {unavailable.doctors?.first_name} {unavailable.doctors?.last_name}
                                   </strong>
                                   <p style={{ margin: '2px 0 0 0', color: '#D91341', fontWeight: '500', fontSize: '12px' }}>
-                                    📅 {new Date(unavailable.unavailable_date + 'T00:00:00').toLocaleDateString('en-US', { 
+                                    {new Date(unavailable.unavailable_date + 'T00:00:00').toLocaleDateString('en-US', { 
                                       weekday: 'long', 
                                       month: 'long', 
                                       day: 'numeric',
@@ -4119,7 +4120,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   }}
                                   title="Remove unavailable date"
                                 >
-                                  ×
+                                  Ã—
                                 </button>
                               </div>
                             ))}
@@ -4612,10 +4613,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             </td>
                             <td className={
                             pat.lab_status === '✅Submitted' ? 'lab-status-complete' :
-                            pat.lab_status === '❌Awaiting' ? 'lab-status-awaiting' : // Add this if you want pending to have a specific style
+                            pat.lab_status === '⏳Awaiting' ? 'lab-status-awaiting' : // Add this if you want pending to have a specific style
                             ''
                           }>
-                            {pat.lab_status || '❌Awaiting'}
+                            {pat.lab_status || '⏳Awaiting'}
                           </td>
                           <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
                             {pat.profile_status}
@@ -4626,7 +4627,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                 setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
                                 setLabEntryStep(2);
                                 setActivePage("lab-result-entry");
-                              }}>🧪 Enter Labs</button>
+                              }}>🔬 Enter Labs</button>
                               {/* View button to view patient details */}
                               <button className="view-button" onClick={() => handleViewPatientDetails(pat)}>👁️ View</button>
                             </td>
@@ -6023,7 +6024,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               padding: '10px', 
                               marginBottom: '15px' 
                             }}>
-                              <strong style={{ color: '#856404' }}>⚠️ Doctor Unavailable Dates:</strong>
+                              <strong style={{ color: '#856404' }}>âš ï¸ Doctor Unavailable Dates:</strong>
                               <ul style={{ margin: '5px 0 0 20px', padding: 0, color: '#856404' }}>
                                 {unavailableDatesForDoctor.slice(0, 5).map(d => (
                                   <li key={d.id} style={{ fontSize: '13px' }}>
@@ -6174,7 +6175,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                     Dr. {unavailable.doctors?.first_name} {unavailable.doctors?.last_name}
                                   </strong>
                                   <p style={{ margin: '5px 0', color: '#D91341', fontWeight: '500' }}>
-                                    📅 {new Date(unavailable.unavailable_date + 'T00:00:00').toLocaleDateString('en-US', { 
+                                    {new Date(unavailable.unavailable_date + 'T00:00:00').toLocaleDateString('en-US', { 
                                       weekday: 'long', 
                                       year: 'numeric', 
                                       month: 'long', 
@@ -6202,7 +6203,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   }}
                                   title="Remove unavailable date"
                                 >
-                                  ×
+                                  Ã—
                                 </button>
                               </div>
                             </div>
@@ -6361,7 +6362,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                         {pat.lab_status === '✅Submitted' ? '🔄 Update': '🧪 Enter Labs'}
                                       </button>
                                       <button className="view-labs-button" onClick={() => handleViewPatientLabDetails(pat)}>
-                                        👁️View
+                                        👁️ View
                                       </button>
                                     </div>
                                   </td>
@@ -6614,7 +6615,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           <th>UREA (mg/dL)</th>
                           <th>BUN (mg/dL)</th>
                           <th>URIC (mg/dL)</th>
-                          <th>EGFR (mL/min/1.73m²)</th>
+                          <th>EGFR (mL/min/1.73mÂ²)</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -6676,1086 +6677,58 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                 )}
 
 {activePage === "reports" && (
-  <div className="reports-section">
-    <h2>Reports Overview</h2>
-    
-    {/* New Reports Widgets Row */}
-    <div className="reports-widgets-grid">
-      {/* Total Patients Report Widget */}
-      <div className="report-widget report-total-patients">
-        <div className="report-widget-header">
-          <img src="../picture/total.png" alt="Total Patients" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=👥"; }}/>
-          <h4>Total Patients</h4>
-          <button className="report-widget-view-button" onClick={async () => {
-            const filteredPatients = await getFilteredPatientsForWidget('total-patients');
-            setReportDetailPatients(filteredPatients);
-            setReportDetailView('total-patients');
-            setActivePage('report-detail');
-            setCurrentPageReportDetail(1);
-          }}>View</button>
-        </div>
-        <div className="report-widget-content">
-          <div className="report-widget-left">
-            <p className="report-number">{totalPatientsCount}</p>
-          </div>
-          <div className="report-widget-right">
-            <p className="report-subtitle">Patients registered in the system</p>
-          </div>
-        </div>
-        {/* Mini Area Chart for Patient Count History */}
-        <div className="mini-chart-container">
-          {patientCountHistory?.labels?.length > 0 ? (
-            <Line 
-              key={`report-patient-count-chart-${patientCountHistory?.data?.join('-') || 'empty'}`}
-              data={{
-                labels: patientCountHistory.labels,
-                datasets: [
-                  {
-                    label: 'Total Patients',
-                    data: patientCountHistory.data,
-                    fill: true,
-                    backgroundColor: (context) => {
-                      const chart = context.chart;
-                      const {ctx, chartArea} = chart;
-                      if (!chartArea) {
-                        return null;
-                      }
-                      const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                      gradient.addColorStop(0, 'rgba(31, 170, 237, 0.6)');
-                      gradient.addColorStop(0.5, 'rgba(31, 170, 237, 0.3)');
-                      gradient.addColorStop(1, 'rgba(31, 170, 237, 0.1)');
-                      return gradient;
-                    },
-                    borderColor: '#1FAAED',
-                    borderWidth: 2,
-                    pointBackgroundColor: 'transparent',
-                    pointBorderColor: 'transparent',
-                    pointBorderWidth: 0,
-                    pointRadius: 0,
-                    pointHoverRadius: 0,
-                    pointHoverBackgroundColor: '#1FAAED',
-                    pointHoverBorderColor: '#fff',
-                    pointHoverBorderWidth: 3,
-                    tension: 0.4,
-                    hoverBackgroundColor: 'rgba(31, 170, 237, 0.7)',
-                  },
-                ],
-              }}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                layout: {
-                  padding: {
-                    top: 5,
-                    bottom: 5,
-                    left: 2,
-                    right: 2
-                  }
-                },
-                plugins: {
-                  legend: {
-                    display: false,
-                  },
-                  tooltip: {
-                    enabled: true,
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleColor: '#fff',
-                    bodyColor: '#fff',
-                    borderColor: '#1FAAED',
-                    borderWidth: 1,
-                    cornerRadius: 4,
-                    displayColors: false,
-                    callbacks: {
-                      title: function(context) {
-                        return `Month: ${context[0].label}`;
-                      },
-                      label: function(context) {
-                        return `Total Patients: ${context.raw}`;
-                      }
-                    }
-                  }
-                },
-                scales: {
-                  y: {
-                    display: false,
-                    beginAtZero: true,
-                    grid: {
-                      display: false
-                    }
-                  },
-                  x: {
-                    display: false,
-                    grid: {
-                      display: false
-                    }
-                  },
-                },
-                elements: {
-                  point: {
-                    radius: 0,
-                    hoverRadius: 0,
-                  },
-                  line: {
-                    borderWidth: 2,
-                  }
-                },
-                interaction: {
-                  intersect: false,
-                  mode: 'index',
-                },
-              }}
-            />
-          ) : (
-            <div className="no-chart-data">
-              <p>No patient data available</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Full Compliance Report Widget */}
-      <div className="report-widget report-full-compliance">
-        <div className="report-widget-header">
-          <img src="../picture/full.svg" alt="Full Compliance" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/28a745/ffffff?text=✓"; }}/>
-          <h4>Full Compliance</h4>
-          <button className="report-widget-view-button" onClick={async () => {
-            const filteredPatients = await getFilteredPatientsForWidget('full-compliance');
-            setReportDetailPatients(filteredPatients);
-            setReportDetailView('full-compliance');
-            setActivePage('report-detail');
-            setCurrentPageReportDetail(1);
-          }}>View</button>
-        </div>
-        <div className="report-widget-content">
-          <div className="report-widget-left">
-            <p className="report-number">{fullComplianceCount}</p>
-          </div>
-          <div className="report-widget-right">
-            <p className="report-subtitle">Patients with complete metrics (Blood Glucose, Blood Pressure, Wound Photos)</p>
-          </div>
-        </div>
-        {/* Mini Area Chart for Full Compliance History */}
-        <div className="mini-chart-container">
-          {fullComplianceHistory?.labels?.length > 0 ? (
-            <Line 
-              data={{
-                labels: fullComplianceHistory.labels,
-                datasets: [
-                  {
-                    label: 'Full Compliance',
-                    data: fullComplianceHistory.data,
-                  fill: true,
-                  backgroundColor: (context) => {
-                    const chart = context.chart;
-                    const {ctx, chartArea} = chart;
-                    if (!chartArea) {
-                      return null;
-                    }
-                    const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                    gradient.addColorStop(0, 'rgba(40, 167, 69, 0.6)');
-                    gradient.addColorStop(0.5, 'rgba(40, 167, 69, 0.3)');
-                    gradient.addColorStop(1, 'rgba(40, 167, 69, 0.1)');
-                    return gradient;
-                  },
-                  borderColor: '#28a745',
-                  borderWidth: 2,
-                  pointBackgroundColor: 'transparent',
-                  pointBorderColor: 'transparent',
-                  pointBorderWidth: 0,
-                  pointRadius: 0,
-                  pointHoverRadius: 0,
-                  pointHoverBackgroundColor: '#28a745',
-                  pointHoverBorderColor: '#fff',
-                  pointHoverBorderWidth: 3,
-                  tension: 0.4,
-                  hoverBackgroundColor: 'rgba(40, 167, 69, 0.7)',
-                },
-              ],
-            }}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              layout: {
-                padding: {
-                  top: 5,
-                  bottom: 5,
-                  left: 2,
-                  right: 2
-                }
-              },
-              plugins: {
-                legend: {
-                  display: false,
-                },
-                tooltip: {
-                  enabled: true,
-                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                  titleColor: '#fff',
-                  bodyColor: '#fff',
-                  borderColor: '#28a745',
-                  borderWidth: 1,
-                  cornerRadius: 4,
-                  displayColors: false,
-                  callbacks: {
-                    title: function(context) {
-                      return `Month: ${context[0].label}`;
-                    },
-                    label: function(context) {
-                      return `Full Compliance: ${context.raw}`;
-                    }
-                  }
-                }
-              },
-              scales: {
-                y: {
-                  display: false,
-                  beginAtZero: true,
-                  grid: {
-                    display: false
-                  }
-                },
-                x: {
-                  display: false,
-                  grid: {
-                    display: false
-                  }
-                },
-              },
-              elements: {
-                point: {
-                  radius: 0,
-                  hoverRadius: 0,
-                },
-                line: {
-                  borderWidth: 2,
-                }
-              },
-              interaction: {
-                intersect: false,
-                mode: 'index',
-              },
-            }}
-          />
-          ) : (
-            <div className="no-chart-data">
-              <p>No historical data available</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Missing Logs Report Widget */}
-      <div className="report-widget report-missing-logs">
-        <div className="report-widget-header">
-          <img src="../picture/missinglogs.svg" alt="Missing Logs" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ffc107/ffffff?text=⚠"; }}/>
-          <h4>Missing Logs</h4>
-          <button className="report-widget-view-button" onClick={async () => {
-            const filteredPatients = await getFilteredPatientsForWidget('missing-logs');
-            setReportDetailPatients(filteredPatients);
-            setReportDetailView('missing-logs');
-            setActivePage('report-detail');
-            setCurrentPageReportDetail(1);
-          }}>View</button>
-        </div>
-        <div className="report-widget-content">
-          <div className="report-widget-left">
-            <p className="report-number">{missingLogsCount}</p>
-          </div>
-          <div className="report-widget-right">
-            <p className="report-subtitle">Patients with at least 1 missing metric (Blood Glucose, Blood Pressure, Wound Photos)</p>
-          </div>
-        </div>
-        {/* Mini Area Chart for Missing Logs History */}
-        <div className="mini-chart-container">
-          {missingLogsHistory?.labels?.length > 0 ? (
-            <Line 
-              data={{
-                labels: missingLogsHistory.labels,
-                datasets: [
-                  {
-                    label: 'Missing Logs',
-                    data: missingLogsHistory.data,
-                  fill: true,
-                  backgroundColor: (context) => {
-                    const chart = context.chart;
-                    const {ctx, chartArea} = chart;
-                    if (!chartArea) {
-                      return null;
-                    }
-                    const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                    gradient.addColorStop(0, 'rgba(255, 193, 7, 0.6)');
-                    gradient.addColorStop(0.5, 'rgba(255, 193, 7, 0.3)');
-                    gradient.addColorStop(1, 'rgba(255, 193, 7, 0.1)');
-                    return gradient;
-                  },
-                  borderColor: '#ffc107',
-                  borderWidth: 2,
-                  pointBackgroundColor: 'transparent',
-                  pointBorderColor: 'transparent',
-                  pointBorderWidth: 0,
-                  pointRadius: 0,
-                  pointHoverRadius: 0,
-                  pointHoverBackgroundColor: '#ffc107',
-                  pointHoverBorderColor: '#fff',
-                  pointHoverBorderWidth: 3,
-                  tension: 0.4,
-                  hoverBackgroundColor: 'rgba(255, 193, 7, 0.7)',
-                },
-              ],
-            }}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              layout: {
-                padding: {
-                  top: 5,
-                  bottom: 5,
-                  left: 2,
-                  right: 2
-                }
-              },
-              plugins: {
-                legend: {
-                  display: false,
-                },
-                tooltip: {
-                  enabled: true,
-                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                  titleColor: '#fff',
-                  bodyColor: '#fff',
-                  borderColor: '#ffc107',
-                  borderWidth: 1,
-                  cornerRadius: 4,
-                  displayColors: false,
-                  callbacks: {
-                    title: function(context) {
-                      return `Month: ${context[0].label}`;
-                    },
-                    label: function(context) {
-                      return `Missing Logs: ${context.raw}`;
-                    }
-                  }
-                }
-              },
-              scales: {
-                y: {
-                  display: false,
-                  beginAtZero: true,
-                  grid: {
-                    display: false
-                  }
-                },
-                x: {
-                  display: false,
-                  grid: {
-                    display: false
-                  }
-                },
-              },
-              elements: {
-                point: {
-                  radius: 0,
-                  hoverRadius: 0,
-                },
-                line: {
-                  borderWidth: 2,
-                }
-              },
-              interaction: {
-                intersect: false,
-                mode: 'index',
-              },
-            }}
-          />
-          ) : (
-            <div className="no-chart-data">
-              <p>No historical data available</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Non-Compliant Cases Report Widget */}
-      <div className="report-widget report-non-compliant">
-        <div className="report-widget-header">
-          <img src="../picture/noncompliant.svg" alt="Non-Compliant Cases" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/dc3545/ffffff?text=✗"; }}/>
-          <h4>Non-Compliant Cases</h4>
-          <button className="report-widget-view-button" onClick={async () => {
-            const filteredPatients = await getFilteredPatientsForWidget('non-compliant');
-            setReportDetailPatients(filteredPatients);
-            setReportDetailView('non-compliant');
-            setActivePage('report-detail');
-            setCurrentPageReportDetail(1);
-          }}>View</button>
-        </div>
-        <div className="report-widget-content">
-          <div className="report-widget-left">
-            <p className="report-number">{nonCompliantCount}</p>
-          </div>
-          <div className="report-widget-right">
-            <p className="report-subtitle">High-risk patients with 3 missing metrics (Blood Glucose, Blood Pressure, Wound Photos)</p>
-          </div>
-        </div>
-        {/* Mini Area Chart for Non-Compliant Cases History */}
-        <div className="mini-chart-container">
-          {nonCompliantHistory?.labels?.length > 0 ? (
-            <Line 
-              data={{
-                labels: nonCompliantHistory.labels,
-                datasets: [
-                  {
-                    label: 'Non-Compliant Cases',
-                    data: nonCompliantHistory.data,
-                  fill: true,
-                  backgroundColor: (context) => {
-                    const chart = context.chart;
-                    const {ctx, chartArea} = chart;
-                    if (!chartArea) {
-                      return null;
-                    }
-                    const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                    gradient.addColorStop(0, 'rgba(220, 53, 69, 0.6)');
-                    gradient.addColorStop(0.5, 'rgba(220, 53, 69, 0.3)');
-                    gradient.addColorStop(1, 'rgba(220, 53, 69, 0.1)');
-                    return gradient;
-                  },
-                  borderColor: '#dc3545',
-                  borderWidth: 2,
-                  pointBackgroundColor: 'transparent',
-                  pointBorderColor: 'transparent',
-                  pointBorderWidth: 0,
-                  pointRadius: 0,
-                  pointHoverRadius: 0,
-                  pointHoverBackgroundColor: '#dc3545',
-                  pointHoverBorderColor: '#fff',
-                  pointHoverBorderWidth: 3,
-                  tension: 0.4,
-                  hoverBackgroundColor: 'rgba(220, 53, 69, 0.7)',
-                },
-              ],
-            }}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              layout: {
-                padding: {
-                  top: 5,
-                  bottom: 5,
-                  left: 2,
-                  right: 2
-                }
-              },
-              plugins: {
-                legend: {
-                  display: false,
-                },
-                tooltip: {
-                  enabled: true,
-                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                  titleColor: '#fff',
-                  bodyColor: '#fff',
-                  borderColor: '#dc3545',
-                  borderWidth: 1,
-                  cornerRadius: 4,
-                  displayColors: false,
-                  callbacks: {
-                    title: function(context) {
-                      return `Month: ${context[0].label}`;
-                    },
-                    label: function(context) {
-                      return `Non-Compliant: ${context.raw}`;
-                    }
-                  }
-                }
-              },
-              scales: {
-                y: {
-                  display: false,
-                  beginAtZero: true,
-                  grid: {
-                    display: false
-                  }
-                },
-                x: {
-                  display: false,
-                  grid: {
-                    display: false
-                  }
-                },
-              },
-              elements: {
-                point: {
-                  radius: 0,
-                  hoverRadius: 0,
-                },
-                line: {
-                  borderWidth: 2,
-                }
-              },
-              interaction: {
-                intersect: false,
-                mode: 'index',
-              },
-            }}
-          />
-          ) : (
-            <div className="no-chart-data">
-              <p>No historical data available</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-
-    {/* New container for side-by-side layout */}
-    <div className="reports-content-row">
-      {/* Appointment History Chart */}
-      <div className="appointment-chart-container chart-half-width">
-        <h3>Appointment History</h3>
-        {loadingAppointments && <p>Loading appointment data...</p>}
-        {appointmentError && <p className="error-message">Error: {appointmentError}</p>}
-        {!loadingAppointments && !appointmentError && appointmentChartData.labels.length > 0 && (
-          <Bar
-            data={appointmentChartData}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  position: 'top',
-                },
-                title: {
-                  display: false,
-                },
-              },
-              scales: {
-                x: {
-                  grid: {
-                    display: false,
-                  },
-                  title: {
-                    display: true,
-                    text: 'Week Period',
-                  },
-                  categoryPercentage: 0.9, // Reduce gaps between bar groups
-                  barPercentage: 0.8, // Reduce gaps between individual bars
-                },
-                y: {
-                  beginAtZero: true,
-                  ticks: {
-                    precision: 0,
-                  },
-                  title: {
-                    display: true,
-                    text: 'Number of Appointments',
-                  },
-                },
-              },
-            }}
-          />
-        )}
-        {!loadingAppointments && !appointmentError && appointmentChartData.labels.length === 0 && (
-          <p>No appointment data available for the last two weeks.</p>
-        )}
-      </div>
-
-      {/* Lab Submission Report Chart */}
-      <div className="lab-submission-chart-container chart-half-width">
-        <h3>Lab Submission Report</h3>
-        {loadingLabSubmissionData && <p>Loading lab submission data...</p>}
-        {labSubmissionError && <p className="error-message">Error: {labSubmissionError}</p>}
-        {!loadingLabSubmissionData && !labSubmissionError && labSubmissionChartData.labels.length > 0 && (
-          <Bar
-            data={labSubmissionChartData}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  display: false,
-                },
-                title: {
-                  display: false,
-                },
-                tooltip: {
-                  callbacks: {
-                    title: function(context) {
-                      return context[0].label;
-                    },
-                    label: function(context) {
-                      return `Count: ${context.raw}`;
-                    }
-                  }
-                }
-              },
-              scales: {
-                x: {
-                  grid: {
-                    display: false,
-                  },
-                  title: {
-                    display: true,
-                    text: 'Lab Status Categories',
-                  },
-                  categoryPercentage: 0.9,
-                  barPercentage: 0.8,
-                  ticks: {
-                    maxRotation: 45,
-                    minRotation: 45,
-                  },
-                },
-                y: {
-                  beginAtZero: true,
-                  ticks: {
-                    precision: 0,
-                  },
-                  title: {
-                    display: true,
-                    text: 'Number of Patients',
-                  },
-                },
-              },
-            }}
-          />
-        )}
-        {!loadingLabSubmissionData && !labSubmissionError && labSubmissionChartData.labels.length === 0 && (
-          <p>No lab submission data available.</p>
-        )}
-      </div>
-    </div> {/* End of reports-content-row */}
-  </div>
+  <SecretaryReportsOverview
+    totalPatientsCount={totalPatientsCount}
+    fullComplianceCount={fullComplianceCount}
+    missingLogsCount={missingLogsCount}
+    nonCompliantCount={nonCompliantCount}
+    patientCountHistory={patientCountHistory}
+    fullComplianceHistory={fullComplianceHistory}
+    missingLogsHistory={missingLogsHistory}
+    nonCompliantHistory={nonCompliantHistory}
+    onWidgetClick={async (widgetType) => {
+      const filteredPatients = await getFilteredPatientsForWidget(widgetType);
+      setReportDetailPatients(filteredPatients);
+      setReportDetailView(widgetType);
+      setActivePage('report-detail');
+      setCurrentPageReportDetail(1);
+    }}
+    appointmentChartData={appointmentChartData}
+    loadingAppointments={loadingAppointments}
+    appointmentError={appointmentError}
+    labSubmissionChartData={labSubmissionChartData}
+    loadingLabSubmissionData={loadingLabSubmissionData}
+    labSubmissionError={labSubmissionError}
+  />
 )}
 
               {/* Report Detail View - Separate Page */}
-              {activePage === 'report-detail' && reportDetailView === 'total-patients' && (
-                <div className="report-detail-section">
-                  <div className="detail-view-header">
-                    <button className="back-to-list-button" onClick={() => {
-                      setReportDetailView(null);
-                      setActivePage('reports');
-                    }}>
-                      <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Reports
-                    </button>
-                    <h2>Total Patients</h2>
-                  </div>
-                  <table className="patient-table">
-                    <thead>
-                      <tr>
-                        <th>Patient Name</th>
-                        <th>Age</th>
-                        <th>Sex</th>
-                        <th>Classification</th>
-                        <th>Lab Status</th>
-                        <th>Profile Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(() => {
-                        const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
-                        const endIndex = startIndex + REPORT_DETAIL_PER_PAGE;
-                        const paginatedData = reportDetailPatients.slice(startIndex, endIndex);
-                        
-                        return paginatedData.length > 0 ? (
-                          paginatedData.map((pat) => (
-                            <tr key={pat.patient_id}>
-                              <td className="patient-name-cell">
-                                <div className="patient-name-container">
-                                  <img 
-                                    src={pat.patient_picture || "../picture/secretary.png"} 
-                                    alt="Patient Avatar" 
-                                    className="patient-avatar-table"
-                                    onError={(e) => e.target.src = "../picture/secretary.png"}
-                                  />
-                                  <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
-                                </div>
-                              </td>
-                              <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
-                              <td>{pat.gender || 'N/A'}</td>
-                              <td className={`classification-cell ${
-                                pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
-                                ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
-                                (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
-                                (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
-                                (pat.risk_classification || '').toLowerCase() === 'ppd' ? 'classification-ppd' : '')
-                              }`}>
-                                {getClassificationDisplay(pat)}
-                              </td>
-                              <td className={
-                                pat.lab_status === '✅Submitted' ? 'lab-status-complete' :
-                                pat.lab_status === '❌Awaiting' ? 'lab-status-awaiting' : ''
-                              }>
-                                {pat.lab_status || '❌Awaiting'}
-                              </td>
-                              <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
-                                {pat.profile_status}
-                              </td>
-                              <td className="patient-actions-cell">
-                                <button className="enter-labs-button" onClick={() => {
-                                  setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
-                                  setLabEntryStep(2);
-                                  setActivePage("lab-result-entry");
-                                  setReportDetailView(null);
-                                }}>🧪 Enter Labs</button>
-                                <button className="view-button" onClick={() => {
-                                  handleViewPatientDetails(pat);
-                                  setReportDetailView(null);
-                                }}>👁️ View</button>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="7">No patients found.</td>
-                          </tr>
-                        );
-                      })()}
-                    </tbody>
-                  </table>
-                  
-                  {/* Pagination */}
-                  {reportDetailPatients.length > REPORT_DETAIL_PER_PAGE && (
-                    <Pagination
-                      currentPage={currentPageReportDetail}
-                      totalPages={Math.ceil(reportDetailPatients.length / REPORT_DETAIL_PER_PAGE)}
-                      onPageChange={setCurrentPageReportDetail}
-                      itemsPerPage={REPORT_DETAIL_PER_PAGE}
-                      totalItems={reportDetailPatients.length}
-                    />
-                  )}
-                </div>
-              )}
-
-              {activePage === 'report-detail' && reportDetailView === 'full-compliance' && (
-                <div className="report-detail-section">
-                  <div className="detail-view-header">
-                    <button className="back-to-list-button" onClick={() => {
-                      setReportDetailView(null);
-                      setActivePage('reports');
-                    }}>
-                      <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Reports
-                    </button>
-                    <h2>Full Compliance - Patients with Complete Metrics</h2>
-                  </div>
-                  <table className="patient-table">
-                    <thead>
-                      <tr>
-                        <th>Patient Name</th>
-                        <th>Age</th>
-                        <th>Sex</th>
-                        <th>Classification</th>
-                        <th>Lab Status</th>
-                        <th>Profile Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(() => {
-                        const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
-                        const endIndex = startIndex + REPORT_DETAIL_PER_PAGE;
-                        const paginatedData = reportDetailPatients.slice(startIndex, endIndex);
-                        
-                        return paginatedData.length > 0 ? (
-                          paginatedData.map((pat) => (
-                            <tr key={pat.patient_id}>
-                              <td className="patient-name-cell">
-                                <div className="patient-name-container">
-                                  <img 
-                                    src={pat.patient_picture || "../picture/secretary.png"} 
-                                    alt="Patient Avatar" 
-                                    className="patient-avatar-table"
-                                    onError={(e) => e.target.src = "../picture/secretary.png"}
-                                  />
-                                  <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
-                                </div>
-                              </td>
-                              <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
-                              <td>{pat.gender || 'N/A'}</td>
-                              <td className={`classification-cell ${
-                                pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
-                                ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
-                                (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
-                                (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
-                                (pat.risk_classification || '').toLowerCase() === 'ppd' ? 'classification-ppd' : '')
-                              }`}>
-                                {getClassificationDisplay(pat)}
-                              </td>
-                              <td className={
-                                pat.lab_status === '✅Submitted' ? 'lab-status-complete' :
-                                pat.lab_status === '❌Awaiting' ? 'lab-status-awaiting' : ''
-                              }>
-                                {pat.lab_status || '❌Awaiting'}
-                              </td>
-                              <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
-                                {pat.profile_status}
-                              </td>
-                              <td className="patient-actions-cell">
-                                <button className="enter-labs-button" onClick={() => {
-                                  setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
-                                  setLabEntryStep(2);
-                                  setActivePage("lab-result-entry");
-                                  setReportDetailView(null);
-                                }}>🧪 Enter Labs</button>
-                                <button className="view-button" onClick={() => {
-                                  handleViewPatientDetails(pat);
-                                  setReportDetailView(null);
-                                }}>👁️ View</button>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="7">No patients with full compliance found.</td>
-                          </tr>
-                        );
-                      })()}
-                    </tbody>
-                  </table>
-                  
-                  {/* Pagination */}
-                  {reportDetailPatients.length > REPORT_DETAIL_PER_PAGE && (
-                    <Pagination
-                      currentPage={currentPageReportDetail}
-                      totalPages={Math.ceil(reportDetailPatients.length / REPORT_DETAIL_PER_PAGE)}
-                      onPageChange={setCurrentPageReportDetail}
-                      itemsPerPage={REPORT_DETAIL_PER_PAGE}
-                      totalItems={reportDetailPatients.length}
-                    />
-                  )}
-                </div>
-              )}
-
-              {activePage === 'report-detail' && reportDetailView === 'missing-logs' && (
-                <div className="report-detail-section">
-                  <div className="detail-view-header">
-                    <button className="back-to-list-button" onClick={() => {
-                      setReportDetailView(null);
-                      setActivePage('reports');
-                    }}>
-                      <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Reports
-                    </button>
-                    <h2>Missing Logs - Patients with Missing Metrics</h2>
-                  </div>
-                  {/* Message display for flag notifications */}
-                  {message && (
-                    <div className="message-display" style={{
-                      padding: '10px',
-                      margin: '10px 0',
-                      borderRadius: '5px',
-                      backgroundColor: message.includes('✅') ? '#d4edda' : 
-                                      message.includes('⚠️') ? '#fff3cd' : 
-                                      message.includes('❌') ? '#f8d7da' : '#cce7ff',
-                      color: message.includes('✅') ? '#155724' : 
-                             message.includes('⚠️') ? '#856404' : 
-                             message.includes('❌') ? '#721c24' : '#004085',
-                      border: `1px solid ${message.includes('✅') ? '#c3e6cb' : 
-                                           message.includes('⚠️') ? '#ffeaa7' : 
-                                           message.includes('❌') ? '#f5c6cb' : '#bee5eb'}`,
-                      fontSize: '14px',
-                      fontWeight: '500'
-                    }}>
-                      {message}
-                    </div>
-                  )}
-                  <table className="patient-table">
-                    <thead>
-                      <tr>
-                        <th>Patient Name</th>
-                        <th>Age</th>
-                        <th>Sex</th>
-                        <th>Classification</th>
-                        <th>Lab Status</th>
-                        <th>Profile Status</th>
-                        <th>Days Since Last Submission</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(() => {
-                        const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
-                        const endIndex = startIndex + REPORT_DETAIL_PER_PAGE;
-                        const paginatedData = reportDetailPatients.slice(startIndex, endIndex);
-                        
-                        return paginatedData.length > 0 ? (
-                          paginatedData.map((pat) => (
-                            <tr key={pat.patient_id}>
-                              <td className="patient-name-cell">
-                                <div className="patient-name-container">
-                                  <img 
-                                    src={pat.patient_picture || "../picture/secretary.png"} 
-                                    alt="Patient Avatar" 
-                                    className="patient-avatar-table"
-                                    onError={(e) => e.target.src = "../picture/secretary.png"}
-                                  />
-                                  <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
-                                </div>
-                              </td>
-                              <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
-                              <td>{pat.gender || 'N/A'}</td>
-                              <td className={`classification-cell ${
-                                pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
-                                ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
-                                (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
-                                (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
-                                (pat.risk_classification || '').toLowerCase() === 'ppd' ? 'classification-ppd' : '')
-                              }`}>
-                                {getClassificationDisplay(pat)}
-                              </td>
-                              <td className={
-                                pat.lab_status === '✅Submitted' ? 'lab-status-complete' :
-                                pat.lab_status === '❌Awaiting' ? 'lab-status-awaiting' : ''
-                              }>
-                                {pat.lab_status || '❌Awaiting'}
-                              </td>
-                              <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
-                                {pat.profile_status}
-                              </td>
-                              <td>{(() => {
-                                const lastSubmissionDate = healthMetricsSubmissions[pat.patient_id];
-                                const daysPassed = lastSubmissionDate
-                                  ? Math.max(0, Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(lastSubmissionDate).setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24)))
-                                  : "No Submission";
-                                
-                                return (
-                                  <span className={`compliance-status ${
-                                    daysPassed === "No Submission" ? "no-submission" : 
-                                    daysPassed > 7 ? "overdue" : 
-                                    daysPassed > 3 ? "warning" : "good"
-                                  }`}>
-                                    {daysPassed}
-                                  </span>
-                                );
-                              })()}</td>
-                              <td className="patient-actions-cell">
-                                <button 
-                                  className="action-btn flag-button"
-                                  onClick={() => handleFlagPatient(pat)}
-                                  title="Flag patient for missing metrics and send notifications"
-                                >
-                                  🚩 Flag
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="8">No patients with missing logs found.</td>
-                          </tr>
-                        );
-                      })()}
-                    </tbody>
-                  </table>
-                  
-                  {/* Pagination */}
-                  {reportDetailPatients.length > REPORT_DETAIL_PER_PAGE && (
-                    <Pagination
-                      currentPage={currentPageReportDetail}
-                      totalPages={Math.ceil(reportDetailPatients.length / REPORT_DETAIL_PER_PAGE)}
-                      onPageChange={setCurrentPageReportDetail}
-                      itemsPerPage={REPORT_DETAIL_PER_PAGE}
-                      totalItems={reportDetailPatients.length}
-                    />
-                  )}
-                </div>
-              )}
-
-              {activePage === 'report-detail' && reportDetailView === 'non-compliant' && (
-                <div className="report-detail-section">
-                  <div className="detail-view-header">
-                    <button className="back-to-list-button" onClick={() => {
-                      setReportDetailView(null);
-                      setActivePage('reports');
-                    }}>
-                      <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Reports
-                    </button>
-                    <h2>Non-Compliant Cases - High-Risk Patients with All Missing Metrics</h2>
-                  </div>
-                  <table className="patient-table">
-                    <thead>
-                      <tr>
-                        <th>Patient Name</th>
-                        <th>Age</th>
-                        <th>Sex</th>
-                        <th>Classification</th>
-                        <th>Lab Status</th>
-                        <th>Profile Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(() => {
-                        const startIndex = (currentPageReportDetail - 1) * REPORT_DETAIL_PER_PAGE;
-                        const endIndex = startIndex + REPORT_DETAIL_PER_PAGE;
-                        const paginatedData = reportDetailPatients.slice(startIndex, endIndex);
-                        
-                        return paginatedData.length > 0 ? (
-                          paginatedData.map((pat) => (
-                            <tr key={pat.patient_id}>
-                              <td className="patient-name-cell">
-                                <div className="patient-name-container">
-                                  <img 
-                                    src={pat.patient_picture || "../picture/secretary.png"} 
-                                    alt="Patient Avatar" 
-                                    className="patient-avatar-table"
-                                    onError={(e) => e.target.src = "../picture/secretary.png"}
-                                  />
-                                  <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
-                                </div>
-                              </td>
-                              <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
-                              <td>{pat.gender || 'N/A'}</td>
-                              <td className={`classification-cell ${
-                                pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
-                                ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
-                                (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
-                                (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
-                                (pat.risk_classification || '').toLowerCase() === 'ppd' ? 'classification-ppd' : '')
-                              }`}>
-                                {getClassificationDisplay(pat)}
-                              </td>
-                              <td className={
-                                pat.lab_status === '✅Submitted' ? 'lab-status-complete' :
-                                pat.lab_status === '❌Awaiting' ? 'lab-status-awaiting' : ''
-                              }>
-                                {pat.lab_status || '❌Awaiting'}
-                              </td>
-                              <td className={pat.profile_status === 'Finalized' ? 'status-complete' : 'status-incomplete'}>
-                                {pat.profile_status}
-                              </td>
-                              <td className="patient-actions-cell">
-                                <button className="enter-labs-button" onClick={() => {
-                                  setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
-                                  setLabEntryStep(2);
-                                  setActivePage("lab-result-entry");
-                                  setReportDetailView(null);
-                                }}>🧪 Enter Labs</button>
-                                <button className="view-button" onClick={() => {
-                                  handleViewPatientDetails(pat);
-                                  setReportDetailView(null);
-                                }}>👁️ View</button>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="7">No non-compliant cases found.</td>
-                          </tr>
-                        );
-                      })()}
-                    </tbody>
-                  </table>
-                  
-                  {/* Pagination */}
-                  {reportDetailPatients.length > REPORT_DETAIL_PER_PAGE && (
-                    <Pagination
-                      currentPage={currentPageReportDetail}
-                      totalPages={Math.ceil(reportDetailPatients.length / REPORT_DETAIL_PER_PAGE)}
-                      onPageChange={setCurrentPageReportDetail}
-                      itemsPerPage={REPORT_DETAIL_PER_PAGE}
-                      totalItems={reportDetailPatients.length}
-                    />
-                  )}
-                </div>
+              {activePage === 'report-detail' && (
+                <SecretaryReportDetailView
+                  reportDetailView={reportDetailView}
+                  reportDetailPatients={reportDetailPatients}
+                  currentPage={currentPageReportDetail}
+                  itemsPerPage={REPORT_DETAIL_PER_PAGE}
+                  onPageChange={setCurrentPageReportDetail}
+                  onBackClick={() => {
+                    setReportDetailView(null);
+                    setActivePage('reports');
+                  }}
+                  onEnterLabs={(pat) => {
+                    setLabResults(prev => ({ ...prev, selectedPatientForLab: pat }));
+                    setLabEntryStep(2);
+                    setActivePage("lab-result-entry");
+                    setReportDetailView(null);
+                  }}
+                  onViewPatient={(pat) => {
+                    handleViewPatientDetails(pat);
+                    setReportDetailView(null);
+                  }}
+                  onFlagPatient={handleFlagPatient}
+                  getClassificationDisplay={getClassificationDisplay}
+                  healthMetricsSubmissions={healthMetricsSubmissions}
+                  message={message}
+                />
               )}
               </div>
             </div>

@@ -5,6 +5,7 @@ import supabase from "./supabaseClient";
 import { logMedicationChange, logPatientDataChange, logSystemAction } from "./auditLogger";
 import Header from "./components/Header";
 import RiskFilter from "./components/RiskFilter";
+import { DoctorReportsOverview, DoctorReportTableView } from "./components/Reports";
 import Pagination from "./components/Pagination";
 import "./Dashboard.css";
 import logo from '../picture/logo.png'; // Make sure this path is correct
@@ -406,7 +407,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
       <div className="summary-widget-grid">
         <div className="summary-widget total-patients">
           <div className="summary-widget-header">
-            <img src="../picture/total.png" alt="Total Patients" className="summary-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=👥"; }}/>
+            <img src="../picture/total.png" alt="Total Patients" className="summary-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=🩺"; }}/>
             <h4>Total Patients</h4>
           </div>
           <div className="summary-widget-content">
@@ -434,7 +435,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
         </div>
         <div className="summary-widget pending-lab-results">
           <div className="summary-widget-header">
-            <img src="../picture/pending.png" alt="Pending Lab Results" className="summary-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ff9800/ffffff?text=⏳"; }}/>
+            <img src="../picture/pending.png" alt="Pending Lab Results" className="summary-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ff9800/ffffff?text=🟡"; }}/>
             <h4>Pending Lab Results</h4>
           </div>
           <div className="summary-widget-content">
@@ -1002,15 +1003,15 @@ const Dashboard = ({ user, onLogout }) => {
         
         if (risk === 'low' || risk === 'low risk') {
           lowRisk++;
-          console.log(`✓ Counted as LOW risk. Total low: ${lowRisk}`);
+          console.log(`✅ Counted as LOW risk. Total low: ${lowRisk}`);
         } else if (risk === 'moderate' || risk === 'moderate risk') {
           moderateRisk++;
-          console.log(`✓ Counted as MODERATE risk. Total moderate: ${moderateRisk}`);
+          console.log(`✅ Counted as MODERATE risk. Total moderate: ${moderateRisk}`);
         } else if (risk === 'high' || risk === 'high risk') {
           highRisk++;
-          console.log(`✓ Counted as HIGH risk. Total high: ${highRisk}`);
+          console.log(`✅ Counted as HIGH risk. Total high: ${highRisk}`);
         } else {
-          console.log(`✗ Not counted in any risk category (risk value: "${risk}")`);
+          console.log(`✅ Not counted in any risk category (risk value: "${risk}")`);
         }
         
         // Pending Lab Results (patients with "Awaiting" lab status)
@@ -2282,51 +2283,6 @@ const Dashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Get filtered patients for report table
-  const getReportFilteredPatients = () => {
-    switch (reportTableType) {
-      case 'total':
-        return patients;
-      case 'full-compliance':
-        return patients.filter(pat => {
-          const compliance = getPatientComplianceStatus(pat);
-          return compliance.isFullCompliance;
-        });
-      case 'missing-logs':
-        return patients.filter(pat => {
-          const compliance = getPatientComplianceStatus(pat);
-          return compliance.isMissingLogs;
-        });
-      case 'non-compliant':
-        return patients.filter(pat => {
-          const compliance = getPatientComplianceStatus(pat);
-          const isHighRisk = (pat.risk_classification || '').toLowerCase() === 'high';
-          return compliance.isNonCompliant && isHighRisk;
-        });
-      case 'low-risk':
-        return patients.filter(p => {
-          const risk = (p.risk_classification || '').toLowerCase();
-          return risk === 'low' || risk === 'low risk';
-        });
-      case 'moderate-risk':
-        return patients.filter(p => {
-          const risk = (p.risk_classification || '').toLowerCase();
-          return risk === 'moderate' || risk === 'moderate risk';
-        });
-      case 'high-risk':
-        return patients.filter(p => {
-          const risk = (p.risk_classification || '').toLowerCase();
-          return risk === 'high' || risk === 'high risk';
-        });
-      case 'pre-operative':
-        return patients.filter(p => p.phase === 'Pre-Operative');
-      case 'post-operative':
-        return patients.filter(p => p.phase === 'Post-Operative');
-      default:
-        return patients;
-    }
-  };
-
   // Filter patients based on search term and risk filter
   const getFilteredPatients = () => {
     let filtered = patients.filter((patient) =>
@@ -2340,7 +2296,7 @@ const Dashboard = ({ user, onLogout }) => {
           // Patients with complete lab results and finalized profile
           filtered = filtered.filter(patient => 
             getLabStatus(patient.latest_lab_result) === 'Submitted' && 
-            getProfileStatus(patient) === '🟢Finalized'
+            getProfileStatus(patient) === '✅Finalized'
           );
           break;
         case 'missing-logs':
@@ -2599,7 +2555,7 @@ const Dashboard = ({ user, onLogout }) => {
                           'lab-status-awaiting'
                         }
                       >
-                        {labStatus === 'Awaiting' ? '❌Awaiting' : 
+                        {labStatus === 'Awaiting' ? '⏳Awaiting' : 
                          labStatus === 'Submitted' ? '✅Submitted' : 
                          labStatus}
                       </td>
@@ -2609,7 +2565,7 @@ const Dashboard = ({ user, onLogout }) => {
                           onClick={() => handleViewClick(patient)}
                           style={{ marginRight: '8px' }}
                         >
-                          👁️ View
+                          🟢 View
                         </button>
                         <button 
                           className="toggle-phase-button diasight-run-button"
@@ -2625,7 +2581,7 @@ const Dashboard = ({ user, onLogout }) => {
                           }}
                           title={isAwaiting ? 'Lab results must be submitted before running DiaSight analysis' : 'Run DiaSight DR detection analysis'}
                         >
-                          {isRunningDiaSight && diaSightRunningPatientId === patient.patient_id ? '⏳ Running...' : '▶️ Run'}
+                          {isRunningDiaSight && diaSightRunningPatientId === patient.patient_id ? '🟡 Running...' : '🟢 Run'}
                         </button>
                       </td>
                     </tr>
@@ -2744,13 +2700,13 @@ const Dashboard = ({ user, onLogout }) => {
                     getLabStatus(patient.latest_lab_result) === 'Awaiting' ? 'lab-status-awaiting' : 
                     'lab-status-awaiting'
                   }>
-                    {getLabStatus(patient.latest_lab_result) === 'Awaiting' ? '❌Awaiting' : getLabStatus(patient.latest_lab_result) === 'Submitted' ? '✅Submitted' : getLabStatus(patient.latest_lab_result)}
+                    {getLabStatus(patient.latest_lab_result) === 'Awaiting' ? '⏳Awaiting' : getLabStatus(patient.latest_lab_result) === 'Submitted' ? '✅Submitted' : getLabStatus(patient.latest_lab_result)}
                   </td>
-                  <td className={getProfileStatus(patient) === '🟢Finalized' ? 'status-complete' : 'status-incomplete'}>
+                  <td className={getProfileStatus(patient) === '✅Finalized' ? 'status-complete' : 'status-incomplete'}>
                     {getProfileStatus(patient)}
                   </td>
                   <td className="patient-actions-cell">
-                    <button className="view-button" onClick={() => handleViewClick(patient)}>👁️ View</button>
+                    <button className="view-button" onClick={() => handleViewClick(patient)}>🟢 View</button>
                     <button className="toggle-phase-button" onClick={() => handlePhaseToggle(patient)} style={{ marginLeft: '8px' }}>
                       {patient.phase === 'Pre-Operative' ? '🔄 Post-Op' : '🔄 Pre-Op'}
                     </button>
@@ -2842,875 +2798,6 @@ const Dashboard = ({ user, onLogout }) => {
 
     </div>
   );
-
-  const renderReportsSection = () => (
-    <div className="reports-section">
-      <h2>Reports Overview</h2>
-      
-      {/* Reports Widgets Grid */}
-      <div className="reports-widgets-grid">
-        {/* Total Patients Report Widget */}
-        <div className="report-widget report-total-patients">
-          <div className="report-widget-header">
-            <img src="../picture/total.png" alt="Total Patients" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=👥"; }}/>
-            <h4>Total Patients</h4>
-            <button className="report-widget-view-button" onClick={() => handleReportWidgetClick('total', 'Total Patients')}>View</button>
-          </div>
-          <div className="report-widget-content">
-            <div className="report-widget-left">
-              <p className="report-number">{patients.length}</p>
-            </div>
-            <div className="report-widget-right">
-              <p className="report-subtitle">Patients registered in the system</p>
-            </div>
-          </div>
-          <div className="mini-chart-container">
-            {appointmentChartData?.labels?.length > 0 ? (
-              <Line 
-                key={`report-patient-count-chart-${patients.length}`}
-                data={{
-                  labels: appointmentChartData.labels,
-                  datasets: [
-                    {
-                      label: 'Total Patients',
-                      data: appointmentChartData.data,
-                      fill: true,
-                      backgroundColor: (context) => {
-                        const chart = context.chart;
-                        const {ctx, chartArea} = chart;
-                        if (!chartArea) return null;
-                        const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                        gradient.addColorStop(0, 'rgba(31, 170, 237, 0.6)');
-                        gradient.addColorStop(0.5, 'rgba(31, 170, 237, 0.3)');
-                        gradient.addColorStop(1, 'rgba(31, 170, 237, 0.1)');
-                        return gradient;
-                      },
-                      borderColor: '#1FAAED',
-                      borderWidth: 2,
-                      pointBackgroundColor: 'transparent',
-                      pointBorderColor: 'transparent',
-                      pointBorderWidth: 0,
-                      pointRadius: 0,
-                      pointHoverRadius: 0,
-                      pointHoverBackgroundColor: '#1FAAED',
-                      pointHoverBorderColor: '#fff',
-                      pointHoverBorderWidth: 3,
-                      tension: 0.4,
-                      hoverBackgroundColor: 'rgba(31, 170, 237, 0.7)',
-                    },
-                  ],
-                }}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  layout: {
-                    padding: { top: 5, bottom: 5, left: 2, right: 2 }
-                  },
-                  plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                      enabled: true,
-                      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                      titleColor: '#fff',
-                      bodyColor: '#fff',
-                      borderColor: '#1FAAED',
-                      borderWidth: 1,
-                      cornerRadius: 4,
-                      displayColors: false,
-                      callbacks: {
-                        title: function(context) { return `Month: ${context[0].label}`; },
-                        label: function(context) { return `Total Patients: ${context.raw}`; }
-                      }
-                    }
-                  },
-                  scales: {
-                    y: { display: false, beginAtZero: true, grid: { display: false } },
-                    x: { display: false, grid: { display: false } }
-                  },
-                  elements: {
-                    point: { radius: 0, hoverRadius: 0 },
-                    line: { borderWidth: 2 }
-                  },
-                  interaction: { intersect: false, mode: 'index' }
-                }}
-              />
-            ) : (
-              <div className="no-chart-data"><p>No patient data available</p></div>
-            )}
-          </div>
-        </div>
-
-        {/* Full Compliance Report Widget */}
-        <div className="report-widget report-full-compliance">
-          <div className="report-widget-header">
-            <img src="../picture/full.svg" alt="Full Compliance" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/28a745/ffffff?text=✓"; }}/>
-            <h4>Full Compliance</h4>
-            <button className="report-widget-view-button" onClick={() => handleReportWidgetClick('full-compliance', 'Full Compliance Patients')}>View</button>
-          </div>
-          <div className="report-widget-content">
-            <div className="report-widget-left">
-              <p className="report-number">
-                {patients.filter(pat => {
-                  const compliance = getPatientComplianceStatus(pat);
-                  return compliance.isFullCompliance;
-                }).length}
-              </p>
-            </div>
-            <div className="report-widget-right">
-              <p className="report-subtitle">Patients with complete metrics (Blood Glucose, Blood Pressure, Wound Photos)</p>
-            </div>
-          </div>
-          <div className="mini-chart-container">
-            <Line 
-              data={{
-                labels: fullComplianceChartData?.labels || appointmentChartData?.labels || ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
-                datasets: [
-                  {
-                    label: 'Full Compliance',
-                    data: fullComplianceChartData?.data || [0, 0, 0, 0, 0, 0],
-                    fill: true,
-                    backgroundColor: (context) => {
-                      const chart = context.chart;
-                      const {ctx, chartArea} = chart;
-                      if (!chartArea) return null;
-                      const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                      gradient.addColorStop(0, 'rgba(40, 167, 69, 0.6)');
-                      gradient.addColorStop(0.5, 'rgba(40, 167, 69, 0.3)');
-                      gradient.addColorStop(1, 'rgba(40, 167, 69, 0.1)');
-                      return gradient;
-                    },
-                    borderColor: '#28a745',
-                    borderWidth: 2,
-                    pointBackgroundColor: 'transparent',
-                    pointBorderColor: 'transparent',
-                    pointBorderWidth: 0,
-                    pointRadius: 0,
-                    pointHoverRadius: 0,
-                    pointHoverBackgroundColor: '#28a745',
-                    pointHoverBorderColor: '#fff',
-                    pointHoverBorderWidth: 3,
-                    tension: 0.4,
-                    hoverBackgroundColor: 'rgba(40, 167, 69, 0.7)',
-                  },
-                ],
-              }}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                layout: { padding: { top: 5, bottom: 5, left: 2, right: 2 } },
-                plugins: {
-                  legend: { display: false },
-                  tooltip: {
-                    enabled: true,
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleColor: '#fff',
-                    bodyColor: '#fff',
-                    borderColor: '#28a745',
-                    borderWidth: 1,
-                    cornerRadius: 4,
-                    displayColors: false,
-                    callbacks: {
-                      title: function(context) { return `Month: ${context[0].label}`; },
-                      label: function(context) { return `Full Compliance: ${context.raw}`; }
-                    }
-                  }
-                },
-                scales: {
-                  y: { display: false, beginAtZero: true, grid: { display: false } },
-                  x: { display: false, grid: { display: false } }
-                },
-                elements: {
-                  point: { radius: 0, hoverRadius: 0 },
-                  line: { borderWidth: 2 }
-                },
-                interaction: { intersect: false, mode: 'index' }
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Missing Logs Report Widget */}
-        <div className="report-widget report-missing-logs">
-          <div className="report-widget-header">
-            <img src="../picture/missinglogs.svg" alt="Missing Logs" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ffc107/ffffff?text=⚠"; }}/>
-            <h4>Missing Logs</h4>
-            <button className="report-widget-view-button" onClick={() => handleReportWidgetClick('missing-logs', 'Missing Logs Patients')}>View</button>
-          </div>
-          <div className="report-widget-content">
-            <div className="report-widget-left">
-              <p className="report-number">
-                {patients.filter(pat => {
-                  const compliance = getPatientComplianceStatus(pat);
-                  return compliance.isMissingLogs;
-                }).length}
-              </p>
-            </div>
-            <div className="report-widget-right">
-              <p className="report-subtitle">Patients missing at least one metric (Blood Glucose, Blood Pressure, or Wound Photos)</p>
-            </div>
-          </div>
-          <div className="mini-chart-container">
-            <Line 
-              data={{
-                labels: missingLogsChartData?.labels || appointmentChartData?.labels || ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
-                datasets: [
-                  {
-                    label: 'Missing Logs',
-                    data: missingLogsChartData?.data || [0, 0, 0, 0, 0, 0],
-                    fill: true,
-                    backgroundColor: (context) => {
-                      const chart = context.chart;
-                      const {ctx, chartArea} = chart;
-                      if (!chartArea) return null;
-                      const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                      gradient.addColorStop(0, 'rgba(255, 193, 7, 0.6)');
-                      gradient.addColorStop(0.5, 'rgba(255, 193, 7, 0.3)');
-                      gradient.addColorStop(1, 'rgba(255, 193, 7, 0.1)');
-                      return gradient;
-                    },
-                    borderColor: '#ffc107',
-                    borderWidth: 2,
-                    pointBackgroundColor: 'transparent',
-                    pointBorderColor: 'transparent',
-                    pointBorderWidth: 0,
-                    pointRadius: 0,
-                    pointHoverRadius: 0,
-                    pointHoverBackgroundColor: '#ffc107',
-                    pointHoverBorderColor: '#fff',
-                    pointHoverBorderWidth: 3,
-                    tension: 0.4,
-                    hoverBackgroundColor: 'rgba(255, 193, 7, 0.7)',
-                  },
-                ],
-              }}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                layout: { padding: { top: 5, bottom: 5, left: 2, right: 2 } },
-                plugins: {
-                  legend: { display: false },
-                  tooltip: {
-                    enabled: true,
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleColor: '#fff',
-                    bodyColor: '#fff',
-                    borderColor: '#ffc107',
-                    borderWidth: 1,
-                    cornerRadius: 4,
-                    displayColors: false,
-                    callbacks: {
-                      title: function(context) { return `Month: ${context[0].label}`; },
-                      label: function(context) { return `Missing Logs: ${context.raw}`; }
-                    }
-                  }
-                },
-                scales: {
-                  y: { display: false, beginAtZero: true, grid: { display: false } },
-                  x: { display: false, grid: { display: false } }
-                },
-                elements: {
-                  point: { radius: 0, hoverRadius: 0 },
-                  line: { borderWidth: 2 }
-                },
-                interaction: { intersect: false, mode: 'index' }
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Non-Compliant Report Widget */}
-        <div className="report-widget report-non-compliant">
-          <div className="report-widget-header">
-            <img src="../picture/noncompliant.svg" alt="Non-Compliant" className="report-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/dc3545/ffffff?text=✗"; }}/>
-            <h4>Non-Compliant</h4>
-            <button className="report-widget-view-button" onClick={() => handleReportWidgetClick('non-compliant', 'Non-Compliant Patients')}>View</button>
-          </div>
-          <div className="report-widget-content">
-            <div className="report-widget-left">
-              <p className="report-number">
-                {patients.filter(pat => {
-                  const compliance = getPatientComplianceStatus(pat);
-                  const isHighRisk = (pat.risk_classification || '').toLowerCase() === 'high';
-                  return compliance.isNonCompliant && isHighRisk;
-                }).length}
-              </p>
-            </div>
-            <div className="report-widget-right">
-              <p className="report-subtitle">High risk patients with all 3 missing metrics (Blood Glucose, Blood Pressure, Wound Photos)</p>
-            </div>
-          </div>
-          <div className="mini-chart-container">
-            <Line 
-              data={{
-                labels: nonCompliantChartData?.labels || appointmentChartData?.labels || ['Apr 2025', 'May 2025', 'Jun 2025', 'Jul 2025', 'Aug 2025', 'Sep 2025'],
-                datasets: [
-                  {
-                    label: 'Non-Compliant',
-                    data: nonCompliantChartData?.data || [0, 0, 0, 0, 0, 0],
-                    fill: true,
-                    backgroundColor: (context) => {
-                      const chart = context.chart;
-                      const {ctx, chartArea} = chart;
-                      if (!chartArea) return null;
-                      const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                      gradient.addColorStop(0, 'rgba(220, 53, 69, 0.6)');
-                      gradient.addColorStop(0.5, 'rgba(220, 53, 69, 0.3)');
-                      gradient.addColorStop(1, 'rgba(220, 53, 69, 0.1)');
-                      return gradient;
-                    },
-                    borderColor: '#dc3545',
-                    borderWidth: 2,
-                    pointBackgroundColor: 'transparent',
-                    pointBorderColor: 'transparent',
-                    pointBorderWidth: 0,
-                    pointRadius: 0,
-                    pointHoverRadius: 0,
-                    pointHoverBackgroundColor: '#dc3545',
-                    pointHoverBorderColor: '#fff',
-                    pointHoverBorderWidth: 3,
-                    tension: 0.4,
-                    hoverBackgroundColor: 'rgba(220, 53, 69, 0.7)',
-                  },
-                ],
-              }}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                layout: { padding: { top: 5, bottom: 5, left: 2, right: 2 } },
-                plugins: {
-                  legend: { display: false },
-                  tooltip: {
-                    enabled: true,
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleColor: '#fff',
-                    bodyColor: '#fff',
-                    borderColor: '#dc3545',
-                    borderWidth: 1,
-                    cornerRadius: 4,
-                    displayColors: false,
-                    callbacks: {
-                      title: function(context) { return `Month: ${context[0].label}`; },
-                      label: function(context) { return `Non-Compliant: ${context.raw}`; }
-                    }
-                  }
-                },
-                scales: {
-                  y: { display: false, beginAtZero: true, grid: { display: false } },
-                  x: { display: false, grid: { display: false } }
-                },
-                elements: {
-                  point: { radius: 0, hoverRadius: 0 },
-                  line: { borderWidth: 2 }
-                },
-                interaction: { intersect: false, mode: 'index' }
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Reports Content Row - Bar Charts */}
-      <div className="reports-content-row">
-        {/* Risk Classification Bar Chart */}
-        <div className="chart-container-reports">
-          <h3>Patients by Risk Classification</h3>
-          <Bar
-            data={{
-              labels: ['Low Risk', 'Moderate Risk', 'High Risk'],
-              datasets: [
-                {
-                  label: 'Number of Patients',
-                  data: [
-                    patients.filter(p => {
-                      const risk = (p.risk_classification || '').toLowerCase();
-                      return risk === 'low' || risk === 'low risk';
-                    }).length,
-                    patients.filter(p => {
-                      const risk = (p.risk_classification || '').toLowerCase();
-                      return risk === 'moderate' || risk === 'moderate risk';
-                    }).length,
-                    patients.filter(p => {
-                      const risk = (p.risk_classification || '').toLowerCase();
-                      return risk === 'high' || risk === 'high risk';
-                    }).length,
-                  ],
-                  backgroundColor: [
-                    'rgba(40, 167, 69, 0.7)',   // Green for Low
-                    'rgba(255, 193, 7, 0.7)',   // Yellow for Moderate
-                    'rgba(220, 53, 69, 0.7)',   // Red for High
-                  ],
-                  borderColor: [
-                    '#28a745',
-                    '#ffc107',
-                    '#dc3545',
-                  ],
-                  borderWidth: 2,
-                  borderRadius: 8,
-                  barThickness: 60,
-                },
-              ],
-            }}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              layout: {
-                padding: {
-                  top: 10,
-                  bottom: 30,
-                  left: 10,
-                  right: 10
-                }
-              },
-              onClick: (event, elements) => {
-                if (elements.length > 0) {
-                  const index = elements[0].index;
-                  const riskLevels = ['low-risk', 'moderate-risk', 'high-risk'];
-                  const titles = ['Low Risk Patients', 'Moderate Risk Patients', 'High Risk Patients'];
-                  handleReportWidgetClick(riskLevels[index], titles[index]);
-                }
-              },
-              plugins: {
-                legend: {
-                  display: false,
-                },
-                tooltip: {
-                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                  titleColor: '#fff',
-                  bodyColor: '#fff',
-                  borderColor: '#1FAAED',
-                  borderWidth: 1,
-                  cornerRadius: 8,
-                  padding: 12,
-                  displayColors: false,
-                  callbacks: {
-                    label: function(context) {
-                      return `Patients: ${context.raw}`;
-                    }
-                  }
-                },
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  ticks: {
-                    stepSize: 1,
-                    font: {
-                      size: 12,
-                      family: 'Poppins',
-                    },
-                    color: '#6c757d',
-                  },
-                  grid: {
-                    color: 'rgba(0, 0, 0, 0.05)',
-                    drawBorder: false,
-                  },
-                },
-                x: {
-                  ticks: {
-                    font: {
-                      size: 13,
-                      family: 'Poppins',
-                      weight: '500',
-                    },
-                    color: '#495057',
-                  },
-                  grid: {
-                    display: false,
-                  },
-                },
-              },
-            }}
-          />
-        </div>
-
-        {/* Phase Bar Chart */}
-        <div className="chart-container-reports">
-          <h3>Patients by Phase</h3>
-          <Bar
-            data={{
-              labels: ['Pre-Operative', 'Post-Operative'],
-              datasets: [
-                {
-                  label: 'Number of Patients',
-                  data: [
-                    patients.filter(p => p.phase === 'Pre-Operative').length,
-                    patients.filter(p => p.phase === 'Post-Operative').length,
-                  ],
-                  backgroundColor: [
-                    'rgba(141, 73, 247, 0.7)',  // Purple for Pre-Op
-                    'rgba(73, 247, 141, 0.7)',  // Light Green for Post-Op
-                  ],
-                  borderColor: [
-                    '#8D49F7',
-                    '#49F78D',
-                  ],
-                  borderWidth: 2,
-                  borderRadius: 8,
-                  barThickness: 80,
-                },
-              ],
-            }}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              layout: {
-                padding: {
-                  top: 10,
-                  bottom: 30,
-                  left: 10,
-                  right: 10
-                }
-              },
-              onClick: (event, elements) => {
-                if (elements.length > 0) {
-                  const index = elements[0].index;
-                  const phase = index === 0 ? 'pre-operative' : 'post-operative';
-                  const title = index === 0 ? 'Pre-Operative Patients' : 'Post-Operative Patients';
-                  handleReportWidgetClick(phase, title);
-                }
-              },
-              plugins: {
-                legend: {
-                  display: false,
-                },
-                tooltip: {
-                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                  titleColor: '#fff',
-                  bodyColor: '#fff',
-                  borderColor: '#1FAAED',
-                  borderWidth: 1,
-                  cornerRadius: 8,
-                  padding: 12,
-                  displayColors: false,
-                  callbacks: {
-                    label: function(context) {
-                      return `Patients: ${context.raw}`;
-                    }
-                  }
-                },
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  ticks: {
-                    stepSize: 1,
-                    font: {
-                      size: 12,
-                      family: 'Poppins',
-                    },
-                    color: '#6c757d',
-                  },
-                  grid: {
-                    color: 'rgba(0, 0, 0, 0.05)',
-                    drawBorder: false,
-                  },
-                },
-                x: {
-                  ticks: {
-                    font: {
-                      size: 13,
-                      family: 'Poppins',
-                      weight: '500',
-                    },
-                    color: '#495057',
-                  },
-                  grid: {
-                    display: false,
-                  },
-                },
-              },
-            }}
-          />
-        </div>
-      </div>
-    </div>
-  );
-
-  // Report Table View Component
-  const renderReportTable = () => {
-    const filteredPatients = getReportFilteredPatients();
-    
-    // Get paginated patients for the filtered category
-    const getPaginatedReportPatients = () => {
-      const filtered = filteredPatients.filter((patient) =>
-        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-
-      // Apply additional filters (same as patient list)
-      let finalFiltered = filtered;
-      
-      if (selectedRiskFilter !== 'all') {
-        finalFiltered = finalFiltered.filter(patient => {
-          const risk = (patient.risk_classification || '').toLowerCase();
-          return risk === selectedRiskFilter;
-        });
-      }
-
-      if (selectedLabStatusFilter !== 'all') {
-        finalFiltered = finalFiltered.filter(patient => {
-          const labStatus = getLabStatus(patient.latest_lab_result);
-          if (selectedLabStatusFilter === 'awaiting') {
-            return labStatus === 'Awaiting';
-          } else if (selectedLabStatusFilter === 'submitted') {
-            return labStatus === 'Submitted';
-          }
-          return true;
-        });
-      }
-
-      if (selectedProfileStatusFilter !== 'all') {
-        finalFiltered = finalFiltered.filter(patient => {
-          const profileStatus = getProfileStatus(patient);
-          if (selectedProfileStatusFilter === 'pending') {
-            return profileStatus === '🟡Pending';
-          } else if (selectedProfileStatusFilter === 'finalized') {
-            return profileStatus === '🟢Finalized';
-          }
-          return true;
-        });
-      }
-
-      const startIndex = (currentPagePatients - 1) * PATIENTS_PER_PAGE;
-      const endIndex = startIndex + PATIENTS_PER_PAGE;
-      return finalFiltered.slice(startIndex, endIndex);
-    };
-
-    // Get counts for the filtered category
-    const getFilteredPatientCounts = () => {
-      const filtered = filteredPatients.filter((patient) =>
-        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-
-      const counts = {
-        all: filtered.length,
-        low: 0,
-        moderate: 0,
-        high: 0,
-        ppd: 0
-      };
-
-      filtered.forEach(patient => {
-        const risk = (patient.risk_classification || '').toLowerCase();
-        // Handle both "moderate" and "moderate risk" variations
-        if (risk === 'low' || risk === 'low risk') {
-          counts.low++;
-        } else if (risk === 'moderate' || risk === 'moderate risk') {
-          counts.moderate++;
-        } else if (risk === 'high' || risk === 'high risk') {
-          counts.high++;
-        } else if (risk === 'ppd') {
-          counts.ppd++;
-        }
-      });
-
-      return counts;
-    };
-
-    // Get lab status counts for the filtered category
-    const getFilteredLabStatusCounts = () => {
-      const filtered = filteredPatients.filter((patient) =>
-        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-
-      const counts = {
-        all: filtered.length,
-        awaiting: 0,
-        submitted: 0
-      };
-
-      filtered.forEach(patient => {
-        const labStatus = getLabStatus(patient.latest_lab_result);
-        if (labStatus === 'Awaiting') {
-          counts.awaiting++;
-        } else if (labStatus === 'Submitted') {
-          counts.submitted++;
-        }
-      });
-
-      return counts;
-    };
-
-    // Get profile status counts for the filtered category
-    const getFilteredProfileStatusCounts = () => {
-      const filtered = filteredPatients.filter((patient) =>
-        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-
-      const counts = {
-        all: filtered.length,
-        pending: 0,
-        finalized: 0
-      };
-
-      filtered.forEach(patient => {
-        const profileStatus = getProfileStatus(patient);
-        if (profileStatus === '🟡Pending') {
-          counts.pending++;
-        } else if (profileStatus === '🟢Finalized') {
-          counts.finalized++;
-        }
-      });
-
-      return counts;
-    };
-
-    // Calculate total pages for filtered category
-    const getTotalReportPages = () => {
-      const filtered = filteredPatients.filter((patient) =>
-        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      return Math.ceil(filtered.length / PATIENTS_PER_PAGE);
-    };
-
-    const paginatedReportPatients = getPaginatedReportPatients();
-    const patientRiskCounts = getFilteredPatientCounts();
-    const patientLabStatusCounts = getFilteredLabStatusCounts();
-    const patientProfileStatusCounts = getFilteredProfileStatusCounts();
-    const totalReportPages = getTotalReportPages();
-    
-    return (
-      <div className="patient-list-section">
-        <button 
-          className="back-button3" 
-          onClick={() => setShowReportTable(false)}
-        >
-          <img src="/picture/back.png" alt="Back" className="button-icon back-icon" />
-          Back to Reports
-        </button>
-        <h2>{reportTableTitle}</h2>
-
-        <div className="search-and-filter-row">
-          <div className="search-bar">
-            <input
-              type="text"
-              placeholder="Search patients by name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="patient-search-input"
-            />
-            <img src="../picture/search.svg" alt="Search" className="search-icon" />
-          </div>
-          
-          {/* Risk Classification Filter */}
-          <RiskFilter
-            selectedRisk={selectedRiskFilter}
-            onRiskChange={handleRiskFilterChange}
-            selectedLabStatus={selectedLabStatusFilter}
-            onLabStatusChange={handleLabStatusFilterChange}
-            selectedProfileStatus={selectedProfileStatusFilter}
-            onProfileStatusChange={handleProfileStatusFilterChange}
-            sortOrder={sortOrder}
-            onSortOrderChange={handleSortOrderChange}
-            showCounts={true}
-            counts={patientRiskCounts}
-            labStatusCounts={patientLabStatusCounts}
-            profileStatusCounts={patientProfileStatusCounts}
-          />
-        </div>
-        
-        <table className="patient-table3">
-          <thead>
-            <tr>
-              <th>Patient Name</th>
-              <th>Age</th>
-              <th>Sex</th>
-              <th>Classification</th>
-              <th>Lab Status</th>
-              <th>Profile Status</th>
-              {reportTableType === 'missing-logs' && <th>Days Since Last Submission</th>}
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedReportPatients.length > 0 ? (
-              paginatedReportPatients.map((patient) => (
-                <tr key={patient.patient_id}>
-                  <td className="patient-name-cell">
-                    <div className="patient-name-container">
-                      <img 
-                        src={patient.patient_picture || "../picture/secretary.png"} 
-                        alt="Patient Avatar" 
-                        className="patient-avatar-table"
-                        onError={(e) => e.target.src = "../picture/secretary.png"}
-                      />
-                      <span className="patient-name-text">{patient.first_name} {patient.last_name}</span>
-                    </div>
-                  </td>
-                  <td>{patient.date_of_birth ? Math.floor((new Date() - new Date(patient.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
-                  <td>{patient.gender || 'N/A'}</td>
-                  <td className={`doctor-classification-cell ${
-                    getLabStatus(patient.latest_lab_result) === 'Awaiting' ? 'doctor-classification-awaiting' :
-                    (() => {
-                      const risk = (patient.risk_classification || '').toLowerCase();
-                      if (risk === 'low' || risk === 'low risk') return 'doctor-classification-low';
-                      if (risk === 'moderate' || risk === 'moderate risk') return 'doctor-classification-moderate';
-                      if (risk === 'high' || risk === 'high risk') return 'doctor-classification-high';
-                      if (risk === 'ppd') return 'doctor-classification-ppd';
-                      return 'doctor-classification-default';
-                    })()
-                  }`}>
-                    {getClassificationDisplay(patient)}
-                  </td>
-                  <td className={
-                    getLabStatus(patient.latest_lab_result) === 'Submitted' ? 'lab-status-complete' :
-                    getLabStatus(patient.latest_lab_result) === 'Awaiting' ? 'lab-status-awaiting' : 
-                    'lab-status-awaiting'
-                  }>
-                    {getLabStatus(patient.latest_lab_result) === 'Awaiting' ? '❌Awaiting' : getLabStatus(patient.latest_lab_result) === 'Submitted' ? '✅Submitted' : getLabStatus(patient.latest_lab_result)}
-                  </td>
-                  <td className={getProfileStatus(patient) === '🟢Finalized' ? 'status-complete' : 'status-incomplete'}>
-                    {getProfileStatus(patient)}
-                  </td>
-                  {reportTableType === 'missing-logs' && (
-                    <td>{(() => {
-                      const lastSubmissionDate = healthMetricsSubmissions[patient.patient_id];
-                      const daysPassed = lastSubmissionDate
-                        ? Math.max(0, Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(lastSubmissionDate).setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24)))
-                        : "No Submission";
-                      
-                      return (
-                        <span className={`compliance-status ${
-                          daysPassed === "No Submission" ? "no-submission" : 
-                          daysPassed > 7 ? "overdue" : 
-                          daysPassed > 3 ? "warning" : "good"
-                        }`}>
-                          {daysPassed}
-                        </span>
-                      );
-                    })()}</td>
-                  )}
-                  <td className="patient-actions-cell">
-                    <button className="view-button" onClick={() => handleViewClick(patient)}>👁️ View</button>
-                    <button className="toggle-phase-button" onClick={() => handlePhaseToggle(patient)} style={{ marginLeft: '8px' }}>
-                      {patient.phase === 'Pre-Operative' ? '🔄 Post-Op' : '🔄 Pre-Op'}
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={reportTableType === 'missing-logs' ? "8" : "7"}>No patients found.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-
-        {/* Pagination */}
-        {totalReportPages > 1 && (
-          <Pagination
-            currentPage={currentPagePatients}
-            totalPages={totalReportPages}
-            onPageChange={setCurrentPagePatients}
-            itemsPerPage={PATIENTS_PER_PAGE}
-            totalItems={filteredPatients.filter((patient) =>
-              `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
-            ).length}
-            showPageInfo={true}
-          />
-        )}
-      </div>
-    );
-  };
 
 
 const handleCancelAppointmentClick = async (appointment) => {
@@ -4556,7 +3643,7 @@ const renderReportsContent = () => {
                         opacity: isSavingAnalysis || analysisSaved || isLoadingAnalysis ? 0.6 : 1
                       }}
                     >
-                      {isSavingAnalysis ? 'Saving...' : analysisSaved ? '✓ Saved' : 'Save Analysis'}
+                      {isSavingAnalysis ? 'Saving...' : analysisSaved ? '✅ Saved' : 'Save Analysis'}
                     </button>
                   </div>
                 </div>
@@ -6195,7 +5282,7 @@ const renderReportsContent = () => {
                 cursor: isRunningDiaSight || !patientLabs[0] || getLabStatus(patientLabs[0]) === 'Awaiting' ? 'not-allowed' : 'pointer'
               }}
             >
-              {isRunningDiaSight ? '⏳ Running Analysis...' : '▶️ Run New Analysis'}
+              {isRunningDiaSight ? '🔍 Running Analysis...' : '🟢 Run New Analysis'}
             </button>
           </div>
           
@@ -6402,7 +5489,7 @@ const renderReportsContent = () => {
             } else {
               return (
                 <div className="no-diasight-results">
-                  <div className="no-results-icon">🔬</div>
+                  <div className="no-results-icon">🔍</div>
                   <p>No DiaSight analysis has been run for this patient yet.</p>
                   <p className="no-results-hint">Click "Run New Analysis" to perform a diabetic retinopathy detection.</p>
                 </div>
@@ -6541,7 +5628,7 @@ const renderReportsContent = () => {
       <main className="content-area-full-width3">
         {activePage === "dashboard" && (
           <div className="dashboard-header-row">
-            <h1 className="welcomeh1">Welcome, Dr. {user.first_name} 👋</h1>
+            <h1 className="welcomeh1">Welcome, Dr. {user.first_name} 🩺</h1>
           </div>
         )}
         {activePage === "dashboard" && renderDashboardContent()}
@@ -6549,8 +5636,48 @@ const renderReportsContent = () => {
         {activePage === "patient-list" && renderPatientList()}
         {activePage === "diasight" && renderDiaSight()}
         {activePage === "appointments" && renderAppointmentsSection()}
-        {activePage === "reports" && !showReportTable && renderReportsSection()}
-        {activePage === "reports" && showReportTable && renderReportTable()}
+        {activePage === "reports" && !showReportTable && (
+          <DoctorReportsOverview
+            patients={patients}
+            getPatientComplianceStatus={getPatientComplianceStatus}
+            appointmentChartData={appointmentChartData}
+            fullComplianceChartData={fullComplianceChartData}
+            missingLogsChartData={missingLogsChartData}
+            nonCompliantChartData={nonCompliantChartData}
+            onWidgetClick={handleReportWidgetClick}
+          />
+        )}
+        {activePage === "reports" && showReportTable && (
+          <DoctorReportTableView
+            reportTableTitle={reportTableTitle}
+            reportTableType={reportTableType}
+            patients={patients}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            selectedRiskFilter={selectedRiskFilter}
+            onRiskFilterChange={handleRiskFilterChange}
+            selectedLabStatusFilter={selectedLabStatusFilter}
+            onLabStatusChange={handleLabStatusFilterChange}
+            selectedProfileStatusFilter={selectedProfileStatusFilter}
+            onProfileStatusChange={handleProfileStatusFilterChange}
+            sortOrder={sortOrder}
+            onSortOrderChange={handleSortOrderChange}
+            currentPage={currentPagePatients}
+            itemsPerPage={PATIENTS_PER_PAGE}
+            onPageChange={setCurrentPagePatients}
+            getLabStatus={getLabStatus}
+            getProfileStatus={getProfileStatus}
+            getClassificationDisplay={getClassificationDisplay}
+            getPatientComplianceStatus={getPatientComplianceStatus}
+            healthMetricsSubmissions={healthMetricsSubmissions}
+            onBackClick={() => setShowReportTable(false)}
+            onViewPatient={(patient) => {
+              setSelectedPatient(patient);
+              setActivePage("patient-profile");
+            }}
+            onPhaseToggle={handlePhaseToggle}
+          />
+        )}
         {activePage === "treatment-plan" && selectedPatient && renderTreatmentPlan()} {/* Render the first step of treatment plan */}
         {activePage === "treatment-plan-next-step" && selectedPatient && renderNextStepForms()} {/* Render the next step of treatment plan */}
         {activePage === "treatment-plan-summary" && selectedPatient && renderTreatmentPlanSummary()} {/* NEW: Render the summary page */}
@@ -6631,7 +5758,7 @@ const renderReportsContent = () => {
   <div className="diasight-modal-overlay" onClick={() => setShowDiaSightModal(false)}>
     <div className="diasight-modal-content" onClick={(e) => e.stopPropagation()}>
       <div className="diasight-modal-header">
-        <h3>🔬 DiaSight Analysis Complete</h3>
+        <h3>🔍 DiaSight Analysis Complete</h3>
         <button className="close-button3" onClick={() => setShowDiaSightModal(false)}>
           &times;
         </button>
@@ -6670,7 +5797,7 @@ const renderReportsContent = () => {
                   backgroundColor: `${color}15`,
                   borderLeft: `3px solid ${color}`
                 }}>
-                  <div className="stat-icon" style={{ color }}>🔬</div>
+                  <div className="stat-icon" style={{ color }}>🔍</div>
                   <div className="stat-content">
                     <span className="stat-label">Prediction</span>
                     <span className="stat-value" style={{ color }}>
@@ -6681,7 +5808,7 @@ const renderReportsContent = () => {
               );
             })()}
             <div className="diasight-stat-card">
-              <div className="stat-icon">📊</div>
+              <div className="stat-icon">✅</div>
               <div className="stat-content">
                 <span className="stat-label">Confidence</span>
                 <span className="stat-value">{(diaSightResults.result.confidence * 100).toFixed(1)}%</span>
@@ -6695,7 +5822,7 @@ const renderReportsContent = () => {
               </div>
             </div>
             <div className="diasight-stat-card">
-              <div className="stat-icon">🔢</div>
+              <div className="stat-icon">🔍</div>
               <div className="stat-content">
                 <span className="stat-label">Analysis Count</span>
                 <span className="stat-value">{diaSightResults.allResults?.length || 1}</span>

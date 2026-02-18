@@ -1,6 +1,5 @@
 // App.jsx (updated with session persistence)
 import React, { useState, useEffect } from "react";
-import LandingPage from "./landingpage";
 import LoginPage from "./Login";
 import Dashboard from "./Dashboard";
 import AdminDashboard from "./AdminDashboard";
@@ -10,13 +9,12 @@ import { logAuthEvent, logCredentialEvent } from "./auditLogger";
 import "./index.css";
 
 const App = () => {
-  const [currentPage, setCurrentPage] = useState("landing");
+  const [currentPage, setCurrentPage] = useState("login");
   const [user, setUser] = useState(null);
   const [role, setRole] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   const goToLogin = () => setCurrentPage("login");
-  const goToLanding = () => setCurrentPage("landing");
 
   // Session persistence - load session on app start
   useEffect(() => {
@@ -49,12 +47,12 @@ const App = () => {
   // Save session whenever user, role, or page changes
   useEffect(() => {
     if (!isLoading) {
-      if (user && role && currentPage !== 'landing' && currentPage !== 'login') {
+      if (user && role && currentPage !== 'login') {
         sessionStorage.setItem('diatrack_user', JSON.stringify(user));
         sessionStorage.setItem('diatrack_role', role);
         sessionStorage.setItem('diatrack_page', currentPage);
-      } else if (currentPage === 'landing' || currentPage === 'login') {
-        // Clear session when on landing or login page
+      } else if (currentPage === 'login') {
+        // Clear session when on login page
         sessionStorage.removeItem('diatrack_user');
         sessionStorage.removeItem('diatrack_role');
         sessionStorage.removeItem('diatrack_page');
@@ -189,7 +187,7 @@ const App = () => {
     
     setUser(null);
     setRole("");
-    setCurrentPage("landing");
+    setCurrentPage("login");
   };
 
   // Show loading spinner while checking for existing session
@@ -209,9 +207,6 @@ const App = () => {
 
   return (
     <div>
-      {currentPage === "landing" && (
-        <LandingPage goToLogin={goToLogin} />
-      )}
       {currentPage === "login" && (
         <LoginPage onLogin={handleLogin} />
       )}
