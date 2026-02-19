@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import supabase from "./supabaseClient";
 import Pagination from "./components/Pagination";
 import "./AdminDashboard.css";
-import logo from "../picture/logo.png"; // Import the logo image
+import logo from "/picture/logo.png"; // Import the logo image
 import AuditLogs from "./AuditLogs"; // Import the AuditLogs component
 import { logSystemAction, logPatientDataChange } from "./auditLogger"; // Import audit logging functions
 import Header from "./components/Header";
@@ -1099,7 +1099,7 @@ const handlePrevSecretaryStep = () => {
                   >
                     <span>Masterlist</span>
                     <img
-                      src="../picture/down.png"
+                      src="/picture/down.png"
                       alt="Dropdown"
                       className={`dropdown-arrow-img ${
                         isDropdownOpen ? "open" : ""
@@ -1187,7 +1187,7 @@ const handlePrevSecretaryStep = () => {
                 <div className="admin-widgets-grid">
                   <div className="admin-widget admin-total-patients">
                     <div className="admin-widget-header">
-                      <img src="../picture/total.png" alt="Total Patients" className="admin-widget-image" onError={(e) => {
+                      <img src="/picture/total.png" alt="Total Patients" className="admin-widget-image" onError={(e) => {
                         e.target.onerror = null;
                         e.target.src = "https://placehold.co/40x40/1FAAED/ffffff?text=👥";
                       }}/>
@@ -1249,7 +1249,7 @@ const handlePrevSecretaryStep = () => {
 
                   <div className="admin-widget admin-total-doctors">
                     <div className="admin-widget-header">
-                      <img src="../picture/total.png" alt="Total Doctors" className="admin-widget-image" onError={(e) => {
+                      <img src="/picture/total.png" alt="Total Doctors" className="admin-widget-image" onError={(e) => {
                         e.target.onerror = null;
                         e.target.src = "https://placehold.co/40x40/f59e0b/ffffff?text=👨‍⚕️";
                       }}/>
@@ -1311,7 +1311,7 @@ const handlePrevSecretaryStep = () => {
 
                   <div className="admin-widget admin-total-secretaries">
                     <div className="admin-widget-header">
-                      <img src="../picture/total.png" alt="Total Secretaries" className="admin-widget-image" onError={(e) => {
+                      <img src="/picture/total.png" alt="Total Secretaries" className="admin-widget-image" onError={(e) => {
                         e.target.onerror = null;
                         e.target.src = "https://placehold.co/40x40/10b981/ffffff?text=👤";
                       }}/>

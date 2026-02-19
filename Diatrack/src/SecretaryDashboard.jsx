@@ -8,7 +8,7 @@ import { SecretaryReportsOverview, SecretaryReportDetailView } from "./component
 import AppointmentManagementSection from "./components/AppointmentManagementSection";
 import PatientDetailView from "./components/PatientDetailView";
 import "./SecretaryDashboard.css";
-import logo from "../picture/logo.png"; // Import the logo image
+import logo from "/picture/logo.png"; // Import the logo image
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 
@@ -375,7 +375,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
       <div className="summary-widget-grid">
         <div className="summary-widget total-patients">
           <div className="summary-widget-header">
-            <img src="../picture/total.png" alt="Total Patients" className="summary-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=👥"; }}/>
+            <img src="/picture/total.png" alt="Total Patients" className="summary-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=👥"; }}/>
             <h4>Total Patients</h4>
           </div>
           <div className="summary-widget-content">
@@ -403,7 +403,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
         </div>
         <div className="summary-widget pending-lab-results">
           <div className="summary-widget-header">
-            <img src="../picture/pending.png" alt="Pending Lab Results" className="summary-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ff9800/ffffff?text=⏳"; }}/>
+            <img src="/picture/pending.png" alt="Pending Lab Results" className="summary-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ff9800/ffffff?text=⏳"; }}/>
             <h4>Pending Lab Results</h4>
           </div>
           <div className="summary-widget-content">
@@ -434,7 +434,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
       <div className="widget-side-by-side-container">
         <div className="patient-categories-widget small-widget">
           <h3>
-            <img src="../picture/patients.svg" alt="Patient Categories" className="widget-icon" /> Patient Categories
+            <img src="/picture/patients.svg" alt="Patient Categories" className="widget-icon" /> Patient Categories
           </h3>
           <div className="progress-bars-container">
             <div className="progress-bar-row">
@@ -464,7 +464,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
 
         <div className="risk-classes-widget small-widget">
           <h3>
-            <img src="../picture/preop.svg" alt="Pre-Op Risk Classes" className="widget-icon" /> Pre-Op Risk Classes
+            <img src="/picture/preop.svg" alt="Pre-Op Risk Classes" className="widget-icon" /> Pre-Op Risk Classes
           </h3>
           <div className="progress-bars-container">
             <div className="progress-bar-row">
@@ -3811,7 +3811,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
             <div className="header-actions">
               <div className="search-bar">
                 <input type="text" placeholder="Search for patients here" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                <img src="../picture/search.svg" alt="Search" className="search-icon" />
+                <img src="/picture/search.svg" alt="Search" className="search-icon" />
               </div>
               <button className="create-new-patient-button" onClick={() => {
                 setActivePage("create-patient");
@@ -3842,13 +3842,13 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                 <div className="quick-links-grid">
                   <div className="quick-link-item" onClick={() => setActivePage("lab-result-entry")}>
                     <div className="quick-link-icon lab-result">
-                      <img src="../picture/labresult.png" alt="Lab Result" className="quick-link-image" />
+                      <img src="/picture/labresult.png" alt="Lab Result" className="quick-link-image" />
                     </div>
                     <span>Lab Result Entry</span>
                   </div>
                   <div className="quick-link-item" onClick={() => setActivePage("appointments")}>
                     <div className="quick-link-icon set-appointment">
-                      <img src="../picture/appointment.png" alt="Appointment" className="quick-link-image" />
+                      <img src="/picture/appointment.png" alt="Appointment" className="quick-link-image" />
                     </div>
                     <span>Set Appointment</span>
                   </div>
@@ -4211,7 +4211,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           <div className={`step ${index === currentPatientStep ? "active" : ""} ${index < currentPatientStep ? "completed" : ""}`}>
                             <div className="step-number">
                               <img 
-                                src={index <= currentPatientStep ? "./picture/progress.svg" : "./picture/notprogress.svg"} 
+                                src={index <= currentPatientStep ? "/picture/progress.svg" : "/picture/notprogress.svg"} 
                                 alt={index <= currentPatientStep ? "Completed" : "Pending"} 
                                 style={{ width: '100%', height: '100%' }}
                                 onError={(e) => {
@@ -4366,12 +4366,12 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   <td className="med-actions">
                                     {medications.length > 1 && (
                                       <button type="button" className="remove-med-button" onClick={() => handleRemoveMedication(index)}>
-                                        <img src="../picture/minus.svg" alt="Remove" className="icon-button-img" />
+                                        <img src="/picture/minus.svg" alt="Remove" className="icon-button-img" />
                                       </button>
                                     )}
                                     {index === medications.length - 1 && (
                                       <button type="button" className="add-med-button" onClick={handleAddMedication}>
-                                        <img src="../picture/add.svg" alt="Add" className="icon-button-img" />
+                                        <img src="/picture/add.svg" alt="Add" className="icon-button-img" />
                                       </button>
                                     )}
                                   </td>
@@ -4491,7 +4491,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                     src={profilePicture} 
                                     alt="Profile Preview" 
                                     className="profile-preview"
-                                    onError={(e) => e.target.src = "../picture/secretary.png"}
+                                    onError={(e) => e.target.src = "/picture/secretary.png"}
                                   />
                                   <button className="change-photo-btn" onClick={() => document.getElementById('profile-picture-input').click()}>
                                     Change Photo
@@ -4556,7 +4556,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="patient-search-input"
                       />
-                      <img src="../picture/search.svg" alt="Search" className="search-icon" />
+                      <img src="/picture/search.svg" alt="Search" className="search-icon" />
                     </div>
                     
                     {/* Risk Classification Filter */}
@@ -4594,10 +4594,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             <td className="patient-name-cell">
                               <div className="patient-name-container">
                                 <img 
-                                  src={pat.patient_picture || "../picture/secretary.png"} 
+                                  src={pat.patient_picture || "/picture/secretary.png"} 
                                   alt="Patient Avatar" 
                                   className="patient-avatar-table"
-                                  onError={(e) => e.target.src = "../picture/secretary.png"}
+                                  onError={(e) => e.target.src = "/picture/secretary.png"}
                                 />
                                 <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
                               </div>
@@ -4824,7 +4824,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       <div className={`step ${labEntryStep >= 1 ? "completed" : ""} ${labEntryStep === 1 ? "active" : ""}`}>
                         <div className="step-number">
                           <img 
-                            src={labEntryStep >= 1 ? "./picture/progress.svg" : "./picture/notprogress.svg"} 
+                            src={labEntryStep >= 1 ? "/picture/progress.svg" : "/picture/notprogress.svg"} 
                             alt={labEntryStep >= 1 ? "Completed" : "Pending"} 
                             style={{ width: '100%', height: '100%' }}
                             onError={(e) => {
@@ -4839,7 +4839,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       <div className={`step ${labEntryStep >= 2 ? "completed" : ""} ${labEntryStep === 2 ? "active" : ""}`}>
                         <div className="step-number">
                           <img 
-                            src={labEntryStep >= 2 ? "./picture/progress.svg" : "./picture/notprogress.svg"} 
+                            src={labEntryStep >= 2 ? "/picture/progress.svg" : "/picture/notprogress.svg"} 
                             alt={labEntryStep >= 2 ? "Completed" : "Pending"} 
                             style={{ width: '100%', height: '100%' }}
                             onError={(e) => {
@@ -4854,7 +4854,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       <div className={`step ${labEntryStep >= 3 ? "completed" : ""} ${labEntryStep === 3 ? "active" : ""}`}>
                         <div className="step-number">
                           <img 
-                            src={labEntryStep >= 3 ? "./picture/progress.svg" : "./picture/notprogress.svg"} 
+                            src={labEntryStep >= 3 ? "/picture/progress.svg" : "/picture/notprogress.svg"} 
                             alt={labEntryStep >= 3 ? "Completed" : "Pending"} 
                             style={{ width: '100%', height: '100%' }}
                             onError={(e) => {
@@ -4882,7 +4882,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                               onChange={(e) => setSearchTerm(e.target.value)}
                               className="patient-search-input"
                             />
-                            <img src="../picture/search.svg" alt="Search" className="search-icon" />
+                            <img src="/picture/search.svg" alt="Search" className="search-icon" />
                           </div>
                           
                           {/* Risk Classification Filter for Lab Entry */}
@@ -4922,10 +4922,10 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                                   <td className="patient-name-cell">
                                     <div className="patient-name-container">
                                       <img 
-                                        src={pat.patient_picture || "../picture/secretary.png"} 
+                                        src={pat.patient_picture || "/picture/secretary.png"} 
                                         alt="Patient Avatar" 
                                         className="patient-avatar-table"
-                                        onError={(e) => e.target.src = "../picture/secretary.png"}
+                                        onError={(e) => e.target.src = "/picture/secretary.png"}
                                       />
                                       <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
                                     </div>
@@ -5163,7 +5163,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   {showSuccessModal && (
                     <div className="modal-backdrop">
                       <div className="modal-content success-modal">
-                        <img src="../picture/labentry.png" alt="Lab Entry Success" className="success-icon" />
+                        <img src="/picture/labentry.png" alt="Lab Entry Success" className="success-icon" />
                         <div className="modal-text-content">
                           <h2 className="modal-title">Lab Results Successfully Submitted & Locked</h2>
                           <p className="modal-subtext">
@@ -5190,7 +5190,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                   <div className="detail-view-header">
                     <h2>Lab Results History for {selectedPatientForLabView.first_name} {selectedPatientForLabView.last_name}</h2>
                     <button className="back-to-list-button" onClick={handleCloseLabDetailsView}>
-                      <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Lab Entry
+                      <img src="/picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Lab Entry
                     </button>
                   </div>
                   <div className="lab-history-table-container">
@@ -5246,7 +5246,7 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
               {showPatientConfirmationModal && (
                   <div className="modal-backdrop">
                     <div className="modal-content confirmation-modal">
-                      <img src="../picture/confirm.png" alt="Confirmation Image" className="confirmation-icon" />
+                      <img src="/picture/confirm.png" alt="Confirmation Image" className="confirmation-icon" />
                       <div className="modal-text-content">
                         <h2 className="modal-title"> Finalize Patient Profile?</h2>
                         <p className="modal-subtext">

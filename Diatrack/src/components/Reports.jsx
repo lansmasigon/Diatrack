@@ -159,7 +159,7 @@ export const SecretaryReportsOverview = ({
           title="Total Patients"
           count={totalPatientsCount}
           subtitle="Patients registered in the system"
-          icon="../picture/total.png"
+          icon="/picture/total.png"
           fallbackIcon="https://placehold.co/40x40/1FAAED/ffffff?text=👥"
           color="#1FAAED"
           historyData={patientCountHistory}
@@ -171,7 +171,7 @@ export const SecretaryReportsOverview = ({
           title="Full Compliance"
           count={fullComplianceCount}
           subtitle="Patients with complete metrics (Blood Glucose, Blood Pressure, Wound Photos)"
-          icon="../picture/full.svg"
+          icon="/picture/full.svg"
           fallbackIcon="https://placehold.co/40x40/28a745/ffffff?text=✓"
           color="#28a745"
           historyData={fullComplianceHistory}
@@ -182,7 +182,7 @@ export const SecretaryReportsOverview = ({
           title="Missing Logs"
           count={missingLogsCount}
           subtitle="Patients with at least 1 missing metric (Blood Glucose, Blood Pressure, Wound Photos)"
-          icon="../picture/missinglogs.svg"
+          icon="/picture/missinglogs.svg"
           fallbackIcon="https://placehold.co/40x40/ffc107/ffffff?text=⚠"
           color="#ffc107"
           historyData={missingLogsHistory}
@@ -193,7 +193,7 @@ export const SecretaryReportsOverview = ({
           title="Non-Compliant Cases"
           count={nonCompliantCount}
           subtitle="High-risk patients with 3 missing metrics (Blood Glucose, Blood Pressure, Wound Photos)"
-          icon="../picture/noncompliant.svg"
+          icon="/picture/noncompliant.svg"
           fallbackIcon="https://placehold.co/40x40/dc3545/ffffff?text=✗"
           color="#dc3545"
           historyData={nonCompliantHistory}
@@ -347,7 +347,7 @@ export const DoctorReportsOverview = ({
           title="Total Patients"
           count={totalCount}
           subtitle="Patients registered in the system"
-          icon="../picture/total.png"
+          icon="/picture/total.png"
           fallbackIcon="https://placehold.co/40x40/1FAAED/ffffff?text=👥"
           color="#1FAAED"
           historyData={appointmentChartData}
@@ -359,7 +359,7 @@ export const DoctorReportsOverview = ({
           title="Full Compliance"
           count={fullComplianceCount}
           subtitle="Patients with complete metrics (Blood Glucose, Blood Pressure, Wound Photos)"
-          icon="../picture/full.svg"
+          icon="/picture/full.svg"
           fallbackIcon="https://placehold.co/40x40/28a745/ffffff?text=✓"
           color="#28a745"
           historyData={fullComplianceChartData}
@@ -370,7 +370,7 @@ export const DoctorReportsOverview = ({
           title="Missing Logs"
           count={missingLogsCount}
           subtitle="Patients missing at least one metric (Blood Glucose, Blood Pressure, or Wound Photos)"
-          icon="../picture/missinglogs.svg"
+          icon="/picture/missinglogs.svg"
           fallbackIcon="https://placehold.co/40x40/ffc107/ffffff?text=⚠"
           color="#ffc107"
           historyData={missingLogsChartData}
@@ -381,7 +381,7 @@ export const DoctorReportsOverview = ({
           title="Non-Compliant"
           count={nonCompliantCount}
           subtitle="High risk patients with all 3 missing metrics (Blood Glucose, Blood Pressure, Wound Photos)"
-          icon="../picture/noncompliant.svg"
+          icon="/picture/noncompliant.svg"
           fallbackIcon="https://placehold.co/40x40/dc3545/ffffff?text=✗"
           color="#dc3545"
           historyData={nonCompliantChartData}
@@ -566,7 +566,7 @@ export const SecretaryReportDetailView = ({
     <div className="report-detail-section">
       <div className="detail-view-header">
         <button className="back-to-list-button" onClick={onBackClick}>
-          <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Reports
+          <img src="/picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Reports
         </button>
         <h2>{titleMap[reportDetailView] || "Report Detail"}</h2>
       </div>
@@ -610,10 +610,10 @@ export const SecretaryReportDetailView = ({
                 <td className="patient-name-cell">
                   <div className="patient-name-container">
                     <img
-                      src={pat.patient_picture || "../picture/secretary.png"}
+                      src={pat.patient_picture || "/picture/secretary.png"}
                       alt="Patient Avatar"
                       className="patient-avatar-table"
-                      onError={(e) => (e.target.src = "../picture/secretary.png")}
+                      onError={(e) => (e.target.src = "/picture/secretary.png")}
                     />
                     <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
                   </div>
@@ -851,7 +851,7 @@ export const DoctorReportTableView = ({
             onChange={(e) => onSearchChange(e.target.value)}
             className="patient-search-input"
           />
-          <img src="../picture/search.svg" alt="Search" className="search-icon" />
+          <img src="/picture/search.svg" alt="Search" className="search-icon" />
         </div>
 
         <RiskFilter
@@ -890,10 +890,10 @@ export const DoctorReportTableView = ({
                 <td className="patient-name-cell">
                   <div className="patient-name-container">
                     <img
-                      src={patient.patient_picture || "../picture/secretary.png"}
+                      src={patient.patient_picture || "/picture/secretary.png"}
                       alt="Patient Avatar"
                       className="patient-avatar-table"
-                      onError={(e) => (e.target.src = "../picture/secretary.png")}
+                      onError={(e) => (e.target.src = "/picture/secretary.png")}
                     />
                     <span className="patient-name-text">{patient.first_name} {patient.last_name}</span>
                   </div>

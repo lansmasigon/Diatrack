@@ -399,7 +399,7 @@ const PatientDetailView = ({
       {/* Header */}
       <div className="detail-view-header">
         <button className="back-to-list-button" onClick={onClose}>
-          <img src="../picture/back.png" alt="Back" className="icon-button-img" /> 
+          <img src="/picture/back.png" alt="Back" className="icon-button-img" /> 
           {userRole === "Doctor" ? "Back to Dashboard" : "Back to List"}
         </button>
         <div className="patient-details-header-row">
@@ -409,10 +409,10 @@ const PatientDetailView = ({
           {userRole === "Secretary" && (
             <div className="patient-details-header-buttons">
               <button className="update-patient-button" onClick={() => onUpdatePatient && onUpdatePatient(patient)}>
-                <img src="../picture/edit.png" alt="Update" className="icon-button-img" /> Update Patient
+                <img src="/picture/edit.png" alt="Update" className="icon-button-img" /> Update Patient
               </button>
               <button className="export-pdf-button" onClick={() => window.print()}>
-                <img src="../picture/upload.png" alt="Export" className="icon-button-img" /> Export PDF
+                <img src="/picture/upload.png" alt="Export" className="icon-button-img" /> Export PDF
               </button>
             </div>
           )}
@@ -443,10 +443,10 @@ const PatientDetailView = ({
                 <div className="patient-info-container">
                   <div className="patient-avatar-container">
                     <img 
-                      src={patient?.patient_picture || "../picture/secretary.png"} 
+                      src={patient?.patient_picture || "/picture/secretary.png"} 
                       alt="Patient Avatar" 
                       className="patient-avatar-large"
-                      onError={(e) => e.target.src = "../picture/secretary.png"}
+                      onError={(e) => e.target.src = "/picture/secretary.png"}
                     />
                     <div className={`patient-phase-badge ${
                       patient.phase === 'Post-Op' || patient.phase === 'Post-Operative' ? 'post-operative' :
@@ -888,10 +888,10 @@ const PatientDetailView = ({
                         <td><input type="text" className="med-input" value={med.doctors ? `${med.doctors.first_name} ${med.doctors.last_name}` : ''} readOnly /></td>
                         <td className="med-actions">
                           <button type="button" className="add-med-button" title="Add medication">
-                            <img src="../picture/add.svg" alt="Add" className="icon-button-img" />
+                            <img src="/picture/add.svg" alt="Add" className="icon-button-img" />
                           </button>
                           <button type="button" className="remove-med-button" title="Remove medication">
-                            <img src="../picture/minus.svg" alt="Remove" className="icon-button-img" />
+                            <img src="/picture/minus.svg" alt="Remove" className="icon-button-img" />
                           </button>
                         </td>
                       </tr>
@@ -904,7 +904,7 @@ const PatientDetailView = ({
                       <td><input type="text" className="med-input" placeholder="N/A" readOnly /></td>
                       <td className="med-actions">
                         <button type="button" className="add-med-button" title="Add medication">
-                          <img src="../picture/add.svg" alt="Add" className="icon-button-img" />
+                          <img src="/picture/add.svg" alt="Add" className="icon-button-img" />
                         </button>
                       </td>
                     </tr>
@@ -923,7 +923,7 @@ const PatientDetailView = ({
               {/* Assigned Doctor Card */}
               <div className="doctor-card">
                 <div className="doctor-avatar">
-                  <img src="../picture/secretary.png" alt="Doctor Avatar" />
+                  <img src="/picture/secretary.png" alt="Doctor Avatar" />
                 </div>
                 <div className="doctor-info">
                   <span className="doctor-label">Assigned Doctor:</span>
@@ -943,7 +943,7 @@ const PatientDetailView = ({
                 currentPatientSpecialists.map((specialist, index) => (
                   <div key={specialist.id || index} className="doctor-card specialist-card">
                     <div className="doctor-avatar">
-                      <img src="../picture/secretary.png" alt="Specialist Avatar" />
+                      <img src="/picture/secretary.png" alt="Specialist Avatar" />
                     </div>
                     <div className="doctor-info">
                       <span className="doctor-label">Specialist Doctor</span>
@@ -961,7 +961,7 @@ const PatientDetailView = ({
               ) : (
                 <div className="doctor-card specialist-card placeholder-card">
                   <div className="doctor-avatar">
-                    <img src="../picture/secretary.png" alt="No Specialist" />
+                    <img src="/picture/secretary.png" alt="No Specialist" />
                   </div>
                   <div className="doctor-info">
                     <span className="doctor-label">Specialist Doctor</span>
@@ -1171,7 +1171,7 @@ const PatientDetailView = ({
                         onError={(e) => { e.target.style.display = 'none'; }}
                       />
                       <button className="photo-expand-btn" onClick={() => handleExpandPhoto(photo)}>
-                        <img src="../picture/expand.svg" alt="Expand" className="icon-button-img" />
+                        <img src="/picture/expand.svg" alt="Expand" className="icon-button-img" />
                       </button>
                     </div>
                     
@@ -1182,7 +1182,7 @@ const PatientDetailView = ({
                       </div>
                       
                       <div className="photo-submitter">
-                        <img src="../picture/secretary.png" alt="Submitter Avatar" className="submitter-avatar" />
+                        <img src="/picture/secretary.png" alt="Submitter Avatar" className="submitter-avatar" />
                         <span className="submitter-info">
                           <span className="submitter-text">by</span> {patient.first_name} {patient.last_name}
                         </span>

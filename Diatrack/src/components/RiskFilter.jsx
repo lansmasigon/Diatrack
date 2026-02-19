@@ -117,12 +117,12 @@ const RiskFilter = ({
           aria-haspopup="true"
           aria-expanded={isDropdownOpen}
         >
-          <img src="../picture/filter.png" alt="Filter" className="filter-icon-img" />
+          <img src="/picture/filter.png" alt="Filter" className="filter-icon-img" />
           Filter: {getSelectedLabel()}
           {(selectedRisk !== 'all' || selectedLabStatus !== 'all' || selectedProfileStatus !== 'all') && showCounts && (
             <span className="selected-count">({getActiveCount()})</span>
           )}
-          <img src="../picture/down.png" alt="Dropdown" className={`dropdown-arrow-img ${isDropdownOpen ? 'open' : ''}`} />
+          <img src="/picture/down.png" alt="Dropdown" className={`dropdown-arrow-img ${isDropdownOpen ? 'open' : ''}`} />
         </button>
 
         {isDropdownOpen && (

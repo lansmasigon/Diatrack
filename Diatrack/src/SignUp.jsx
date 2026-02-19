@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import supabase from "./supabaseClient";
 import "./signup.css";
-import logo from "../picture/logo.png";
+import logo from "/picture/logo.png";
 
 const SignUpPage = ({ onSignUp, goToLogin }) => {
   const [firstName, setFirstName] = useState("");

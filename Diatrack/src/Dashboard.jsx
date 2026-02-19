@@ -10,7 +10,7 @@ import Pagination from "./components/Pagination";
 import AppointmentManagementSection from "./components/AppointmentManagementSection";
 import PatientDetailView from "./components/PatientDetailView";
 import "./Dashboard.css";
-import logo from '../picture/logo.png'; // Make sure this path is correct
+import logo from '/picture/logo.png'; // Make sure this path is correct
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 
@@ -409,7 +409,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
       <div className="summary-widget-grid">
         <div className="summary-widget total-patients">
           <div className="summary-widget-header">
-            <img src="../picture/total.png" alt="Total Patients" className="summary-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=🩺"; }}/>
+            <img src="/picture/total.png" alt="Total Patients" className="summary-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/1FAAED/ffffff?text=🩺"; }}/>
             <h4>Total Patients</h4>
           </div>
           <div className="summary-widget-content">
@@ -437,7 +437,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
         </div>
         <div className="summary-widget pending-lab-results">
           <div className="summary-widget-header">
-            <img src="../picture/pending.png" alt="Pending Lab Results" className="summary-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ff9800/ffffff?text=🟡"; }}/>
+            <img src="/picture/pending.png" alt="Pending Lab Results" className="summary-widget-image" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/ff9800/ffffff?text=🟡"; }}/>
             <h4>Pending Lab Results</h4>
           </div>
           <div className="summary-widget-content">
@@ -468,7 +468,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
       <div className="widget-side-by-side-container">
         <div className="patient-categories-widget small-widget">
           <h3>
-            <img src="../picture/patients.svg" alt="Patients" className="widget-icon" /> Patient Categories
+            <img src="/picture/patients.svg" alt="Patients" className="widget-icon" /> Patient Categories
           </h3>
           <div className="progress-bars-container">
             <div className="progress-bar-row">
@@ -498,7 +498,7 @@ const PatientSummaryWidget = ({ totalPatients, pendingLabResults, preOp, postOp,
 
         <div className="risk-classes-widget small-widget">
           <h3>
-            <img src="../picture/preop.svg" alt="Pre-Op Risk" className="widget-icon" /> Pre-Op Risk Classes
+            <img src="/picture/preop.svg" alt="Pre-Op Risk" className="widget-icon" /> Pre-Op Risk Classes
           </h3>
           <div className="progress-bars-container">
             <div className="progress-bar-row">
@@ -2517,7 +2517,7 @@ const Dashboard = ({ user, onLogout }) => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="patient-search-input"
             />
-            <img src="../picture/search.svg" alt="Search" className="search-icon" />
+            <img src="/picture/search.svg" alt="Search" className="search-icon" />
           </div>
         </div>
         
@@ -2542,10 +2542,10 @@ const Dashboard = ({ user, onLogout }) => {
                       <td className="diasight-patient-name-cell">
                         <div className="diasight-patient-name-container">
                           <img 
-                            src={patient.patient_picture || "../picture/secretary.png"} 
+                            src={patient.patient_picture || "/picture/secretary.png"} 
                             alt="Patient Avatar" 
                             className="patient-avatar-table"
-                            onError={(e) => e.target.src = "../picture/secretary.png"}
+                            onError={(e) => e.target.src = "/picture/secretary.png"}
                           />
                           <span className="patient-name-text">{patient.first_name} {patient.last_name}</span>
                         </div>
@@ -2635,7 +2635,7 @@ const Dashboard = ({ user, onLogout }) => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="patient-search-input"
             />
-            <img src="../picture/search.svg" alt="Search" className="search-icon" />
+            <img src="/picture/search.svg" alt="Search" className="search-icon" />
           </div>
           
           {/* Risk Classification Filter */}
@@ -2674,10 +2674,10 @@ const Dashboard = ({ user, onLogout }) => {
                   <td className="patient-name-cell">
                     <div className="patient-name-container">
                       <img 
-                        src={patient.patient_picture || "../picture/secretary.png"} 
+                        src={patient.patient_picture || "/picture/secretary.png"} 
                         alt="Patient Avatar" 
                         className="patient-avatar-table"
-                        onError={(e) => e.target.src = "../picture/secretary.png"}
+                        onError={(e) => e.target.src = "/picture/secretary.png"}
                       />
                       <span className="patient-name-text">{patient.first_name} {patient.last_name}</span>
                     </div>
@@ -2859,13 +2859,13 @@ const handleDoneAppointmentClick = async (appointment) => {
             <div className="quick-links-grid">
               <div className="quick-link-item" onClick={() => setActivePage("diasight")}>
                 <div className="quick-link-icon patient-list">
-                  <img src="../picture/diasight.svg" alt="DiaSight" className="quick-link-image" style={{ width: '70px', height: '70px' }} />
+                  <img src="/picture/diasight.svg" alt="DiaSight" className="quick-link-image" style={{ width: '70px', height: '70px' }} />
                 </div>
                 <span>DiaSight</span>
               </div>
               <div className="quick-link-item" onClick={() => setActivePage("appointments")}>
                 <div className="quick-link-icon set-appointment">
-                  <img src="../picture/appointment.png" alt="Appointment" className="quick-link-image" />
+                  <img src="/picture/appointment.png" alt="Appointment" className="quick-link-image" />
                 </div>
                 <span>Appointments</span>
               </div>
@@ -3939,7 +3939,7 @@ const renderReportsContent = () => {
       <div key={selectedPatient.patient_id} className="patient-detail-view-section">
         <div className="detail-view-header">
           <button className="back-to-list-button" onClick={() => setActivePage("dashboard")}>
-            <img src="../picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Dashboard
+            <img src="/picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Dashboard
           </button>
           <div className="patient-details-header-row">
             <h2>Patient Details</h2>
@@ -4005,10 +4005,10 @@ const renderReportsContent = () => {
               <div className="patient-info-container">
                 <div className="patient-avatar-container">
                   <img 
-                    src={selectedPatient?.patient_picture || "../picture/secretary.png"} 
+                    src={selectedPatient?.patient_picture || "/picture/secretary.png"} 
                     alt="Patient Avatar" 
                     className="patient-avatar-large"
-                    onError={(e) => e.target.src = "../picture/secretary.png"}
+                    onError={(e) => e.target.src = "/picture/secretary.png"}
                   />
                   <div className={`patient-phase-badge ${
                     selectedPatient.phase === 'Post-Op' || selectedPatient.phase === 'Post-Operative' ? 'post-operative' :
@@ -4870,7 +4870,7 @@ const renderReportsContent = () => {
                               onClick={() => handleEditClick(med)}
                               title="Edit medication"
                             >
-                              <img src="../picture/edit.png" alt="Edit" className="button-icon" />
+                              <img src="/picture/edit.png" alt="Edit" className="button-icon" />
                             </button>
                             <button
                               type="button"
@@ -4878,7 +4878,7 @@ const renderReportsContent = () => {
                               onClick={() => handleRemoveMedication(med.id)}
                               title="Remove medication"
                             >
-                              <img src="../picture/minus.svg" alt="Remove" className="button-icon" />
+                              <img src="/picture/minus.svg" alt="Remove" className="button-icon" />
                             </button>
                           </td>
                         </>
@@ -4970,7 +4970,7 @@ const renderReportsContent = () => {
             <div className="doctor-card">
               <div className="doctor-avatar">
                 <img 
-                  src="../picture/secretary.png" 
+                  src="/picture/secretary.png" 
                   alt="Doctor Avatar"
                 />
               </div>
@@ -5001,7 +5001,7 @@ const renderReportsContent = () => {
                 <div key={specialist.id || index} className="doctor-card specialist-card">
                   <div className="doctor-avatar">
                     <img 
-                      src="../picture/secretary.png" 
+                      src="/picture/secretary.png" 
                       alt="Specialist Avatar"
                     />
                   </div>
@@ -5022,7 +5022,7 @@ const renderReportsContent = () => {
               <div className="doctor-card specialist-card placeholder-card">
                 <div className="doctor-avatar">
                   <img 
-                    src="../picture/secretary.png" 
+                    src="/picture/secretary.png" 
                     alt="No Specialist"
                   />
                 </div>
@@ -5487,7 +5487,7 @@ const renderReportsContent = () => {
                       className="photo-expand-btn"
                       onClick={() => handleExpandPhoto(photo)}
                     >
-                      <img src="../picture/expand.svg" alt="Expand" className="button-icon" />
+                      <img src="/picture/expand.svg" alt="Expand" className="button-icon" />
                     </button>
                   </div>
                   
@@ -5503,7 +5503,7 @@ const renderReportsContent = () => {
                     
                     <div className="photo-submitter">
                       <img 
-                        src="../picture/secretary.png" 
+                        src="/picture/secretary.png" 
                         alt="Submitter Avatar" 
                         className="submitter-avatar"
                       />
@@ -5737,10 +5737,10 @@ const renderReportsContent = () => {
       <div className="diasight-modal-body">
         <div className="patient-info-banner">
           <img 
-            src={diaSightResults.patient.patient_picture || "../picture/secretary.png"} 
+            src={diaSightResults.patient.patient_picture || "/picture/secretary.png"} 
             alt="Patient" 
             className="patient-avatar-modal"
-            onError={(e) => e.target.src = "../picture/secretary.png"}
+            onError={(e) => e.target.src = "/picture/secretary.png"}
           />
           <div className="patient-modal-details">
             <h4>{diaSightResults.patient.first_name} {diaSightResults.patient.last_name}</h4>

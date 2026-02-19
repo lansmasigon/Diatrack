@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Header.css';
-import logo from '../../picture/logo.png';
+import logo from '/picture/logo.png';
 import supabase from '../supabaseClient';
 
 const Header = ({ 
@@ -352,7 +352,7 @@ const Header = ({
       <div className="top-navbar">
         <h1 className="app-title">
           <img src={logo} alt="DiaTrack Logo" className="app-logo" />
-          <img src="../picture/diatracktext.png" alt="diatracktext" className="diatracktext" />
+          <img src="/picture/diatracktext.png" alt="diatracktext" className="diatracktext" />
         </h1>
         {userRole !== 'Admin' && (
           <ul className="navbar-menu">
@@ -364,15 +364,15 @@ const Header = ({
         )}
         <div className="navbar-right">
           <button className="notification-icon" onClick={handleOpenNotifications}>
-            <img src="../picture/notif.svg" alt="Notifications" className="header-icon-img" />
+            <img src="/picture/notif.svg" alt="Notifications" className="header-icon-img" />
             {unreadCount > 0 && (
               <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
             )}
           </button>
           <div className="user-profile">
             <img 
-              src={userRole === 'Secretary' ? "../picture/secretary.png" : 
-                userRole === 'Admin' ? "../picture/secretary.png" :  "https://placehold.co/40x40/aabbcc/ffffff?text=User"} 
+              src={userRole === 'Secretary' ? "/picture/secretary.png" : 
+                userRole === 'Admin' ? "/picture/secretary.png" :  "https://placehold.co/40x40/aabbcc/ffffff?text=User"} 
                 alt="User Avatar" 
                 className="user-avatar" 
               onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/40x40/aabbcc/ffffff?text=User"; }}
@@ -384,7 +384,7 @@ const Header = ({
             <button className="signout-button4" onClick={() => {
               if (window.confirm("Are you sure you want to sign out?")) onLogout();
             }}>
-              <img src="../picture/signout.svg" alt="Sign Out" className="header-icon-img" />
+              <img src="/picture/signout.svg" alt="Sign Out" className="header-icon-img" />
             </button>
           </div>
         </div>
@@ -406,7 +406,7 @@ const Header = ({
                     </button>
                   )}
                   <button className="close-btn" onClick={() => setShowUsersPopup(false)}>
-                    <img src="../picture/close.png" alt="Close" className="close-icon" />
+                    <img src="/picture/close.png" alt="Close" className="close-icon" />
                   </button>
                 </div>
               </div>

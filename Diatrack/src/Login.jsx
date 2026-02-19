@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import "./Login.css";
 import landingpic from "/picture/landingpic.jpg";
-import logo from "../picture/logo.png"; 
+import logo from "/picture/logo.png"; 
 
 const LoginPage = ({ onLogin }) => {
   const [email, setEmail] = useState("");
