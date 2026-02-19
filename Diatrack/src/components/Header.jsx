@@ -323,6 +323,29 @@ const Header = ({
   };
 
   const activeTab = getActiveTab();
+  const formatNotificationTime = (dateValue) => {
+    try {
+      return new Date(dateValue).toLocaleString('en-US', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return '';
+    }
+  };
+
+  const getNotificationTag = (type) => {
+    const normalized = String(type || '').toLowerCase();
+    if (normalized.includes('appointment')) return { label: 'Appointment', className: 'tag-appointment' };
+    if (normalized.includes('patient')) return { label: 'Patient', className: 'tag-patient' };
+    if (normalized.includes('report')) return { label: 'Report', className: 'tag-report' };
+    if (normalized.includes('message')) return { label: 'Message', className: 'tag-message' };
+    if (normalized.includes('audit')) return { label: 'Audit', className: 'tag-audit' };
+    return { label: 'Notice', className: 'tag-notice' };
+  };
 
   return (
     <>
@@ -395,18 +418,20 @@ const Header = ({
                   </div>
                 ) : notifications.length > 0 ? (
                   notifications.map((notif) => (
-                    <div
-                      key={notif.notification_id}
-                      className={`notification-item ${!notif.is_read ? 'unread' : ''}`}
-                      onClick={() => handleNotificationClick(notif)}
-                    >
-                      <div className="notification-title">
+                    <div key={notif.notification_id} className={`notification-item ${!notif.is_read ? 'unread' : ''}`} onClick={() => handleNotificationClick(notif)}>
+                      <div className="notification-top-row">
+                        <span className={`notification-type-tag ${getNotificationTag(notif.type).className}`}>
+                          {getNotificationTag(notif.type).label}
+                        </span>
+                        <span className="notification-time">{formatNotificationTime(notif.created_at)}</span>
+                      </div>
+                      <div className="notification-title-row">
                         <strong>{notif.title}</strong>
                         {!notif.is_read && <span className="unread-badge">New</span>}
                       </div>
                       <div className="notification-message">{notif.message}</div>
-                      <div className="notification-time">
-                        {new Date(notif.created_at).toLocaleString()}
+                      <div className="notification-sender">
+                        {notif.user_role ? String(notif.user_role).charAt(0).toUpperCase() + String(notif.user_role).slice(1) : 'System'}
                       </div>
                     </div>
                   ))

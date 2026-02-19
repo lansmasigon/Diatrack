@@ -1391,20 +1391,7 @@ h2 {
   flex-direction: column;
 }
 
-.popup-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 24px 16px;
-  border-bottom: 2px solid #e5e7eb;
-}
 
-.popup-header h3 {
-  margin: 0;
-  font-size: 22px;
-  color: #1f2937;
-  font-weight: 700;
-}
 
 .close-btn {
   background: none;

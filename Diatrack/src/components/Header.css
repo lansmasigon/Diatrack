@@ -314,7 +314,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 28px 32px 20px;
+  padding: 10px 10px 10px;
   border-bottom: 2px solid #e5e7eb;
   background: linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%);
 }
@@ -507,4 +507,240 @@
 
 .notifications-list::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* Notification Layout Override (reference-style list) */
+.notifications-list {
+  padding: 0 24px 16px;
+  background-color: #ffffff;
+}
+
+.notification-item {
+  padding: 14px 8px 12px;
+  margin-bottom: 0;
+  border: none;
+  border-bottom: 1px solid #e9ecef;
+  border-radius: 0;
+  box-shadow: none;
+  transition: background-color 0.2s ease;
+}
+
+.notification-item:hover {
+  transform: none;
+  background-color: #f8fafc;
+  box-shadow: none;
+}
+
+.notification-item.unread {
+  background-color: #fcfdff;
+  border-left: none;
+}
+
+.notification-item.unread:hover {
+  background-color: #f5f9ff;
+}
+
+.notification-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 10px;
+}
+
+.notification-type-tag {
+  display: inline-block;
+  color: #fff;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 4px 8px;
+}
+
+.notification-type-tag.tag-appointment { background: #22c55e; }
+.notification-type-tag.tag-patient { background: #06b6d4; }
+.notification-type-tag.tag-report { background: #7c3aed; }
+.notification-type-tag.tag-message { background: #f59e0b; }
+.notification-type-tag.tag-audit { background: #ef4444; }
+.notification-type-tag.tag-notice { background: #6b7280; }
+
+.notification-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.notification-title-row strong {
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.unread-badge {
+  background: #2563eb;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  box-shadow: none;
+}
+
+.notification-message {
+  color: #6b7280;
+  font-size: 16px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  padding-right: 8px;
+}
+
+.notification-time {
+  color: #b1b7c1;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.notification-time::before {
+  content: "?";
+  font-size: 10px;
+}
+
+.notification-sender {
+  color: #e11d48;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .notifications-list {
+    padding: 0 14px 12px;
+  }
+
+  .notification-title-row strong {
+    font-size: 17px;
+  }
+
+  .notification-message {
+    font-size: 14px;
+  }
+}
+
+/* Notification compact alignment refactor */
+.notifications-popup {
+  max-width: 980px !important;
+  width: 86% !important;
+}
+
+.popup-header {
+  padding: 10px 10px 10px;
+}
+
+.popup-header h3 {
+  font-size: 18px;
+}
+
+.notifications-list {
+  padding: 0 16px 12px;
+}
+
+.notification-item {
+  padding: 10px 6px 9px;
+  min-height: unset;
+  text-align: left;
+}
+
+.notification-top-row,
+.notification-title-row,
+.notification-message,
+.notification-sender,
+.notification-time {
+  text-align: left;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.notification-top-row {
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.notification-type-tag {
+  font-size: 10px;
+  padding: 3px 7px;
+}
+
+.notification-title-row {
+  margin-bottom: 4px;
+}
+
+.notification-title-row strong {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.unread-badge {
+  font-size: 9px;
+  padding: 2px 7px;
+}
+
+.notification-message {
+  font-size: 13px;
+  margin-bottom: 5px;
+  line-height: 1.4;
+  padding-right: 0;
+}
+
+.notification-sender {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.notification-time {
+  font-size: 11px;
+  justify-content: flex-end;
+}
+
+.popup-content.notifications-popup {
+  text-align: left;
+}
+
+/* Notification fine-tune: smaller header buttons + unread left edge fix */
+.popup-header-actions {
+  gap: 8px;
+}
+
+.read-all-btn {
+  padding: 5px 10px;
+  font-size: 11px;
+  border-radius: 6px;
+  min-height: 32px;
+  line-height: 1;
+}
+
+.close-btn {
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  border-radius: 8px;
+}
+
+.close-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.notifications-list {
+  padding: 0 14px 12px 18px;
+}
+
+.notification-item {
+  box-sizing: border-box;
+}
+
+.notification-item.unread {
+  border-left: 3px solid #3b82f6;
+  padding-left: 10px;
+  background-clip: padding-box;
 }

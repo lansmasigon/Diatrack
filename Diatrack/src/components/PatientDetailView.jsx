@@ -13,6 +13,27 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarEle
 // Constants
 const HEALTH_METRICS_PER_PAGE = 10;
 const PATIENT_DETAIL_APPOINTMENTS_PER_PAGE = 5;
+const DIASIGHT_PER_PAGE = 5;
+
+const parseDrResults = (labs = []) => {
+  const parsed = [];
+  labs.forEach((lab) => {
+    const raw = Array.isArray(lab?.dr_class) ? lab.dr_class : [];
+    raw.forEach((entry) => {
+      if (typeof entry === "string") {
+        try {
+          const obj = JSON.parse(entry);
+          if (obj?.prediction && obj?.timestamp) parsed.push(obj);
+        } catch (error) {
+          // Ignore malformed entries
+        }
+      } else if (entry?.prediction && entry?.timestamp) {
+        parsed.push(entry);
+      }
+    });
+  });
+  return parsed.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+};
 
 // Helper function to convert 24-hour time to 12-hour format with AM/PM
 const formatTimeTo12Hour = (time24h) => {
@@ -90,15 +111,23 @@ const PatientDetailView = ({
   onUpdatePatient, // Function to update patient demographics (Secretary only)
   onEditSpecialist, // Function to edit specialist assignments
   user, // Current logged-in user
+  onWoundPhotoAction, // Optional role-specific action for wound photos
+  woundPhotoActionLabel = "View Details",
+  onRunDiaSight, // Optional Doctor callback to run DiaSight analysis
 }) => {
   // State for active tab
   const [activeTab, setActiveTab] = useState("profile");
   
   // State for patient data
-  const [patientHealthMetrics, setPatientHealthMetrics] = useState({ bloodGlucoseLevel: 'N/A', bloodPressure: 'N/A' });
+  const [patientHealthMetrics, setPatientHealthMetrics] = useState({
+    bloodGlucoseLevel: 'N/A',
+    bloodPressure: 'N/A',
+    riskClassification: 'N/A',
+  });
   const [allPatientHealthMetrics, setAllPatientHealthMetrics] = useState([]);
   const [patientLabResults, setPatientLabResults] = useState({});
   const [lastLabDate, setLastLabDate] = useState(null);
+  const [patientLabs, setPatientLabs] = useState([]);
   const [patientMedications, setPatientMedications] = useState([]);
   const [patientAppointments, setPatientAppointments] = useState([]);
   const [currentPatientSpecialists, setCurrentPatientSpecialists] = useState([]);
@@ -114,6 +143,7 @@ const PatientDetailView = ({
   // State for pagination
   const [currentPageHealthMetrics, setCurrentPageHealthMetrics] = useState(1);
   const [currentPagePatientDetailAppointments, setCurrentPagePatientDetailAppointments] = useState(1);
+  const [currentPageDiaSight, setCurrentPageDiaSight] = useState(1);
   
   // State for calendar
   const [calendarDate, setCalendarDate] = useState(new Date());
@@ -140,6 +170,7 @@ const PatientDetailView = ({
   // Fetch patient data on mount
   useEffect(() => {
     if (patient?.patient_id) {
+      setCurrentPageDiaSight(1);
       fetchPatientData();
     }
   }, [patient?.patient_id]);
@@ -179,24 +210,39 @@ const PatientDetailView = ({
           bloodGlucoseLevel: latest.blood_glucose || 'N/A',
           bloodPressure: latest.bp_systolic && latest.bp_diastolic 
             ? `${latest.bp_systolic}/${latest.bp_diastolic}` 
-            : 'N/A'
+            : 'N/A',
+          riskClassification: latest.risk_classification || patient?.risk_classification || 'N/A',
+        });
+      } else {
+        setAllPatientHealthMetrics([]);
+        setPatientHealthMetrics({
+          bloodGlucoseLevel: 'N/A',
+          bloodPressure: 'N/A',
+          riskClassification: patient?.risk_classification || 'N/A',
         });
       }
     } catch (error) {
       console.error("Error fetching health metrics:", error);
+      setAllPatientHealthMetrics([]);
+      setPatientHealthMetrics({
+        bloodGlucoseLevel: 'N/A',
+        bloodPressure: 'N/A',
+        riskClassification: patient?.risk_classification || 'N/A',
+      });
     }
   };
 
   const fetchLabResults = async () => {
     try {
       const { data, error } = await supabase
-        .from('laboratory_results')
+        .from('patient_labs')
         .select('*')
         .eq('patient_id', patient.patient_id)
         .order('date_submitted', { ascending: false })
-        .limit(1);
+        .limit(50);
 
       if (error) throw error;
+      setPatientLabs(data || []);
 
       if (data && data.length > 0) {
         const lab = data[0];
@@ -215,9 +261,15 @@ const PatientDetailView = ({
           EGFR: lab.egfr
         });
         setLastLabDate(lab.date_submitted);
+      } else {
+        setPatientLabResults({});
+        setLastLabDate(null);
       }
     } catch (error) {
       console.error("Error fetching lab results:", error);
+      setPatientLabs([]);
+      setPatientLabResults({});
+      setLastLabDate(null);
     }
   };
 
@@ -227,16 +279,17 @@ const PatientDetailView = ({
         .from('medications')
         .select(`
           *,
-          doctors (first_name, last_name),
-          medication_frequencies (*)
+          doctors:prescribed_by (first_name, last_name),
+          medication_frequencies (time_of_day, start_date)
         `)
-        .eq('patient_id', patient.patient_id)
-        .order('created_at', { ascending: false });
+        .eq('user_id', patient.patient_id)
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
       setPatientMedications(data || []);
     } catch (error) {
       console.error("Error fetching medications:", error);
+      setPatientMedications([]);
     }
   };
 
@@ -277,24 +330,37 @@ const PatientDetailView = ({
     try {
       const { data, error } = await supabase
         .from('health_metrics')
-        .select('wound_picture, submission_date')
+        .select('wound_photo_url, updated_at, notes')
         .eq('patient_id', patient.patient_id)
-        .not('wound_picture', 'is', null)
-        .order('submission_date', { ascending: false });
+        .not('wound_photo_url', 'is', null)
+        .order('updated_at', { ascending: false });
 
       if (error) throw error;
 
       if (data) {
         const photos = data
-          .filter(item => item.wound_picture)
+          .filter(item => item.wound_photo_url)
           .map(item => ({
-            url: item.wound_picture,
-            date: item.submission_date
+            url: (() => {
+              let photoUrl = (item.wound_photo_url || '').trim();
+              if (photoUrl && !photoUrl.startsWith('http')) {
+                const { data: publicUrlData } = supabase.storage
+                  .from('wound-photos')
+                  .getPublicUrl(photoUrl);
+                photoUrl = publicUrlData?.publicUrl || photoUrl;
+              }
+              return photoUrl;
+            })(),
+            date: item.updated_at || item.submission_date,
+            notes: item.notes || "",
           }));
         setAllWoundPhotos(photos);
+      } else {
+        setAllWoundPhotos([]);
       }
     } catch (error) {
       console.error("Error fetching wound photos:", error);
+      setAllWoundPhotos([]);
     } finally {
       setWoundPhotosLoading(false);
     }
@@ -458,8 +524,8 @@ const PatientDetailView = ({
                 <p><strong>Blood Glucose Level:</strong> {patientHealthMetrics.bloodGlucoseLevel} {patientHealthMetrics.bloodGlucoseLevel !== 'N/A' ? 'mg/dL' : ''}</p>
                 <p><strong>Blood Pressure:</strong> {patientHealthMetrics.bloodPressure} {patientHealthMetrics.bloodPressure !== 'N/A' ? 'mmHg' : ''}</p>
                 <p><strong>Risk Classification:</strong> 
-                  <span className={`risk-classification-${(patient.risk_classification || 'n-a').toLowerCase()}`}>
-                    {patient.risk_classification || 'N/A'}
+                  <span className={`risk-classification-${(patientHealthMetrics.riskClassification || patient.risk_classification || 'n-a').toLowerCase()}`}>
+                    {patientHealthMetrics.riskClassification || patient.risk_classification || 'N/A'}
                   </span>
                 </p>
               </div>
@@ -801,7 +867,24 @@ const PatientDetailView = ({
                       <tr key={med.id || idx}>
                         <td><input type="text" className="med-input" value={med.name || ''} readOnly /></td>
                         <td><input type="text" className="med-input" value={med.dosage || ''} readOnly /></td>
-                        <td><input type="text" className="med-input" value={med.medication_frequencies?.length > 0 ? med.medication_frequencies.map(f => f.frequency || f.time_of_day?.join(', ')).join(', ') : ''} readOnly /></td>
+                        <td>
+                          <input
+                            type="text"
+                            className="med-input"
+                            value={
+                              med.medication_frequencies?.length > 0
+                                ? med.medication_frequencies
+                                    .map((f) => {
+                                      if (Array.isArray(f.time_of_day)) return f.time_of_day.join(', ');
+                                      return f.time_of_day || '';
+                                    })
+                                    .filter(Boolean)
+                                    .join(', ')
+                                : ''
+                            }
+                            readOnly
+                          />
+                        </td>
                         <td><input type="text" className="med-input" value={med.doctors ? `${med.doctors.first_name} ${med.doctors.last_name}` : ''} readOnly /></td>
                         <td className="med-actions">
                           <button type="button" className="add-med-button" title="Add medication">
@@ -1107,8 +1190,17 @@ const PatientDetailView = ({
                       
                       <div className="photo-actions">
                         <button className="entry-btn">Entry ID: 00{allWoundPhotos.length - index}</button>
-                        <button className="view-details-btn" onClick={() => handleExpandPhoto(photo)}>
-                          View Details
+                        <button
+                          className="view-details-btn"
+                          onClick={() => {
+                            if (onWoundPhotoAction) {
+                              onWoundPhotoAction(photo);
+                              return;
+                            }
+                            handleExpandPhoto(photo);
+                          }}
+                        >
+                          {woundPhotoActionLabel}
                         </button>
                       </div>
                     </div>
@@ -1126,15 +1218,76 @@ const PatientDetailView = ({
         {/* DiaSight Tab - Doctor Only */}
         {activeTab === "diasight" && userRole === "Doctor" && (
           <div className="diasight-section" style={{gridColumn: '1 / -1'}}>
-            <h3>DiaSight - Diabetic Retinopathy Detection</h3>
+            <div className="diasight-header-row">
+              <h3>DiaSight - Diabetic Retinopathy Detection</h3>
+              {onRunDiaSight && (
+                <button className="run-diasight-button" onClick={() => onRunDiaSight(patient)}>
+                  Run New Analysis
+                </button>
+              )}
+            </div>
             <p className="diasight-description">
               This feature analyzes patient data to detect diabetic retinopathy risk.
-              Run a new analysis from the main dashboard or view previous results here.
+              Run a new analysis or view results in the patient workflow.
             </p>
-            <div className="no-diasight-results">
-              <div className="no-results-icon">🔬</div>
-              <p>No DiaSight analysis data available. Run analysis from the DiaSight section.</p>
-            </div>
+            {(() => {
+              const drResults = parseDrResults(patientLabs);
+              if (drResults.length === 0) {
+                return (
+                  <div className="no-diasight-results">
+                    <div className="no-results-icon">🔬</div>
+                    <p>No DiaSight analysis data available. Run analysis from this tab.</p>
+                  </div>
+                );
+              }
+
+              const latestResult = drResults[drResults.length - 1];
+              const reversedResults = [...drResults].reverse();
+              const totalDiaSightPages = Math.max(1, Math.ceil(reversedResults.length / DIASIGHT_PER_PAGE));
+              const startIndex = (currentPageDiaSight - 1) * DIASIGHT_PER_PAGE;
+              const paginatedResults = reversedResults.slice(startIndex, startIndex + DIASIGHT_PER_PAGE);
+              return (
+                <div className="diasight-history-section">
+                  <div className="diasight-latest-summary">
+                    <p><strong>Latest Prediction:</strong> {latestResult.prediction || 'N/A'}</p>
+                    <p><strong>Confidence:</strong> {latestResult.confidence != null ? `${(latestResult.confidence * 100).toFixed(1)}%` : 'N/A'}</p>
+                    <p><strong>Risk Score:</strong> {latestResult.risk_score != null ? Number(latestResult.risk_score).toFixed(1) : 'N/A'}</p>
+                  </div>
+                  <table className="diasight-history-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Prediction</th>
+                        <th>Confidence</th>
+                        <th>Risk Score</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedResults.map((result, index) => (
+                        <tr key={index}>
+                          <td>{result.timestamp ? new Date(result.timestamp).toLocaleString() : 'N/A'}</td>
+                          <td>{result.prediction || 'N/A'}</td>
+                          <td>{result.confidence != null ? `${(result.confidence * 100).toFixed(1)}%` : 'N/A'}</td>
+                          <td>{result.risk_score != null ? Number(result.risk_score).toFixed(1) : 'N/A'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {reversedResults.length > DIASIGHT_PER_PAGE && (
+                    <div className="health-metrics-pagination">
+                      <Pagination
+                        currentPage={currentPageDiaSight}
+                        totalPages={totalDiaSightPages}
+                        onPageChange={setCurrentPageDiaSight}
+                        itemsPerPage={DIASIGHT_PER_PAGE}
+                        totalItems={reversedResults.length}
+                        showPageInfo={false}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
@@ -1155,6 +1308,7 @@ const PatientDetailView = ({
               <h4>Wound Photo Details</h4>
               <p><strong>Date:</strong> {formatDateToReadable(expandedPhoto.date)}</p>
               <p><strong>Time:</strong> {new Date(expandedPhoto.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
+              {expandedPhoto.notes && <p><strong>Notes:</strong> {expandedPhoto.notes}</p>}
             </div>
           </div>
         </div>

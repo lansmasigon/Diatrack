@@ -7,6 +7,8 @@ import Header from "./components/Header";
 import RiskFilter from "./components/RiskFilter";
 import { DoctorReportsOverview, DoctorReportTableView } from "./components/Reports";
 import Pagination from "./components/Pagination";
+import AppointmentManagementSection from "./components/AppointmentManagementSection";
+import PatientDetailView from "./components/PatientDetailView";
 import "./Dashboard.css";
 import logo from '../picture/logo.png'; // Make sure this path is correct
 import Calendar from 'react-calendar';
@@ -2737,66 +2739,25 @@ const Dashboard = ({ user, onLogout }) => {
   };
 
   const renderAppointmentsSection = () => (
-    <div className="appointments-section">
-      <h2>{editingAppointmentId ? "Edit Appointment" : "Schedule New Appointment"}</h2>
-
-      <div className="form-columns">
-        <div className="form-group">
-          <label>Select Doctor:</label>
-          <select value={appointmentForm.doctorId} onChange={(e) => handleAppointmentChange("doctorId", e.target.value)}>
-            <option value="">Select Doctor</option>
-            {allDoctors.map(doctor => (
-              <option key={doctor.doctor_id} value={doctor.doctor_id}>
-                {doctor.first_name} {doctor.last_name} {doctor.specialization ? `(${doctor.specialization})` : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label>Select Patient:</label>
-          <select value={appointmentForm.patientId} onChange={(e) => handleAppointmentChange("patientId", e.target.value)}>
-            <option value="">Select Patient</option>
-            {patients.map(pat => (
-              <option key={pat.patient_id} value={pat.patient_id}>{pat.first_name} {pat.last_name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label>Date:</label>
-          <input type="date" value={appointmentForm.date} onChange={(e) => handleAppointmentChange("date", e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label>Time:</label>
-          <input type="time" value={appointmentForm.time} onChange={(e) => handleAppointmentChange("time", e.target.value)} />
-        </div>
-      </div>
-
-      <div className="form-group full-width">
-        <label>Notes:</label>
-        <textarea placeholder="Notes" value={appointmentForm.notes} onChange={(e) => handleAppointmentChange("notes", e.target.value)} />
-      </div>
-
-      <div className="button-group">
-        <button onClick={createAppointment}>{editingAppointmentId ? "Update Appointment" : "Schedule Appointment"}</button>
-        {editingAppointmentId && (
-          <button
-            className="cancel-button"
-            onClick={() => {
+    <AppointmentManagementSection
+      editingAppointmentId={editingAppointmentId}
+      appointmentForm={appointmentForm}
+      onAppointmentChange={handleAppointmentChange}
+      onSubmitAppointment={createAppointment}
+      onCancelEdit={() => {
               setEditingAppointmentId(null);
               setAppointmentForm({ doctorId: "", patientId: "", date: "", time: "", notes: "" });
               setActivePage("appointments");
             }}
-          >
-            Cancel Edit
-          </button>
-        )}
-      </div>
-
-      {message && <p className="form-message">{message}</p>}
-
-    </div>
+      message={message}
+      doctors={allDoctors.map((doctor) => ({
+        id: doctor.doctor_id,
+        label: `${doctor.first_name} ${doctor.last_name}${doctor.specialization ? ` (${doctor.specialization})` : ""}`,
+      }))}
+      patients={patients}
+      showDoctorUnavailabilityWarning={false}
+      unavailableDatesForSelectedDoctor={[]}
+    />
   );
 
 
@@ -5632,7 +5593,17 @@ const renderReportsContent = () => {
           </div>
         )}
         {activePage === "dashboard" && renderDashboardContent()}
-        {activePage === "patient-profile" && selectedPatient?.patient_id && renderPatientProfile()}
+        {activePage === "patient-profile" && selectedPatient?.patient_id && (
+          <PatientDetailView
+            patient={selectedPatient}
+            userRole="Doctor"
+            user={user}
+            onClose={() => setActivePage("dashboard")}
+            onWoundPhotoAction={handleCreateTreatmentPlanForPhoto}
+            woundPhotoActionLabel="Treatment Plan"
+            onRunDiaSight={handleRunDiaSight}
+          />
+        )}
         {activePage === "patient-list" && renderPatientList()}
         {activePage === "diasight" && renderDiaSight()}
         {activePage === "appointments" && renderAppointmentsSection()}
