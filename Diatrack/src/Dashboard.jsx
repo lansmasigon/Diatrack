@@ -2567,7 +2567,7 @@ const Dashboard = ({ user, onLogout }) => {
                           onClick={() => handleViewClick(patient)}
                           style={{ marginRight: '8px' }}
                         >
-                          🟢 View
+                          👁️ View
                         </button>
                         <button 
                           className="toggle-phase-button diasight-run-button"
@@ -2708,7 +2708,7 @@ const Dashboard = ({ user, onLogout }) => {
                     {getProfileStatus(patient)}
                   </td>
                   <td className="patient-actions-cell">
-                    <button className="view-button" onClick={() => handleViewClick(patient)}>🟢 View</button>
+                    <button className="view-button" onClick={() => handleViewClick(patient)}>👁️ View</button>
                     <button className="toggle-phase-button" onClick={() => handlePhaseToggle(patient)} style={{ marginLeft: '8px' }}>
                       {patient.phase === 'Pre-Operative' ? '🔄 Post-Op' : '🔄 Pre-Op'}
                     </button>
