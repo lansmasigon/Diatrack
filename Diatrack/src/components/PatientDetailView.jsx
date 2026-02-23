@@ -376,8 +376,8 @@ const PatientDetailView = ({
 
   // Tabs configuration - Doctor has Diasight tab, Secretary doesn't
   const tabs = userRole === "Doctor" 
-    ? ["profile", "charts", "medication", "teamcare", "woundgallery", "appointment", "tables", "diasight"]
-    : ["profile", "charts", "medication", "teamcare", "woundgallery", "appointment", "tables"];
+    ? ["profile", "charts", "medication", "teamcare", "woundgallery", "appointment", "history", "diasight"]
+    : ["profile", "charts", "medication", "teamcare", "woundgallery", "appointment", "history"];
 
   const tabLabels = {
     profile: "Patient Profile",
@@ -386,7 +386,7 @@ const PatientDetailView = ({
     teamcare: "Team Care",
     woundgallery: "Wound Gallery",
     appointment: "Appointment",
-    tables: "Tables",
+    history: "History",
     diasight: "DiaSight"
   };
 
@@ -532,8 +532,8 @@ const PatientDetailView = ({
             </>
           )}
 
-          {/* Charts Tab Content */}
-          {activeTab === "charts" && (
+          {/* History Tab Content */}
+          {activeTab === "history" && (
             <div className="history-charts-section">
               {/* Blood Pressure Chart */}
               <div className="blood-pressure-chart-container">
@@ -1096,8 +1096,8 @@ const PatientDetailView = ({
           </div>
         )}
 
-        {/* Tables Tab */}
-        {activeTab === "tables" && (
+        {/* Charts Tab */}
+        {activeTab === "charts" && (
           <div className="health-metrics-history-section" style={{gridColumn: '1 / -1'}}>
             <h3>Health Metrics History</h3>
             <table className="health-metrics-table">
