@@ -8,6 +8,7 @@ import { SecretaryReportsOverview, SecretaryReportDetailView } from "./component
 import AppointmentManagementSection from "./components/AppointmentManagementSection";
 import PatientDetailView from "./components/PatientDetailView";
 import CreatePatientSection from "./components/CreatePatientSection";
+import LabResultEntrySection from "./components/LabResultEntrySection";
 import "./SecretaryDashboard.css";
 import logo from "/picture/logo.png"; // Import the logo image
 import Calendar from 'react-calendar';
@@ -4489,378 +4490,39 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                 />
               )}
               {activePage === "lab-result-entry" && (
-                <>
-                  <div className="lab-result-entry-section">
-                    <h2>Enter Patient Lab Results</h2>
-                    <p>
-                      Input the patient's baseline laboratory values to support risk classification and care planning.
-                    </p>
-                    <p>
-                      Once submitted, values will be locked for data integrity.
-                    </p>
-
-                    <div className="lab-stepper">
-                      <div className={`step ${labEntryStep >= 1 ? "completed" : ""} ${labEntryStep === 1 ? "active" : ""}`}>
-                        <div className="step-number">
-                          <img 
-                            src={labEntryStep >= 1 ? "/picture/progress.svg" : "/picture/notprogress.svg"} 
-                            alt={labEntryStep >= 1 ? "Completed" : "Pending"} 
-                            style={{ width: '100%', height: '100%' }}
-                            onError={(e) => {
-                              console.log('Lab stepper image failed to load:', e.target.src);
-                              e.target.style.display = 'none';
-                            }}
-                          />
-                        </div>
-                        <div className="step-label">Search Patient</div>
-                      </div>
-                      <div className="divider"></div>
-                      <div className={`step ${labEntryStep >= 2 ? "completed" : ""} ${labEntryStep === 2 ? "active" : ""}`}>
-                        <div className="step-number">
-                          <img 
-                            src={labEntryStep >= 2 ? "/picture/progress.svg" : "/picture/notprogress.svg"} 
-                            alt={labEntryStep >= 2 ? "Completed" : "Pending"} 
-                            style={{ width: '100%', height: '100%' }}
-                            onError={(e) => {
-                              console.log('Lab stepper image failed to load:', e.target.src);
-                              e.target.style.display = 'none';
-                            }}
-                          />
-                        </div>
-                        <div className="step-label">Lab Input Form</div>
-                      </div>
-                      <div className="divider"></div>
-                      <div className={`step ${labEntryStep >= 3 ? "completed" : ""} ${labEntryStep === 3 ? "active" : ""}`}>
-                        <div className="step-number">
-                          <img 
-                            src={labEntryStep >= 3 ? "/picture/progress.svg" : "/picture/notprogress.svg"} 
-                            alt={labEntryStep >= 3 ? "Completed" : "Pending"} 
-                            style={{ width: '100%', height: '100%' }}
-                            onError={(e) => {
-                              console.log('Lab stepper image failed to load:', e.target.src);
-                              e.target.style.display = 'none';
-                            }}
-                          />
-                        </div>
-                        <div className="step-label">Lock-in Data</div>
-                      </div>
-                    </div>
-
-
-                    {/* Step 1: Patient Search */}
-                    {labEntryStep === 1 && (
-                    <div className="lab-step-content">
-                      <div className="lab-patient-search-header">
-                        <h3>Patient List</h3>
-                        <div className="search-and-filter-row">
-                          <div className="search-bar">
-                            <input
-                              type="text"
-                              placeholder="Search patients by name..."
-                              value={searchTerm}
-                              onChange={(e) => setSearchTerm(e.target.value)}
-                              className="patient-search-input"
-                            />
-                            <img src="/picture/search.svg" alt="Search" className="search-icon" />
-                          </div>
-                          
-                          {/* Risk Classification Filter for Lab Entry */}
-                          <RiskFilter
-                            selectedRisk={selectedLabRiskFilter}
-                            onRiskChange={handleLabRiskFilterChange}
-                            selectedLabStatus={selectedLabEntryLabStatusFilter}
-                            onLabStatusChange={handleLabEntryLabStatusFilterChange}
-                            selectedProfileStatus={selectedLabEntryProfileStatusFilter}
-                            onProfileStatusChange={handleLabEntryProfileStatusFilterChange}
-                            sortOrder={labEntrySortOrder}
-                            onSortOrderChange={handleLabEntrySortOrderChange}
-                            showCounts={true}
-                            counts={labSearchRiskCounts}
-                            labStatusCounts={labSearchLabStatusCounts}
-                            profileStatusCounts={labSearchProfileStatusCounts}
-                          />
-                        </div>
-                      </div>
-                        <table className="patient-table">
-                          <thead>
-                            <tr>
-                              <th>Patient Name</th>
-                              <th>Age</th>
-                              <th>Sex</th>
-                              <th>Classification</th>
-                              <th>Lab Status</th>
-                              <th>Profile Status</th>
-                              <th>Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {/* Use paginatedLabSearchPatients here */}
-                            {paginatedLabSearchPatients.length > 0 ? (
-                              paginatedLabSearchPatients.map((pat) => (
-                                <tr key={pat.patient_id}>
-                                  <td className="patient-name-cell">
-                                    <div className="patient-name-container">
-                                      <img 
-                                        src={pat.patient_picture || "/picture/secretary.png"} 
-                                        alt="Patient Avatar" 
-                                        className="patient-avatar-table"
-                                        onError={(e) => e.target.src = "/picture/secretary.png"}
-                                      />
-                                      <span className="patient-name-text">{pat.first_name} {pat.last_name}</span>
-                                    </div>
-                                  </td>
-                                  <td>{pat.date_of_birth ? Math.floor((new Date() - new Date(pat.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A'}</td>
-                                  <td>{pat.gender || 'N/A'}</td>
-                                  <td className={`classification-cell ${
-                                    pat.lab_status === '❌Awaiting' ? 'classification-awaiting' :
-                                    ((pat.risk_classification || '').toLowerCase() === 'low' ? 'classification-low' :
-                                    (pat.risk_classification || '').toLowerCase() === 'moderate' ? 'classification-moderate' :
-                                    (pat.risk_classification || '').toLowerCase() === 'high' ? 'classification-high' :
-                                    (pat.risk_classification || '').toLowerCase() === 'ppd' ? 'classification-ppd' : '')
-                                  }`}>
-                                    {getClassificationDisplay(pat)}
-                                  </td>
-                                  <td className={
-                                    pat.lab_status === '✅Submitted' ? 'lab-status-submitted' :
-                                    pat.lab_status === 'Pending' ? 'lab-status-pending' :
-                                    pat.lab_status === 'N/A' ? 'lab-status-na' :
-                                    '' }> {pat.lab_status === '❌Awaiting' ? '❌Awaiting' : pat.lab_status || 'N/A'}
-                                  </td>
-                                  <td className={pat.profile_status === 'Finalized' ? 'status-finalized' : 'status-pending'}>
-                                    {pat.profile_status}
-                                  </td>
-                                  <td>
-                                    <div className="lab-actions-buttons">
-                                      <button className="enter-labs-button" onClick={() => handleSelectPatientForLab(pat)}>
-                                        {pat.lab_status === '✅Submitted' ? '🔄 Update': '🧪 Enter Labs'}
-                                      </button>
-                                      <button className="view-labs-button" onClick={() => handleViewPatientLabDetails(pat)}>
-                                        👁️ View
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))
-                            ) : (
-                              <tr>
-                                <td colSpan="7">No patients found.</td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-
-                        {/* Add Pagination Controls for this patient search table */}
-                        {filteredLabSearchPatients.length > LAB_SEARCH_PATIENTS_PER_PAGE && (
-                          <Pagination
-                            currentPage={currentPageLabSearchPatients}
-                            totalPages={totalLabSearchPatientPages}
-                            onPageChange={setCurrentPageLabSearchPatients}
-                            itemsPerPage={LAB_SEARCH_PATIENTS_PER_PAGE}
-                            totalItems={filteredLabSearchPatients.length}
-                          />
-                        )}
-                      </div>
-                    )}
-
-                    {/* Step 2: Lab Input Form */}
-                    {labEntryStep === 2 && (
-                      <div className="lab-step-content">
-                        <h3>Enter Lab Results for {labResults.selectedPatientForLab?.first_name} {labResults.selectedPatientForLab?.last_name}</h3>
-                        <div className="form-row">
-                          <div className="form-group">
-                            <label>Date Submitted:</label>
-                            <input
-                              type="date"
-                              value={labResults.dateSubmitted}
-                              onChange={(e) => handleLabInputChange("dateSubmitted", e.target.value)}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label>HbA1c (%):</label>
-                            <input
-                              type="number"
-                              step="0.1"
-                              placeholder="e.g., 7.0"
-                              value={labResults.Hba1c}
-                              onChange={(e) => handleLabInputChange("Hba1c", e.target.value)}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label>UCR (mg/dL):</label>
-                            <input
-                              type="number"
-                              step="0.1"
-                              placeholder="e.g., 0.8"
-                              value={labResults.UCR}
-                              onChange={(e) => handleLabInputChange("UCR", e.target.value)}
-                            />
-                          </div>
-                        </div>
-                        <div className="form-row">
-                          <div className="form-group">
-                            <label>GOT (AST) (U/L):</label>
-                            <input
-                              type="number"
-                              placeholder="e.g., 25"
-                              value={labResults.gotAst}
-                              onChange={(e) => handleLabInputChange("gotAst", e.target.value)}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label>GPT (ALT) (U/L):</label>
-                            <input
-                              type="number"
-                              placeholder="e.g., 30"
-                              value={labResults.gptAlt}
-                              onChange={(e) => handleLabInputChange("gptAlt", e.target.value)}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label>Cholesterol (mg/dL):</label>
-                            <input
-                              type="number"
-                              placeholder="e.g., 200"
-                              value={labResults.cholesterol}
-                              onChange={(e) => handleLabInputChange("cholesterol", e.target.value)}
-                            />
-                          </div>
-                        </div>
-                        <div className="form-row">
-                          <div className="form-group">
-                            <label>Triglycerides (mg/dL):</label>
-                            <input
-                              type="number"
-                              placeholder="e.g., 150"
-                              value={labResults.triglycerides}
-                              onChange={(e) => handleLabInputChange("triglycerides", e.target.value)}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label>HDL Cholesterol (mg/dL):</label>
-                            <input
-                              type="number"
-                              placeholder="e.g., 50"
-                              value={labResults.hdlCholesterol}
-                              onChange={(e) => handleLabInputChange("hdlCholesterol", e.target.value)}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label>LDL Cholesterol (mg/dL):</label>
-                            <input
-                              type="number"
-                              placeholder="e.g., 100"
-                              value={labResults.ldlCholesterol}
-                              onChange={(e) => handleLabInputChange("ldlCholesterol", e.target.value)}
-                            />
-                          </div>
-                        </div>
-                        <div className="form-row">
-                          <div className="form-group">
-                            <label>UREA (mg/dL):</label>
-                            <input
-                              type="number"
-                              step="0.1"
-                              placeholder="e.g., 20"
-                              value={labResults.UREA}
-                              onChange={(e) => handleLabInputChange("UREA", e.target.value)}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label>BUN (mg/dL):</label>
-                            <input
-                              type="number"
-                              step="0.1"
-                              placeholder="e.g., 15"
-                              value={labResults.BUN}
-                              onChange={(e) => handleLabInputChange("BUN", e.target.value)}
-                            />
-                          </div>
-                        </div>
-                        <div className="form-row">
-                          <div className="form-group">
-                            <label>URIC (mg/dL):</label>
-                            <input
-                              type="number"
-                              step="0.1"
-                              placeholder="e.g., 5"
-                              value={labResults.URIC}
-                              onChange={(e) => handleLabInputChange("URIC", e.target.value)}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label>EGFR (mL/min/1.73m²):</label>
-                            <input
-                              type="number"
-                              step="0.1"
-                              placeholder="e.g., 90"
-                              value={labResults.EGFR}
-                              onChange={(e) => handleLabInputChange("EGFR", e.target.value)}
-                            />
-                          </div>
-                        </div>
-                        <div className="lab-navigation-buttons">
-                          <button className="previous-step-button" onClick={() => setLabEntryStep(1)}>Back</button>
-                          <button className="next-step-button" onClick={() => setLabEntryStep(3)}>Review & Finalize</button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Step 3: Review & Finalize */}
-                    {labEntryStep === 3 && (
-                      <div className="lab-step-content review-step">
-                        <h3>Review Lab Results for {labResults.selectedPatientForLab?.first_name} {labResults.selectedPatientForLab?.last_name}</h3>
-                        <div className="review-details">
-                          <p><strong>Date Submitted:</strong> {labResults.dateSubmitted}</p>
-                          <p><strong>HbA1c:</strong> {labResults.Hba1c} %</p>
-                          <p><strong>UCR:</strong> {labResults.UCR} mg/dL</p>
-                          <p><strong>GOT (AST):</strong> {labResults.gotAst} U/L</p>
-                          <p><strong>GPT (ALT):</strong> {labResults.gptAlt} U/L</p>
-                          <p><strong>Cholesterol:</strong> {labResults.cholesterol} mg/dL</p>
-                          <p><strong>Triglycerides:</strong> {labResults.triglycerides} mg/dL</p>
-                          <p><strong>HDL Cholesterol:</strong> {labResults.hdlCholesterol} mg/dL</p>
-                          <p><strong>LDL Cholesterol:</strong> {labResults.ldlCholesterol} mg/dL</p>
-                          <p><strong>UREA:</strong> {labResults.UREA} mg/dL</p>
-                          <p><strong>BUN:</strong> {labResults.BUN} mg/dL</p>
-                          <p><strong>URIC:</strong> {labResults.URIC} mg/dL</p>
-                          <p><strong>EGFR:</strong> {labResults.EGFR} mL/min/1.73m²</p>
-                        </div>
-                        <p className="final-warning">
-                          <i className="fas fa-exclamation-triangle"></i> Once finalized, these lab results cannot be edited. Please ensure all data is accurate.
-                        </p>
-                        <div className="lab-navigation-buttons">
-                          <button className="previous-step-button" onClick={() => setLabEntryStep(2)}>Go Back to Edit</button>
-                          <button className="next-step-button" onClick={handleFinalizeLabSubmission}>Finalize Submission</button>
-                        </div>
-                      </div>
-                    )}
-
-                    {message && <p className="form-message">{message}</p>}
-
-                  </div>
-
-                  {/* Success Modal */}
-                  {showSuccessModal && (
-                    <div className="modal-backdrop">
-                      <div className="modal-content success-modal">
-                        <img src="/picture/labentry.png" alt="Lab Entry Success" className="success-icon" />
-                        <div className="modal-text-content">
-                          <h2 className="modal-title">Lab Results Successfully Submitted & Locked</h2>
-                          <p className="modal-subtext">
-                            The laboratory data has been securely stored and is now locked for editing to ensure accuracy and audit compliance. 
-                          </p>
-                          <p className="modal-subtext">You may now proceed to finalize the patient profile with the attending doctor.</p>
-                          <button className="modal-green-button" onClick={() => {
-                            setShowSuccessModal(false);
-                            setLabEntryStep(1); // Reset to step 1 (patient search)
-                            setActivePage("dashboard"); // Optionally navigate to dashboard or patient list
-                          }}>
-                            Done
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
+                <LabResultEntrySection
+                  labEntryStep={labEntryStep}
+                  setLabEntryStep={setLabEntryStep}
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
+                  selectedLabRiskFilter={selectedLabRiskFilter}
+                  onLabRiskFilterChange={handleLabRiskFilterChange}
+                  selectedLabEntryLabStatusFilter={selectedLabEntryLabStatusFilter}
+                  onLabEntryLabStatusFilterChange={handleLabEntryLabStatusFilterChange}
+                  selectedLabEntryProfileStatusFilter={selectedLabEntryProfileStatusFilter}
+                  onLabEntryProfileStatusFilterChange={handleLabEntryProfileStatusFilterChange}
+                  labEntrySortOrder={labEntrySortOrder}
+                  onLabEntrySortOrderChange={handleLabEntrySortOrderChange}
+                  labSearchRiskCounts={labSearchRiskCounts}
+                  labSearchLabStatusCounts={labSearchLabStatusCounts}
+                  labSearchProfileStatusCounts={labSearchProfileStatusCounts}
+                  paginatedLabSearchPatients={paginatedLabSearchPatients}
+                  getClassificationDisplay={getClassificationDisplay}
+                  onSelectPatientForLab={handleSelectPatientForLab}
+                  onViewPatientLabDetails={handleViewPatientLabDetails}
+                  filteredLabSearchPatients={filteredLabSearchPatients}
+                  labSearchPatientsPerPage={LAB_SEARCH_PATIENTS_PER_PAGE}
+                  currentPageLabSearchPatients={currentPageLabSearchPatients}
+                  setCurrentPageLabSearchPatients={setCurrentPageLabSearchPatients}
+                  totalLabSearchPatientPages={totalLabSearchPatientPages}
+                  labResults={labResults}
+                  onLabInputChange={handleLabInputChange}
+                  onFinalizeLabSubmission={handleFinalizeLabSubmission}
+                  message={message}
+                  showSuccessModal={showSuccessModal}
+                  setShowSuccessModal={setShowSuccessModal}
+                  setActivePage={setActivePage}
+                />
               )}
 
               {/* New Lab Details View Section */}
@@ -5246,3 +4908,5 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
       };
 
       export default SecretaryDashboard;
+
+
