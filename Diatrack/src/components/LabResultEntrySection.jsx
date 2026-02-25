@@ -184,16 +184,16 @@ const LabResultEntrySection = ({
                                 : ""
                         }
                       >
-                        {pat.lab_status === "?Awaiting" ? "?Awaiting" : pat.lab_status || "N/A"}
+                        {pat.lab_status === "❌ Awaiting" ? "❌ Awaiting" : pat.lab_status || "N/A"}
                       </td>
                       <td className={pat.profile_status === "Finalized" ? "status-finalized" : "status-pending"}>{pat.profile_status}</td>
                       <td>
                         <div className="lab-actions-buttons">
                           <button className="enter-labs-button" onClick={() => onSelectPatientForLab(pat)}>
-                            {pat.lab_status === "?Submitted" ? "?? Update" : "?? Enter Labs"}
+                            {pat.lab_status === "✅ Submitted" ? "🔄 Update" : "🧪 Enter Labs"}
                           </button>
                           <button className="view-labs-button" onClick={() => onViewPatientLabDetails(pat)}>
-                            ??? View
+                            👁️ View
                           </button>
                         </div>
                       </td>
@@ -234,7 +234,7 @@ const LabResultEntrySection = ({
                 <input type="number" step="0.1" placeholder="e.g., 7.0" value={labResults.Hba1c} onChange={(e) => onLabInputChange("Hba1c", e.target.value)} />
               </div>
               <div className="form-group">
-                <label>UCR (mg/dL):</label>
+                <label>UCR:</label>
                 <input type="number" step="0.1" placeholder="e.g., 0.8" value={labResults.UCR} onChange={(e) => onLabInputChange("UCR", e.target.value)} />
               </div>
             </div>
@@ -248,41 +248,41 @@ const LabResultEntrySection = ({
                 <input type="number" placeholder="e.g., 30" value={labResults.gptAlt} onChange={(e) => onLabInputChange("gptAlt", e.target.value)} />
               </div>
               <div className="form-group">
-                <label>Cholesterol (mg/dL):</label>
+                <label>Cholesterol:</label>
                 <input type="number" placeholder="e.g., 200" value={labResults.cholesterol} onChange={(e) => onLabInputChange("cholesterol", e.target.value)} />
               </div>
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label>Triglycerides (mg/dL):</label>
+                <label>Triglycerides:</label>
                 <input type="number" placeholder="e.g., 150" value={labResults.triglycerides} onChange={(e) => onLabInputChange("triglycerides", e.target.value)} />
               </div>
               <div className="form-group">
-                <label>HDL Cholesterol (mg/dL):</label>
+                <label>HDL Cholesterol:</label>
                 <input type="number" placeholder="e.g., 50" value={labResults.hdlCholesterol} onChange={(e) => onLabInputChange("hdlCholesterol", e.target.value)} />
               </div>
               <div className="form-group">
-                <label>LDL Cholesterol (mg/dL):</label>
+                <label>LDL Cholesterol:</label>
                 <input type="number" placeholder="e.g., 100" value={labResults.ldlCholesterol} onChange={(e) => onLabInputChange("ldlCholesterol", e.target.value)} />
               </div>
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label>UREA (mg/dL):</label>
+                <label>UREA:</label>
                 <input type="number" step="0.1" placeholder="e.g., 20" value={labResults.UREA} onChange={(e) => onLabInputChange("UREA", e.target.value)} />
               </div>
               <div className="form-group">
-                <label>BUN (mg/dL):</label>
+                <label>BUN:</label>
                 <input type="number" step="0.1" placeholder="e.g., 15" value={labResults.BUN} onChange={(e) => onLabInputChange("BUN", e.target.value)} />
               </div>
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label>URIC (mg/dL):</label>
+                <label>URIC:</label>
                 <input type="number" step="0.1" placeholder="e.g., 5" value={labResults.URIC} onChange={(e) => onLabInputChange("URIC", e.target.value)} />
               </div>
               <div className="form-group">
-                <label>EGFR (mL/min/1.73m�):</label>
+                <label>EGFR (mL/min/1.73m²):</label>
                 <input type="number" step="0.1" placeholder="e.g., 90" value={labResults.EGFR} onChange={(e) => onLabInputChange("EGFR", e.target.value)} />
               </div>
             </div>
@@ -318,7 +318,7 @@ const LabResultEntrySection = ({
               <p><strong>EGFR:</strong> {labResults.EGFR} mL/min/1.73m�</p>
             </div>
             <p className="final-warning">
-              <i className="fas fa-exclamation-triangle"></i> Once finalized, these lab results cannot be edited. Please ensure all data is accurate.
+              <img src="/picture/caution.png" alt="caution" /> Once finalized, these lab results cannot be edited. Please ensure all data is accurate.
             </p>
             <div className="lab-navigation-buttons">
               <button className="previous-step-button" onClick={() => setLabEntryStep(2)}>

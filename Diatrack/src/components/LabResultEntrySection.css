@@ -176,10 +176,12 @@
   text-align: center;
 }
 
-.final-warning .fas.fa-exclamation-triangle {
+.final-warning img{
   color: #ffc107;
-  font-size: 20px;
+  width: 20px;
+  height: 20px;
 }
+
 
 .lab-navigation-buttons {
   display: flex;
