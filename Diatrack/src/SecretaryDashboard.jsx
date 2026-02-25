@@ -4534,23 +4534,22 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                       <img src="/picture/back.png" alt="Back" className="button-icon back-icon" /> Back to Lab Entry
                     </button>
                   </div>
-                  <div className="lab-history-table-container">
-                    <table className="patient-table"> {/* Reuse patient-table for styling */}
+                    <table className="patient-table lab-history-table"> {/* Reuse patient-table for styling */}
                       <thead>
                         <tr>
                           <th>Date Submitted</th>
-                          <th>HbA1c (%)</th>
-                          <th>UCR (mg/dL)</th>
-                          <th>GOT (AST) (U/L)</th>
-                          <th>GPT (ALT) (U/L)</th>
-                          <th>Cholesterol (mg/dL)</th>
-                          <th>Triglycerides (mg/dL)</th>
-                          <th>HDL (mg/dL)</th>
-                          <th>LDL (mg/dL)</th>
-                          <th>UREA (mg/dL)</th>
-                          <th>BUN (mg/dL)</th>
-                          <th>URIC (mg/dL)</th>
-                          <th>EGFR (mL/min/1.73mÂ²)</th>
+                          <th>HbA1c</th>
+                          <th>GPT(ALT)</th>
+                          <th>GOT(AST)</th>
+                          <th>Triglycerides</th>
+                          <th>Cholesterol</th>
+                          <th>UCR</th>
+                          <th>HDL</th>
+                          <th>LDL</th>
+                          <th>UREA</th>
+                          <th>BUN</th>
+                          <th>URIC</th>
+                          <th>EGFR</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -4559,11 +4558,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                             <tr key={index}>
                               <td>{formatDateToReadable(labEntry.date_submitted)}</td>
                               <td>{labEntry.Hba1c || 'N/A'}</td>
-                              <td>{labEntry.ucr || 'N/A'}</td>
-                              <td>{labEntry.got_ast || 'N/A'}</td>
                               <td>{labEntry.gpt_alt || 'N/A'}</td>
-                              <td>{labEntry.cholesterol || 'N/A'}</td>
+                              <td>{labEntry.got_ast || 'N/A'}</td>
                               <td>{labEntry.triglycerides || 'N/A'}</td>
+                              <td>{labEntry.cholesterol || 'N/A'}</td>
+                              <td>{labEntry.ucr || 'N/A'}</td>
                               <td>{labEntry.hdl_cholesterol || 'N/A'}</td>
                               <td>{labEntry.ldl_cholesterol || 'N/A'}</td>
                               <td>{labEntry.urea || 'N/A'}</td>
@@ -4574,12 +4573,11 @@ const [woundPhotoData, setWoundPhotoData] = useState([]);
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="9">No lab results history available for this patient.</td>
+                            <td colSpan="13">No lab results history available for this patient.</td>
                           </tr>
                         )}
                       </tbody>
                     </table>
-                  </div>
                 </div>
               )}
 {activePage === "reports" && (
