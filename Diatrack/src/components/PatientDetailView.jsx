@@ -532,8 +532,8 @@ const PatientDetailView = ({
             </>
           )}
 
-          {/* History Tab Content */}
-          {activeTab === "history" && (
+          {/* Charts Tab - Left Column Content */}
+          {activeTab === "charts" && (
             <div className="history-charts-section">
               {/* Blood Pressure Chart */}
               <div className="blood-pressure-chart-container">
@@ -1096,8 +1096,8 @@ const PatientDetailView = ({
           </div>
         )}
 
-        {/* Charts Tab */}
-        {activeTab === "charts" && (
+        {/* History Tab */}
+        {activeTab === "history" && (
           <div className="health-metrics-history-section" style={{gridColumn: '1 / -1'}}>
             <h3>Health Metrics History</h3>
             <table className="health-metrics-table">
