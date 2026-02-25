@@ -100,7 +100,7 @@ const ReportWidget = ({ title, count, subtitle, icon, fallbackIcon, color, histo
         />
         <h4>{title}</h4>
         {onViewClick && (
-          <button className="report-widget-view-button" onClick={onViewClick}>View</button>
+          <button className="report-widget-view-button" onClick={onViewClick}>👁️ View</button>
         )}
       </div>
       <div className="report-widget-content">
