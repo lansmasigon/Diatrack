@@ -3561,7 +3561,7 @@ const renderReportsContent = () => {
                   <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
                     <h4 style={{ fontSize: '16px', marginBottom: '10px' }}>AI Diagnosis</h4>
                     <p><strong>Classification:</strong> {analysisResults.className}</p>
-                    <p><strong>Confidence:</strong> {(analysisResults.probability * 100).toFixed(2)}%</p>
+                    <p><strong>Probability:</strong> {(analysisResults.probability * 100).toFixed(2)}%</p>
                     {analysisResults.prediction === 0 && (
                       <p><strong>Ulcer Area:</strong> {analysisResults.ulcerArea.toFixed(2)}% of total area</p>
                     )}
